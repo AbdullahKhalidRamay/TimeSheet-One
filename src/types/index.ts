@@ -42,6 +42,7 @@ export interface Project {
   id: string;
   name: string;
   levels: ProjectLevel[];
+  isBillable: boolean;
   createdBy: string;
   createdAt: string;
 }
@@ -69,6 +70,7 @@ export interface Product {
   id: string;
   name: string;
   stages: ProductStage[];
+  isBillable: boolean;
   createdBy: string;
   createdAt: string;
 }
@@ -96,6 +98,7 @@ export interface Department {
   id: string;
   name: string;
   functions: DepartmentFunction[];
+  isBillable: boolean;
   createdBy: string;
   createdAt: string;
 }
@@ -103,20 +106,41 @@ export interface Department {
 export interface DepartmentFunction {
   id: string;
   name: string;
-  duties: Duty[];
+  duties: DepartmentDuty[];
 }
 
-export interface Duty {
+export interface DepartmentDuty {
   id: string;
   name: string;
   description: string;
-  tasks: DutyTask[];
+  subduties: DepartmentSubduty[];
 }
 
-export interface DutyTask {
+export interface DepartmentSubduty {
   id: string;
   name: string;
   description: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  description?: string;
+  memberIds: string[];
+  leaderId?: string;
+  associatedProjects: string[];
+  associatedProducts: string[];
+  associatedDepartments: string[];
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface TeamMember {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: UserRole;
+  joinedAt: string;
 }
 
 export interface Notification {
@@ -124,7 +148,7 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'status_change' | 'approval' | 'rejection';
+  type: 'status_change' | 'approval' | 'rejection' | 'daily_reminder' | 'weekly_reminder';
   isRead: boolean;
   createdAt: string;
   relatedEntryId?: string;

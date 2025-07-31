@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import CreateProjectForm from "@/components/forms/CreateProjectForm";
+import CreateProductForm from "@/components/forms/CreateProductForm";
+import CreateDepartmentForm from "@/components/forms/CreateDepartmentForm";
 import { Badge } from "@/components/ui/badge";
 import { FolderOpen, Plus, Building2, Package, Users } from "lucide-react";
 import Header from "@/components/layout/Header";
@@ -14,6 +17,9 @@ export default function Projects() {
   const [products, setProducts] = useState<Product[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isProjectFormOpen, setProjectFormOpen] = useState(false);
+  const [isProductFormOpen, setProductFormOpen] = useState(false);
+  const [isDepartmentFormOpen, setDepartmentFormOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -34,6 +40,21 @@ export default function Projects() {
     return items.filter(item => 
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+  };
+
+  const handleProjectSuccess = () => {
+    setProjectFormOpen(false);
+    loadData();
+  };
+
+  const handleProductSuccess = () => {
+    setProductFormOpen(false);
+    loadData();
+  };
+
+  const handleDepartmentSuccess = () => {
+    setDepartmentFormOpen(false);
+    loadData();
   };
 
   return (
@@ -61,7 +82,7 @@ export default function Projects() {
           <TabsContent value="projects" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">Projects</h2>
-              <Button>
+              <Button onClick={() => setProjectFormOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create New Project
               </Button>
@@ -110,7 +131,7 @@ export default function Projects() {
           <TabsContent value="products" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">Products</h2>
-              <Button>
+              <Button onClick={() => setProductFormOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create New Product
               </Button>
@@ -159,7 +180,7 @@ export default function Projects() {
           <TabsContent value="departments" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">Departments</h2>
-              <Button>
+              <Button onClick={() => setDepartmentFormOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create New Department
               </Button>
@@ -206,6 +227,24 @@ export default function Projects() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <CreateProjectForm
+        isOpen={isProjectFormOpen} 
+        onClose={() => setProjectFormOpen(false)} 
+        onSuccess={handleProjectSuccess}
+      />
+
+      <CreateProductForm
+        isOpen={isProductFormOpen} 
+        onClose={() => setProductFormOpen(false)}
+        onSuccess={handleProductSuccess}
+      />
+
+      <CreateDepartmentForm
+        isOpen={isDepartmentFormOpen}
+        onClose={() => setDepartmentFormOpen(false)}
+        onSuccess={handleDepartmentSuccess}
+      />
     </div>
   );
 }

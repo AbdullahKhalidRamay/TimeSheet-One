@@ -7,20 +7,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2 } from "lucide-react";
-import { saveProject, generateId } from "@/utils/storage";
+import { saveProduct, generateId } from "@/utils/storage";
 import { getCurrentUser } from "@/utils/auth";
-import { Project, ProjectLevel, ProjectTask, ProjectSubtask } from "@/types";
+import { Product, ProductStage, ProductTask, ProductSubtask } from "@/types";
 
-interface CreateProjectFormProps {
+interface CreateProductFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function CreateProjectForm({ isOpen, onClose, onSuccess }: CreateProjectFormProps) {
-  const [projectName, setProjectName] = useState("");
+export default function CreateProductForm({ isOpen, onClose, onSuccess }: CreateProductFormProps) {
+  const [productName, setProductName] = useState("");
   const [isBillable, setIsBillable] = useState(false);
-  const [levels, setLevels] = useState<ProjectLevel[]>([
+  const [stages, setStages] = useState<ProductStage[]>([
     {
       id: generateId(),
       name: "",
@@ -30,63 +30,63 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
 
   const currentUser = getCurrentUser();
 
-  const addLevel = () => {
-    setLevels([...levels, {
+  const addStage = () => {
+    setStages([...stages, {
       id: generateId(),
       name: "",
       tasks: []
     }]);
   };
 
-  const removeLevel = (levelId: string) => {
-    setLevels(levels.filter(level => level.id !== levelId));
+  const removeStage = (stageId: string) => {
+    setStages(stages.filter(stage => stage.id !== stageId));
   };
 
-  const updateLevel = (levelId: string, name: string) => {
-    setLevels(levels.map(level => 
-      level.id === levelId ? { ...level, name } : level
+  const updateStage = (stageId: string, name: string) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? { ...stage, name } : stage
     ));
   };
 
-  const addTask = (levelId: string) => {
-    setLevels(levels.map(level => 
-      level.id === levelId ? {
-        ...level,
-        tasks: [...level.tasks, {
+  const addTask = (stageId: string) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? {
+        ...stage,
+        tasks: [...stage.tasks, {
           id: generateId(),
           name: "",
           description: "",
           subtasks: []
         }]
-      } : level
+      } : stage
     ));
   };
 
-  const removeTask = (levelId: string, taskId: string) => {
-    setLevels(levels.map(level => 
-      level.id === levelId ? {
-        ...level,
-        tasks: level.tasks.filter(task => task.id !== taskId)
-      } : level
+  const removeTask = (stageId: string, taskId: string) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? {
+        ...stage,
+        tasks: stage.tasks.filter(task => task.id !== taskId)
+      } : stage
     ));
   };
 
-  const updateTask = (levelId: string, taskId: string, field: keyof ProjectTask, value: string) => {
-    setLevels(levels.map(level => 
-      level.id === levelId ? {
-        ...level,
-        tasks: level.tasks.map(task => 
+  const updateTask = (stageId: string, taskId: string, field: keyof ProductTask, value: string) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? {
+        ...stage,
+        tasks: stage.tasks.map(task => 
           task.id === taskId ? { ...task, [field]: value } : task
         )
-      } : level
+      } : stage
     ));
   };
 
-  const addSubtask = (levelId: string, taskId: string) => {
-    setLevels(levels.map(level => 
-      level.id === levelId ? {
-        ...level,
-        tasks: level.tasks.map(task => 
+  const addSubtask = (stageId: string, taskId: string) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? {
+        ...stage,
+        tasks: stage.tasks.map(task => 
           task.id === taskId ? {
             ...task,
             subtasks: [...task.subtasks, {
@@ -96,29 +96,29 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
             }]
           } : task
         )
-      } : level
+      } : stage
     ));
   };
 
-  const removeSubtask = (levelId: string, taskId: string, subtaskId: string) => {
-    setLevels(levels.map(level => 
-      level.id === levelId ? {
-        ...level,
-        tasks: level.tasks.map(task => 
+  const removeSubtask = (stageId: string, taskId: string, subtaskId: string) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? {
+        ...stage,
+        tasks: stage.tasks.map(task => 
           task.id === taskId ? {
             ...task,
             subtasks: task.subtasks.filter(subtask => subtask.id !== subtaskId)
           } : task
         )
-      } : level
+      } : stage
     ));
   };
 
-  const updateSubtask = (levelId: string, taskId: string, subtaskId: string, field: keyof ProjectSubtask, value: string) => {
-    setLevels(levels.map(level => 
-      level.id === levelId ? {
-        ...level,
-        tasks: level.tasks.map(task => 
+  const updateSubtask = (stageId: string, taskId: string, subtaskId: string, field: keyof ProductSubtask, value: string) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? {
+        ...stage,
+        tasks: stage.tasks.map(task => 
           task.id === taskId ? {
             ...task,
             subtasks: task.subtasks.map(subtask => 
@@ -126,33 +126,34 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
             )
           } : task
         )
-      } : level
+      } : stage
     ));
   };
 
   const handleSubmit = () => {
-    if (!projectName.trim()) {
-      alert("Please enter a project name");
+    if (!productName.trim()) {
+      alert("Please enter a product name");
       return;
     }
 
-    const project: Project = {
+    const product: Product = {
       id: generateId(),
-      name: projectName,
-      levels: levels.filter(level => level.name.trim()),
+      name: productName,
+      stages: stages.filter(stage => stage.name.trim()),
       isBillable,
       createdBy: currentUser?.name || "Unknown",
       createdAt: new Date().toISOString()
     };
 
-    saveProject(project);
+    saveProduct(product);
     onSuccess();
     handleClose();
   };
 
   const handleClose = () => {
-    setProjectName("");
-    setLevels([{
+    setProductName("");
+    setIsBillable(false);
+    setStages([{
       id: generateId(),
       name: "",
       tasks: []
@@ -164,18 +165,18 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Project</DialogTitle>
+          <DialogTitle>Create New Product</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Project Name */}
+          {/* Product Name */}
           <div className="space-y-2">
-            <Label htmlFor="projectName">Project Name</Label>
+            <Label htmlFor="productName">Product Name</Label>
             <Input
-              id="projectName"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Enter project name"
+              id="productName"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              placeholder="Enter product name"
             />
           </div>
 
@@ -186,35 +187,35 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
               checked={isBillable}
               onCheckedChange={(checked) => setIsBillable(checked as boolean)}
             />
-            <Label htmlFor="isBillable">This project is billable</Label>
+            <Label htmlFor="isBillable">This product is billable</Label>
           </div>
 
-          {/* Project Levels */}
+          {/* Product Stages */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Project Levels</Label>
-              <Button type="button" onClick={addLevel} size="sm">
+              <Label>Product Stages</Label>
+              <Button type="button" onClick={addStage} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Level
+                Add Stage
               </Button>
             </div>
 
-            {levels.map((level, levelIndex) => (
-              <Card key={level.id} className="p-4">
+            {stages.map((stage, stageIndex) => (
+              <Card key={stage.id} className="p-4">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Input
-                      value={level.name}
-                      onChange={(e) => updateLevel(level.id, e.target.value)}
-                      placeholder="Level name"
+                      value={stage.name}
+                      onChange={(e) => updateStage(stage.id, e.target.value)}
+                      placeholder="Stage name"
                       className="flex-1"
                     />
-                    {levels.length > 1 && (
+                    {stages.length > 1 && (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => removeLevel(level.id)}
+                        onClick={() => removeStage(stage.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -229,20 +230,20 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => addTask(level.id)}
+                        onClick={() => addTask(stage.id)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Task
                       </Button>
                     </div>
 
-                    {level.tasks.map((task) => (
+                    {stage.tasks.map((task) => (
                       <Card key={task.id} className="p-3 ml-4">
                         <div className="space-y-3">
                           <div className="flex items-center space-x-2">
                             <Input
                               value={task.name}
-                              onChange={(e) => updateTask(level.id, task.id, 'name', e.target.value)}
+                              onChange={(e) => updateTask(stage.id, task.id, 'name', e.target.value)}
                               placeholder="Task name"
                               className="flex-1"
                             />
@@ -250,14 +251,14 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => removeTask(level.id, task.id)}
+                              onClick={() => removeTask(stage.id, task.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                           <Textarea
                             value={task.description}
-                            onChange={(e) => updateTask(level.id, task.id, 'description', e.target.value)}
+                            onChange={(e) => updateTask(stage.id, task.id, 'description', e.target.value)}
                             placeholder="Task description"
                             rows={2}
                           />
@@ -270,7 +271,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => addSubtask(level.id, task.id)}
+                                onClick={() => addSubtask(stage.id, task.id)}
                               >
                                 <Plus className="h-3 w-3 mr-2" />
                                 Add Subtask
@@ -282,12 +283,13 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
                                 <div className="flex-1 space-y-2">
                                   <Input
                                     value={subtask.name}
-                                    onChange={(e) => updateSubtask(level.id, task.id, subtask.id, 'name', e.target.value)}
+                                    onChange={(e) => updateSubtask(stage.id, task.id, subtask.id, 'name', e.target.value)}
                                     placeholder="Subtask name"
+                                    size="sm"
                                   />
                                   <Textarea
                                     value={subtask.description}
-                                    onChange={(e) => updateSubtask(level.id, task.id, subtask.id, 'description', e.target.value)}
+                                    onChange={(e) => updateSubtask(stage.id, task.id, subtask.id, 'description', e.target.value)}
                                     placeholder="Subtask description"
                                     rows={1}
                                   />
@@ -296,7 +298,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => removeSubtask(level.id, task.id, subtask.id)}
+                                  onClick={() => removeSubtask(stage.id, task.id, subtask.id)}
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
@@ -318,7 +320,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
             Cancel
           </Button>
           <Button onClick={handleSubmit}>
-            Create Project
+            Create Product
           </Button>
         </DialogFooter>
       </DialogContent>

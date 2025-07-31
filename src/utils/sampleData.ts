@@ -1,6 +1,6 @@
-import { saveTimeEntry, saveProject, saveProduct, saveDepartment, generateId } from './storage';
+import { saveTimeEntry, saveProject, saveProduct, saveDepartment, saveTeam, generateId } from './storage';
 import { getCurrentUser, getAllUsers } from './auth';
-import { TimeEntry, Project, Product, Department, ProjectDetail } from '@/types';
+import { TimeEntry, Project, Product, Department, ProjectDetail, Team } from '@/types';
 
 export const initializeSampleData = () => {
   // Only initialize if no data exists
@@ -11,10 +11,12 @@ export const initializeSampleData = () => {
   const currentUser = getCurrentUser();
 
   // Sample Projects
+  const projectId1 = generateId();
   const sampleProjects: Project[] = [
     {
-      id: generateId(),
+      id: projectId1,
       name: 'Mobile App Development',
+      isBillable: true,
       levels: [
         {
           id: generateId(),
@@ -62,10 +64,12 @@ export const initializeSampleData = () => {
   ];
 
   // Sample Products
+  const productId1 = generateId();
   const sampleProducts: Product[] = [
     {
-      id: generateId(),
+      id: productId1,
       name: 'Timesheet Software',
+      isBillable: false,
       stages: [
         {
           id: generateId(),
@@ -104,9 +108,10 @@ export const initializeSampleData = () => {
   ];
 
   // Sample Departments
+  const departmentId1 = generateId();
   const sampleDepartments: Department[] = [
     {
-      id: generateId(),
+      id: departmentId1,
       name: 'Engineering',
       functions: [
         {
@@ -117,7 +122,7 @@ export const initializeSampleData = () => {
               id: generateId(),
               name: 'Code Review',
               description: 'Review team code submissions',
-              tasks: [
+              subduties: [
                 { id: generateId(), name: 'Frontend Review', description: 'Review frontend code changes' },
                 { id: generateId(), name: 'Backend Review', description: 'Review backend code changes' }
               ]
@@ -126,7 +131,7 @@ export const initializeSampleData = () => {
               id: generateId(),
               name: 'Documentation',
               description: 'Maintain technical documentation',
-              tasks: [
+              subduties: [
                 { id: generateId(), name: 'API Documentation', description: 'Document API endpoints' },
                 { id: generateId(), name: 'User Guide', description: 'Write user documentation' }
               ]
@@ -134,6 +139,7 @@ export const initializeSampleData = () => {
           ]
         }
       ],
+      isBillable: true,
       createdBy: 'System',
       createdAt: new Date().toISOString()
     }
@@ -189,11 +195,52 @@ export const initializeSampleData = () => {
     }
   ];
 
+  // Sample Teams
+  const sampleTeams: Team[] = [
+    {
+      id: generateId(),
+      name: 'Frontend Development Team',
+      description: 'Team responsible for frontend development tasks',
+      memberIds: [users[3].id], // Employee (Alice)
+      leaderId: users[1].id, // Manager (Jane)
+      associatedProjects: [projectId1],
+      associatedProducts: [],
+      associatedDepartments: [],
+      createdBy: users[0].id, // Owner
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: generateId(),
+      name: 'Product Development Team',
+      description: 'Team working on product development and testing',
+      memberIds: [users[2].id, users[3].id], // Finance Manager and Employee
+      leaderId: users[1].id, // Manager
+      associatedProjects: [],
+      associatedProducts: [productId1],
+      associatedDepartments: [],
+      createdBy: users[0].id, // Owner
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: generateId(),
+      name: 'Engineering Department Team',
+      description: 'Core engineering team handling department duties',
+      memberIds: [users[2].id], // Finance Manager
+      leaderId: users[1].id, // Manager
+      associatedProjects: [],
+      associatedProducts: [],
+      associatedDepartments: [departmentId1],
+      createdBy: users[0].id, // Owner
+      createdAt: new Date().toISOString()
+    }
+  ];
+
   // Save sample data
   sampleProjects.forEach(saveProject);
   sampleProducts.forEach(saveProduct);
   sampleDepartments.forEach(saveDepartment);
   sampleTimeEntries.forEach(saveTimeEntry);
+  sampleTeams.forEach(saveTeam);
 
   console.log('Sample data initialized successfully');
 };
