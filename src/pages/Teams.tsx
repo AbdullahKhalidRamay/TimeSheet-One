@@ -9,12 +9,14 @@ import Header from "@/components/layout/Header";
 import { getAllUsers, getCurrentUser } from "@/utils/auth";
 import { User } from "@/types";
 import { rolePermissions } from "@/types";
+import CreateTeamForm from "@/components/forms/CreateTeamForm";
 
 export default function Teams() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [isCreateTeamOpen, setCreateTeamOpen] = useState(false);
   const currentUser = getCurrentUser();
 
   useEffect(() => {
@@ -72,9 +74,9 @@ export default function Teams() {
         onSearch={handleSearch}
       >
         {permissions.canManageTeams && (
-          <Button>
+          <Button onClick={() => setCreateTeamOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" />
-            Add Full Member
+            Create Team
           </Button>
         )}
         <Button variant="outline">
@@ -251,6 +253,12 @@ export default function Teams() {
           </CardContent>
         </Card>
       </div>
+      
+      <CreateTeamForm 
+        isOpen={isCreateTeamOpen} 
+        onClose={() => setCreateTeamOpen(false)} 
+        onSuccess={loadUsers} 
+      />
     </div>
   );
 }
