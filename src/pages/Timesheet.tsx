@@ -1,23 +1,26 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Edit, Trash2, DollarSign, Search, Clock, BarChart3, Timer, Calendar as CalendarIcon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { getCurrentUser } from "@/utils/auth";
 import { getTimeEntries, deleteTimeEntry } from "@/utils/storage";
 import { TimeEntry } from "@/types";
 import { rolePermissions } from "@/types";
 import { formatTime } from "@/utils/storage";
+import { useNavigate } from "react-router-dom";
 
 export default function Timesheet() {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedWeek, setSelectedWeek] = useState("current");
+  const [dateFilter, setDateFilter] = useState("2weeks");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   const currentUser = getCurrentUser();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadTimeEntries();
@@ -46,21 +49,64 @@ export default function Timesheet() {
     }
   };
 
+const getDateRange = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (dateFilter) {
+      case '2weeks':
+        return new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+      case '1month':
+        return new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case '3months':
+        return new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+      default:
+        return new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+    }
+  };
+
   const filteredEntries = timeEntries.filter(entry => {
-    if (!searchQuery) return true;
-    return (
+    const matchesSearch = !searchQuery ||
       entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.date.includes(searchQuery)
-    );
+      entry.date.includes(searchQuery);
+
+    const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
+    
+    const entryDate = new Date(entry.date);
+    const dateRange = getDateRange();
+    const matchesDateFilter = entryDate >= dateRange;
+
+    // Get user by userId to check role
+    const entryUser = timeEntries.find(e => e.userId === entry.userId);
+    const userRole = entryUser ? entryUser.userName : 'employee'; // This should be improved to get actual role
+    const matchesRole = roleFilter === 'all' || entry.userName.toLowerCase().includes(roleFilter.toLowerCase());
+
+    return matchesSearch && matchesStatus && matchesDateFilter && matchesRole;
   });
 
-  // Calculate summary statistics
-  const totalHours = filteredEntries.reduce((sum, entry) => sum + entry.totalHours, 0);
-  const regularHours = filteredEntries.filter(e => e.totalHours <= 8).reduce((sum, entry) => sum + entry.totalHours, 0);
-  const overtimeHours = Math.max(0, totalHours - regularHours);
-  const daysWorked = new Set(filteredEntries.map(e => e.date)).size;
+  // Group entries by date and sum hours for the same date
+  const groupedEntries = filteredEntries.reduce((groups, entry) => {
+    const date = entry.date;
+    if (!groups[date]) {
+      groups[date] = {
+        ...entry,
+        totalHours: 0,
+        entries: []
+      };
+    }
+    groups[date].totalHours += entry.totalHours;
+    groups[date].entries.push(entry);
+    return groups;
+  }, {} as Record<string, any>);
+
+  // Calculate summary statistics based on grouped data
+  const dailySummaries = Object.values(groupedEntries);
+  const totalHours = dailySummaries.reduce((sum, day: any) => sum + day.totalHours, 0);
+  const regularHours = dailySummaries.filter((day: any) => day.totalHours <= 8).reduce((sum, day: any) => sum + day.totalHours, 0);
+  const overtimeHours = dailySummaries.filter((day: any) => day.totalHours > 8).reduce((sum, day: any) => sum + (day.totalHours - 8), 0);
+  const daysWorked = dailySummaries.length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -83,6 +129,41 @@ export default function Timesheet() {
     return entry.status === 'pending';
   };
 
+  const handleAddEntry = () => {
+    navigate('/time-tracker');
+  };
+
+  const handleExport = () => {
+    // Export functionality
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      "Date,Employee,Project,Task,Hours,Status\n" +
+      filteredEntries.map(entry => 
+        `${entry.date},${entry.userName},${entry.projectDetails.name},${entry.task},${entry.totalHours},${entry.status}`
+      ).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "timesheet.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSubmitTimesheet = () => {
+    // Submit timesheet functionality - mark all pending entries as submitted
+    const pendingEntries = filteredEntries.filter(entry => 
+      entry.status === 'pending' && entry.userId === currentUser?.id
+    );
+    
+    if (pendingEntries.length === 0) {
+      alert('No pending entries to submit');
+      return;
+    }
+    
+    alert(`Submitted ${pendingEntries.length} entries for approval`);
+  };
+
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
   return (
@@ -93,15 +174,15 @@ export default function Timesheet() {
         searchPlaceholder="Search by project, task, employee..."
         onSearch={handleSearch}
       >
-        <Button className="bg-primary hover:bg-primary-hover">
+        <Button className="bg-primary hover:bg-primary-hover" onClick={handleAddEntry}>
           <Calendar className="mr-2 h-4 w-4" />
           Add Entry
         </Button>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExport}>
           <BarChart3 className="mr-2 h-4 w-4" />
           Export
         </Button>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleSubmitTimesheet}>
           Submit Timesheet
         </Button>
       </Header>
@@ -174,26 +255,42 @@ export default function Timesheet() {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className="text-sm font-medium">Filters:</span>
-            <select className="px-3 py-1 border border-border rounded-md text-sm">
-              <option value="2weeks">2 Weeks</option>
-              <option value="1month">1 Month</option>
-              <option value="3months">3 Months</option>
-            </select>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2weeks">2 Weeks</SelectItem>
+                <SelectItem value="1month">1 Month</SelectItem>
+                <SelectItem value="3months">3 Months</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <select className="px-3 py-1 border border-border rounded-md text-sm">
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <select className="px-3 py-1 border border-border rounded-md text-sm">
-              <option value="all">All Roles</option>
-              <option value="employee">Employee</option>
-              <option value="manager">Manager</option>
-            </select>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="employee">Employee</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="finance_manager">Finance Manager</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <span className="text-sm text-muted-foreground">{filteredEntries.length} entries</span>
         </div>

@@ -12,6 +12,20 @@ import { getCurrentUser } from "@/utils/auth";
 import { saveTimeEntry, generateId, calculateHours, getProjects, getProducts, getDepartments } from "@/utils/storage";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/types";
 
+interface FormData {
+  date: string;
+  category: string;
+  projectName: string;
+  level: string;
+  task: string;
+  subtask: string;
+  description: string;
+  clockIn: string;
+  clockOut: string;
+  breakTime: number;
+  isBillable: boolean;
+}
+
 export default function TimeTracker() {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],

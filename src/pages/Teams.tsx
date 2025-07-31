@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Plus, DollarSign, UserPlus } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { getAllUsers, getCurrentUser } from "@/utils/auth";
@@ -12,6 +13,8 @@ import { rolePermissions } from "@/types";
 export default function Teams() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   const currentUser = getCurrentUser();
 
   useEffect(() => {
@@ -27,12 +30,15 @@ export default function Teams() {
   };
 
   const filteredUsers = users.filter(user => {
-    if (!searchQuery) return true;
-    return (
+    const matchesSearch = !searchQuery ||
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+      user.role.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || statusFilter === 'active'; // Assume all users are active for now
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+
+    return matchesSearch && matchesStatus && matchesRole;
   });
 
   const getRoleColor = (role: string) => {
@@ -139,20 +145,30 @@ export default function Teams() {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className="text-sm font-medium">Filter:</span>
-            <select className="px-3 py-1 border border-border rounded-md text-sm">
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <select className="px-3 py-1 border border-border rounded-md text-sm">
-              <option value="all">All Roles</option>
-              <option value="owner">Owner</option>
-              <option value="manager">Manager</option>
-              <option value="finance_manager">Finance Manager</option>
-              <option value="employee">Employee</option>
-            </select>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="owner">Owner</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="finance_manager">Finance Manager</SelectItem>
+                <SelectItem value="employee">Employee</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <span className="text-sm text-muted-foreground">{filteredUsers.length} members</span>
         </div>

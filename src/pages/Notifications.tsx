@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bell, Check, X, Eye } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { getCurrentUser } from "@/utils/auth";
@@ -11,6 +12,8 @@ import { Notification } from "@/types";
 export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [readFilter, setReadFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const currentUser = getCurrentUser();
 
   useEffect(() => {
@@ -38,11 +41,20 @@ export default function Notifications() {
   };
 
   const filteredNotifications = notifications.filter(notification => {
-    if (!searchQuery) return true;
-    return (
+    const matchesSearch = !searchQuery ||
       notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      notification.message.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+      notification.message.toLowerCase().includes(searchQuery.toLowerCase());
+
+    let matchesRead = true;
+    if (readFilter === 'read') {
+      matchesRead = notification.isRead;
+    } else if (readFilter === 'unread') {
+      matchesRead = !notification.isRead;
+    }
+
+    const matchesType = typeFilter === 'all' || notification.type === typeFilter;
+
+    return matchesSearch && matchesRead && matchesType;
   });
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -121,19 +133,29 @@ export default function Notifications() {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className="text-sm font-medium">Filter:</span>
-            <select className="px-3 py-1 border border-border rounded-md text-sm">
-              <option value="all">All Notifications</option>
-              <option value="unread">Unread</option>
-              <option value="read">Read</option>
-            </select>
+            <Select value={readFilter} onValueChange={setReadFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Notifications</SelectItem>
+                <SelectItem value="unread">Unread</SelectItem>
+                <SelectItem value="read">Read</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <select className="px-3 py-1 border border-border rounded-md text-sm">
-              <option value="all">All Types</option>
-              <option value="approval">Approvals</option>
-              <option value="rejection">Rejections</option>
-              <option value="status_change">Status Changes</option>
-            </select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="approval">Approvals</SelectItem>
+                <SelectItem value="rejection">Rejections</SelectItem>
+                <SelectItem value="status_change">Status Changes</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <span className="text-sm text-muted-foreground">{filteredNotifications.length} notifications</span>
         </div>
