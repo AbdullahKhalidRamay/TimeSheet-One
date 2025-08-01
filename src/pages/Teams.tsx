@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, DollarSign, UserPlus } from "lucide-react";
+import { Users, Plus, DollarSign, UserPlus, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { getAllUsers, getCurrentUser } from "@/utils/auth";
 import { User } from "@/types";
-import { rolePermissions } from "@/types";
+import { rolePermissions, Team, Project } from "@/types";
 import CreateTeamForm from "@/components/forms/CreateTeamForm";
+import { getTeams, getProjects, deleteTeam } from "@/utils/storage";
 
 export default function Teams() {
   const [users, setUsers] = useState<User[]>([]);
@@ -63,7 +64,28 @@ export default function Teams() {
     }
   };
 
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const permissions = rolePermissions[currentUser?.role || 'employee'];
+
+  useEffect(() => {
+    loadTeams();
+  }, []);
+
+  const loadTeams = () => {
+    setTeams(getTeams());
+  };
+
+  const toggleTeam = (teamId: string) => {
+    setExpandedTeamId(prev => (prev === teamId ? null : teamId));
+  };
+
+  const handleDeleteTeam = (teamId: string) => {
+    if (confirm('Are you sure you want to delete this team?')) {
+      deleteTeam(teamId);
+      loadTeams();
+    }
+  };
 
   return (
     <div className="flex-1 overflow-auto">
@@ -253,11 +275,105 @@ export default function Teams() {
           </CardContent>
         </Card>
       </div>
-      
+
+      {/* Teams Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Teams Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Team Name</TableHead>
+                <TableHead>Associated Projects</TableHead>
+                <TableHead>Members</TableHead>
+                <TableHead>Created By</TableHead>
+                <TableHead>Created At</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {teams.map(team => (
+                <TableRow key={team.id}>
+                  <TableCell>
+                    <div className="font-medium">{team.name}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      {team.associatedProjects.length > 0 ? (
+                        team.associatedProjects.map(projectId => {
+                          const project = getProjects().find(p => p.id === projectId);
+                          return project ? (
+                            <Badge key={project.id} variant="secondary" className="mr-1">{project.name}</Badge>
+                          ) : null;
+                        })
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No projects assigned</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      {team.memberIds.length > 0 ? (
+                        team.memberIds.map(memberId => {
+                          const member = users.find(u => u.id === memberId);
+                          return member ? (
+                            <div key={member.id} className="flex items-center space-x-2">
+                              <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                                {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </div>
+                              <span className="text-sm">{member.name}</span>
+                            </div>
+                          ) : null;
+                        })
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No members assigned</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {users.find(u => u.id === team.createdBy)?.name || 'Unknown'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(team.createdAt).toLocaleDateString()}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {currentUser?.role === 'owner' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteTeam(team.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {teams.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      No teams created yet. Click "Create Team" to get started.
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       <CreateTeamForm 
         isOpen={isCreateTeamOpen} 
         onClose={() => setCreateTeamOpen(false)} 
-        onSuccess={loadUsers} 
+        onSuccess={() => { loadUsers(); loadTeams(); }} 
       />
     </div>
   );

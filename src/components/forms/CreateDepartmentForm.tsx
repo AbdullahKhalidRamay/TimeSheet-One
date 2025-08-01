@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2 } from "lucide-react";
 import { saveDepartment, generateId } from "@/utils/storage";
 import { getCurrentUser } from "@/utils/auth";
@@ -26,7 +27,8 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess }: Cre
     }
   ]);
 
-  const currentUser = getCurrentUser();
+const currentUser = getCurrentUser();
+  const [isBillable, setIsBillable] = useState(false);
 
   const addFunction = () => {
     setFunctions([...functions, {
@@ -134,10 +136,11 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess }: Cre
       return;
     }
 
-    const department: Department = {
+const department: Department = {
       id: generateId(),
       name: departmentName,
       functions: functions.filter(func => func.name.trim()),
+      isBillable,
       createdBy: currentUser?.name || "Unknown",
       createdAt: new Date().toISOString()
     };
@@ -154,7 +157,8 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess }: Cre
       name: "",
       duties: []
     }]);
-    onClose();
+setIsBillable(false);
+onClose();
   };
 
   return (
@@ -174,6 +178,16 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess }: Cre
               onChange={(e) => setDepartmentName(e.target.value)}
               placeholder="Enter department name"
             />
+          </div>
+
+{/* Billable Status */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="isBillable"
+              checked={isBillable}
+              onCheckedChange={(checked) => setIsBillable(checked as boolean)}
+            />
+            <Label htmlFor="isBillable">This department is billable</Label>
           </div>
 
           {/* Department Functions */}

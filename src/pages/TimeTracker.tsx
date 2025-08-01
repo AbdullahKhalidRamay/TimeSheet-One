@@ -6,11 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Calendar } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Calendar, Plus, Trash2, Clock } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { getCurrentUser } from "@/utils/auth";
-import { saveTimeEntry, generateId, calculateHours, getProjects, getProducts, getDepartments } from "@/utils/storage";
+import { saveTimeEntry, generateId, calculateHours, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/utils/storage";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/types";
+import DailyTrackerForm from "@/components/forms/DailyTrackerForm";
 
 interface FormData {
   date: string;
@@ -27,6 +31,7 @@ interface FormData {
 }
 
 export default function TimeTracker() {
+  const [selectedProjects, setSelectedProjects] = useState<Project[]>([]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     category: '',
@@ -47,6 +52,7 @@ export default function TimeTracker() {
   const [availableLevels, setAvailableLevels] = useState<any[]>([]);
   const [availableTasks, setAvailableTasks] = useState<any[]>([]);
   const [availableSubtasks, setAvailableSubtasks] = useState<any[]>([]);
+  const [isBillableDisabled, setIsBillableDisabled] = useState(false);
 
   const currentUser = getCurrentUser();
 
@@ -57,6 +63,14 @@ export default function TimeTracker() {
   useEffect(() => {
     if (formData.category && formData.projectName) {
       loadLevels();
+      // Automatically determine and set billable status
+      const billableStatus = determineIsBillable(formData.category as 'project' | 'product' | 'department', formData.projectName);
+      setFormData(prev => ({ ...prev, isBillable: billableStatus }));
+      setIsBillableDisabled(true);
+    } else {
+      // Reset billable status and enable toggle when no project/product/department is selected
+      setFormData(prev => ({ ...prev, isBillable: false }));
+      setIsBillableDisabled(false);
     }
   }, [formData.category, formData.projectName]);
 
@@ -73,9 +87,11 @@ export default function TimeTracker() {
   }, [formData.task]);
 
   const loadData = () => {
-    setProjects(getProjects());
-    setProducts(getProducts());
-    setDepartments(getDepartments());
+    if (currentUser) {
+      setProjects(getUserAssociatedProjects(currentUser.id));
+      setProducts(getUserAssociatedProducts(currentUser.id));
+      setDepartments(getUserAssociatedDepartments(currentUser.id));
+    }
   };
 
   const loadLevels = () => {
@@ -190,6 +206,7 @@ export default function TimeTracker() {
       breakTime: 30,
       isBillable: false,
     });
+    setIsBillableDisabled(false);
   };
 
   const getProjectOptions = () => {
@@ -226,26 +243,35 @@ export default function TimeTracker() {
 
   return (
     <div className="flex-1 overflow-auto">
-      <Header title="Add Time Entry" />
+      <Header title="Time Tracker" />
 
       <div className="p-6">
-        <Card className="max-w-4xl mx-auto">
-          <CardHeader className="bg-primary text-primary-foreground">
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5" />
-              <span>Add Time Entry</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
+        <Tabs defaultValue="entry-form" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="entry-form">1st Approach</TabsTrigger>
+            <TabsTrigger value="trackers">Trackers</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="entry-form">
+            <Card className="max-w-4xl mx-auto">
+              <CardHeader className="bg-primary text-primary-foreground">
+                <CardTitle className="flex items-center space-x-2">
+                  <Calendar className="h-5 w-5" />
+                  <span>Add Time Entry</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
             {/* Date and Category */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => handleInputChange('date', e.target.value)}
+                <DatePicker
+                  date={formData.date ? new Date(formData.date) : undefined}
+                  onDateChange={(date) => 
+                    handleInputChange('date', date ? date.toISOString().split('T')[0] : '')
+                  }
+                  placeholder="Select date"
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
@@ -264,22 +290,27 @@ export default function TimeTracker() {
             </div>
 
             {/* Project/Product/Department Selection */}
-            {formData.category && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+{formData.category && (
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="projectName">{formData.category.charAt(0).toUpperCase() + formData.category.slice(1)} Name</Label>
-                  <Select value={formData.projectName} onValueChange={(value) => handleInputChange('projectName', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={`Select ${formData.category}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getProjectOptions().map((item) => (
-                        <SelectItem key={item.id} value={item.name}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>{formData.category.charAt(0).toUpperCase() + formData.category.slice(1)} Association</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {getProjectOptions().map((item) => (
+                      <div key={item.id} className="flex items-center space-x-3">
+                        <Checkbox
+                          checked={selectedProjects.includes(item)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedProjects((prev) => [...prev, item]);
+                            } else {
+                              setSelectedProjects((prev) => prev.filter((proj) => proj.id !== item.id));
+                            }
+                          }}
+                        />
+                        <Label>{item.name}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {formData.projectName && availableLevels.length > 0 && (
@@ -341,7 +372,34 @@ export default function TimeTracker() {
               </div>
             )}
 
-            {/* Time Inputs */}
+{/* Hours and Billable Inputs */}
+            {selectedProjects.map((project) => (
+              <div key={project.id} className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>{project.name} - Hours</Label>
+                    <Input
+                      type="number"
+                      onChange={(e) => handleInputChange(project.name + '_hours', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Switch
+                      onCheckedChange={(checked) => handleInputChange(project.name + '_isBillable', checked)}
+                    />
+                    <Label>Billable</Label>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      placeholder="Task Description"
+                      onChange={(e) => handleInputChange(project.name + '_description', e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="clockIn">Clock In</Label>
@@ -389,10 +447,11 @@ export default function TimeTracker() {
               <Switch
                 id="billable"
                 checked={formData.isBillable}
-                onCheckedChange={(checked) => handleInputChange('isBillable', checked)}
+                disabled={isBillableDisabled}
+                onCheckedChange={(checked) => !isBillableDisabled && handleInputChange('isBillable', checked)}
               />
-              <Label htmlFor="billable" className="text-sm font-medium">
-                💰 Billable Time
+              <Label htmlFor="billable" className={`text-sm font-medium ${isBillableDisabled ? 'text-muted-foreground' : ''}`}>
+                💰 Billable Time {isBillableDisabled && '(Auto-determined)'}
               </Label>
             </div>
 
@@ -403,9 +462,53 @@ export default function TimeTracker() {
                 <Calendar className="mr-2 h-4 w-4" />
                 Add Time Entry
               </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="trackers">
+            <div className="space-y-6">
+              <Tabs defaultValue="daily" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="daily">Daily Tracker</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly Tracker</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly Tracker</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="daily">
+                  <DailyTrackerForm />
+                </TabsContent>
+                
+                <TabsContent value="weekly">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Weekly Time Tracker</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Weekly tracker content will be implemented here</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="monthly">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Monthly Time Tracker</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Monthly tracker content will be implemented here</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

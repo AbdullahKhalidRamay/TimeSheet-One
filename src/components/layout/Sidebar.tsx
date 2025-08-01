@@ -143,8 +143,8 @@ export default function Sidebar() {
                 key={item.name}
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start",
-                  isActive && "bg-primary/10 text-primary hover:bg-primary/20"
+                  "w-full justify-start hover:bg-blue-100 hover:text-blue-700 transition-colors",
+                  isActive && "bg-blue-100 text-blue-700 hover:bg-blue-200"
                 )}
                 onClick={() => navigate(item.href)}
               >

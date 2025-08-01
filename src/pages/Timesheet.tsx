@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangePicker } from "@/components/ui/date-picker";
+import { DateRange } from "react-day-picker";
 import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { getCurrentUser } from "@/utils/auth";
@@ -17,6 +19,7 @@ export default function Timesheet() {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("2weeks");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const currentUser = getCurrentUser();
@@ -75,15 +78,22 @@ const getDateRange = () => {
     const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
     
     const entryDate = new Date(entry.date);
-    const dateRange = getDateRange();
-    const matchesDateFilter = entryDate >= dateRange;
+    const matchesDateRange = dateRange && dateRange.from
+      ? (() => {
+          const startDate = new Date(dateRange.from);
+          startDate.setHours(0, 0, 0, 0);
+          const endDate = new Date(dateRange.to || dateRange.from);
+          endDate.setHours(23, 59, 59, 999);
+          return entryDate >= startDate && entryDate <= endDate;
+        })()
+      : true;
 
     // Get user by userId to check role
     const entryUser = timeEntries.find(e => e.userId === entry.userId);
     const userRole = entryUser ? entryUser.userName : 'employee'; // This should be improved to get actual role
     const matchesRole = roleFilter === 'all' || entry.userName.toLowerCase().includes(roleFilter.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesDateFilter && matchesRole;
+    return matchesSearch && matchesStatus && matchesDateRange && matchesRole;
   });
 
   // Group entries by date and sum hours for the same date
@@ -252,20 +262,63 @@ const getDateRange = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium">Filters:</span>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2weeks">2 Weeks</SelectItem>
-                <SelectItem value="1month">1 Month</SelectItem>
-                <SelectItem value="3months">3 Months</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4 flex-wrap">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">Date Filter:</span>
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                placeholder="Select date range"
+                className="w-60"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground">Quick filters:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                  setDateRange({ from: oneWeekAgo, to: today });
+                }}
+              >
+                Last 7 days
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+                  setDateRange({ from: twoWeeksAgo, to: today });
+                }}
+              >
+                Last 2 weeks
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const oneMonthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                  setDateRange({ from: oneMonthAgo, to: today });
+                }}
+              >
+                Last month
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDateRange(undefined)}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm font-medium">Other Filters:</span>
           <div className="flex items-center space-x-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-32">
@@ -292,7 +345,8 @@ const getDateRange = () => {
               </SelectContent>
             </Select>
           </div>
-          <span className="text-sm text-muted-foreground">{filteredEntries.length} entries</span>
+            <span className="text-sm text-muted-foreground">{filteredEntries.length} entries</span>
+          </div>
         </div>
 
         {/* Timesheet Table */}
