@@ -386,6 +386,32 @@ export const getTimeEntriesByDateRange = (startDate: string, endDate: string, us
   });
 };
 
+// Date-specific utilities
+export const getTimeEntriesForDate = (date: string, userId: string): TimeEntry[] => {
+  const entries = getTimeEntries();
+  return entries.filter(entry => entry.date === date && entry.userId === userId);
+};
+
+export const hasTimeEntriesForDate = (date: string, userId: string): boolean => {
+  const entries = getTimeEntriesForDate(date, userId);
+  return entries.length > 0;
+};
+
+export const getTimeEntryStatusForDate = (date: string, userId: string): {
+  hasEntries: boolean;
+  totalHours: number;
+  entriesCount: number;
+  statuses: string[];
+} => {
+  const entries = getTimeEntriesForDate(date, userId);
+  return {
+    hasEntries: entries.length > 0,
+    totalHours: entries.reduce((sum, entry) => sum + entry.totalHours, 0),
+    entriesCount: entries.length,
+    statuses: [...new Set(entries.map(entry => entry.status))]
+  };
+};
+
 // Statistics utilities
 export const getUserStats = (userId: string) => {
   const entries = getTimeEntries().filter(e => e.userId === userId);

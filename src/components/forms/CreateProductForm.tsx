@@ -163,32 +163,41 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess }: Create
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create New Product</DialogTitle>
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
+        <DialogHeader className="border-b border-gray-200 pb-4">
+          <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center space-x-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Plus className="h-6 w-6 text-purple-600" />
+            </div>
+            <span>Create New Product</span>
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-8 p-6">
           {/* Product Name */}
-          <div className="space-y-2">
-            <Label htmlFor="productName">Product Name</Label>
+          <div className="space-y-3">
+            <Label htmlFor="productName" className="text-base font-semibold text-gray-700">Product Name</Label>
             <Input
               id="productName"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              placeholder="Enter product name"
+              placeholder="Enter a descriptive product name"
+              className="text-base p-3 border-2 focus:border-purple-500 transition-colors"
             />
           </div>
 
           {/* Billable Status */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="isBillable"
-              checked={isBillable}
-              onCheckedChange={(checked) => setIsBillable(checked as boolean)}
-            />
-            <Label htmlFor="isBillable">This product is billable</Label>
-          </div>
+          <Card className="p-4 bg-gradient-to-r from-green-50 to-purple-50 border-green-200">
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="isBillable"
+                checked={isBillable}
+                onCheckedChange={(checked) => setIsBillable(checked as boolean)}
+                className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+              />
+              <Label htmlFor="isBillable" className="text-base font-medium text-gray-700 cursor-pointer">💰 This product is billable</Label>
+            </div>
+          </Card>
 
           {/* Product Stages */}
           <div className="space-y-4">
@@ -315,11 +324,20 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess }: Create
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
+        <DialogFooter className="flex justify-between items-center border-t border-gray-200 pt-6 px-6">
+          <Button 
+            variant="outline" 
+            onClick={handleClose} 
+            className="px-6 py-3 font-medium border-2 hover:bg-gray-50"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button
+            onClick={handleSubmit} 
+            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-3 font-semibold shadow-lg transition-all duration-200"
+          >
+            <Plus className="h-5 w-5 mr-2" />
             Create Product
           </Button>
         </DialogFooter>

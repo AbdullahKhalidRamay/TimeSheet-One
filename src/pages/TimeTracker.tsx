@@ -15,6 +15,8 @@ import { getCurrentUser } from "@/utils/auth";
 import { saveTimeEntry, generateId, calculateHours, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/utils/storage";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/types";
 import DailyTrackerForm from "@/components/forms/DailyTrackerForm";
+import WeeklyTimeTracker from "@/components/forms/WeeklyTimeTracker";
+import MonthlyTimeTracker from "@/components/forms/MonthlyTimeTracker";
 
 interface FormData {
   date: string;
@@ -481,29 +483,11 @@ export default function TimeTracker() {
                 </TabsContent>
                 
                 <TabsContent value="weekly">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Weekly Time Tracker</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">Weekly tracker content will be implemented here</p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <WeeklyTimeTracker />
                 </TabsContent>
                 
                 <TabsContent value="monthly">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Monthly Time Tracker</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">Monthly tracker content will be implemented here</p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <MonthlyTimeTracker />
                 </TabsContent>
               </Tabs>
             </div>

@@ -51,9 +51,14 @@ interface DailyTrackerFormData {
   breakTime: number;
 }
 
-export default function DailyTrackerForm() {
+interface DailyTrackerFormProps {
+  initialDate?: string;
+  onClose?: () => void;
+}
+
+export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerFormProps) {
   const [formData, setFormData] = useState<DailyTrackerFormData>({
-    date: new Date().toISOString().split('T')[0],
+    date: initialDate || new Date().toISOString().split('T')[0],
     projectEntries: [],
     clockIn: '',
     clockOut: '',
@@ -252,6 +257,11 @@ export default function DailyTrackerForm() {
     setSelectedProjects([]);
     
     alert('Time entries saved successfully!');
+    
+    // Call onClose if provided
+    if (onClose) {
+      onClose();
+    }
   };
 
   const getTotalHours = () => {
@@ -265,14 +275,17 @@ export default function DailyTrackerForm() {
   };
 
   return (
-    <Card className="max-w-6xl mx-auto">
-      <CardHeader className="bg-primary text-primary-foreground">
-        <CardTitle className="flex items-center space-x-2">
-          <Calendar className="h-5 w-5" />
+    <Card className="max-w-6xl mx-auto shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
+      <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/5"></div>
+        <CardTitle className="flex items-center space-x-3 text-xl font-semibold relative z-10">
+          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+            <Calendar className="h-6 w-6" />
+          </div>
           <span>Daily Time Tracker</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6 space-y-6">
+      <CardContent className="p-8 space-y-8">
         {/* Date Selection */}
         <div className="space-y-2">
           <Label htmlFor="date">Date</Label>
@@ -290,85 +303,114 @@ export default function DailyTrackerForm() {
         </div>
 
         {/* Project Selection */}
-        <div className="space-y-4">
-          <Label>Select Projects, Products, and Departments</Label>
+        <div className="space-y-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+            <Label className="text-lg font-semibold text-gray-800">Select Projects, Products, and Departments</Label>
+          </div>
           
           {/* Projects */}
           {availableProjects.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">Projects</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-4 flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span>Projects</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {availableProjects.map((project) => (
-                  <div key={project.id} className="flex items-center space-x-3">
+                  <div key={project.id} className="flex items-center space-x-3 p-3 rounded-lg bg-white/70 hover:bg-white transition-colors border border-blue-200/50">
                     <Checkbox
                       checked={selectedProjects.some(p => p.id === project.id)}
                       onCheckedChange={(checked) => 
                         handleProjectSelection(project, 'project', checked as boolean)
                       }
+                      className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                     />
-                    <Label>{project.name}</Label>
-                    {project.isBillable && <DollarSign className="h-4 w-4 text-green-500" />}
+                    <Label className="font-medium text-gray-700 cursor-pointer flex-1">{project.name}</Label>
+                    {project.isBillable && <DollarSign className="h-4 w-4 text-green-600" />}
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Products */}
           {availableProducts.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">Products</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200">
+              <h4 className="font-semibold text-purple-800 mb-4 flex items-center space-x-2">
+                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                <span>Products</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {availableProducts.map((product) => (
-                  <div key={product.id} className="flex items-center space-x-3">
+                  <div key={product.id} className="flex items-center space-x-3 p-3 rounded-lg bg-white/70 hover:bg-white transition-colors border border-purple-200/50">
                     <Checkbox
                       checked={selectedProjects.some(p => p.id === product.id)}
                       onCheckedChange={(checked) => 
                         handleProjectSelection(product, 'product', checked as boolean)
                       }
+                      className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
                     />
-                    <Label>{product.name}</Label>
-                    {product.isBillable && <DollarSign className="h-4 w-4 text-green-500" />}
+                    <Label className="font-medium text-gray-700 cursor-pointer flex-1">{product.name}</Label>
+                    {product.isBillable && <DollarSign className="h-4 w-4 text-green-600" />}
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Departments */}
           {availableDepartments.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm">Departments</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-6 bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200">
+              <h4 className="font-semibold text-orange-800 mb-4 flex items-center space-x-2">
+                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                <span>Departments</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {availableDepartments.map((department) => (
-                  <div key={department.id} className="flex items-center space-x-3">
+                  <div key={department.id} className="flex items-center space-x-3 p-3 rounded-lg bg-white/70 hover:bg-white transition-colors border border-orange-200/50">
                     <Checkbox
                       checked={selectedProjects.some(p => p.id === department.id)}
                       onCheckedChange={(checked) => 
                         handleProjectSelection(department, 'department', checked as boolean)
                       }
+                      className="data-[state=checked]:bg-orange-600 data-[state=checked]:border-orange-600"
                     />
-                    <Label>{department.name}</Label>
-                    {department.isBillable && <DollarSign className="h-4 w-4 text-green-500" />}
+                    <Label className="font-medium text-gray-700 cursor-pointer flex-1">{department.name}</Label>
+                    {department.isBillable && <DollarSign className="h-4 w-4 text-green-600" />}
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
         </div>
 
         {/* Selected Project Entries */}
-        {formData.projectEntries.map((entry) => (
-          <Card key={entry.id} className="border-l-4 border-l-primary">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center justify-between">
-                <span>{entry.project.name}</span>
-                <Badge variant={entry.category === 'project' ? 'default' : 
-                              entry.category === 'product' ? 'secondary' : 'outline'}>
-                  {entry.category}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
+        {formData.projectEntries.map((entry) => {
+          const categoryColors = {
+            project: 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100/30',
+            product: 'border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100/30',
+            department: 'border-orange-500 bg-gradient-to-br from-orange-50 to-orange-100/30'
+          };
+          
+          return (
+            <Card key={entry.id} className={`border-l-4 ${categoryColors[entry.category]} shadow-md`}>
+              <CardHeader className="pb-4 border-b border-gray-100">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      entry.category === 'project' ? 'bg-blue-500' :
+                      entry.category === 'product' ? 'bg-purple-500' : 'bg-orange-500'
+                    }`}></div>
+                    <span className="font-semibold text-gray-800">{entry.project.name}</span>
+                  </div>
+                  <Badge variant={entry.category === 'project' ? 'default' : 
+                                entry.category === 'product' ? 'secondary' : 'outline'}
+                         className="capitalize font-medium">
+                    {entry.category}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
             <CardContent className="space-y-4">
               {/* Level Selection */}
               <div className="space-y-2">
@@ -525,35 +567,49 @@ export default function DailyTrackerForm() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
 
         {/* Summary */}
         {formData.projectEntries.length > 0 && (
-          <Card className="bg-muted/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4" />
-                    <span>Total Hours: {getTotalHours().toFixed(1)}</span>
+          <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-3 bg-white/70 px-4 py-3 rounded-lg">
+                    <div className="p-2 bg-blue-100 rounded-full">
+                      <Clock className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Total Hours</p>
+                      <p className="text-xl font-bold text-gray-800">{getTotalHours().toFixed(1)}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="h-4 w-4 text-green-500" />
-                    <span>Billable Hours: {getTotalBillableHours().toFixed(1)}</span>
+                  <div className="flex items-center space-x-3 bg-white/70 px-4 py-3 rounded-lg">
+                    <div className="p-2 bg-green-100 rounded-full">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Billable Hours</p>
+                      <p className="text-xl font-bold text-green-700">{getTotalBillableHours().toFixed(1)}</p>
+                    </div>
                   </div>
                 </div>
-                <Badge variant="outline">
-                  {formData.projectEntries.length} Project{formData.projectEntries.length !== 1 ? 's' : ''}
-                </Badge>
+                <div className="text-right">
+                  <Badge variant="outline" className="px-3 py-1 text-sm font-semibold">
+                    {formData.projectEntries.length} Project{formData.projectEntries.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* Action Buttons */}
-        <div className="flex justify-between pt-4">
+        <div className="flex justify-between items-center pt-6 border-t border-gray-200">
           <Button 
             variant="outline"
+            size="lg"
             onClick={() => {
               setFormData({
                 date: new Date().toISOString().split('T')[0],
@@ -564,15 +620,17 @@ export default function DailyTrackerForm() {
               });
               setSelectedProjects([]);
             }}
+            className="px-6 py-3 font-medium border-2 hover:bg-gray-50"
           >
-            Reset
+            Reset Form
           </Button>
           <Button 
+            size="lg"
             onClick={handleSubmit}
             disabled={formData.projectEntries.length === 0 || getTotalHours() === 0}
-            className="bg-primary hover:bg-primary-hover"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-8 py-3 font-semibold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Calendar className="mr-2 h-4 w-4" />
+            <Calendar className="mr-2 h-5 w-5" />
             Save Time Entries
           </Button>
         </div>

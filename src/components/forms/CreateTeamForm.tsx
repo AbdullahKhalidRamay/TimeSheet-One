@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getAllUsers, getCurrentUser } from "@/utils/auth";
 import { getProjects, getProducts, getDepartments, saveTeam } from "@/utils/storage";
 import { User, Team } from "@/types";
+import { Users, Trash2 } from "lucide-react";
 
 interface CreateTeamFormProps {
   isOpen: boolean;
@@ -59,7 +60,7 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess }: CreateTea
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
         <DialogHeader>
           <DialogTitle>Create New Team</DialogTitle>
         </DialogHeader>
