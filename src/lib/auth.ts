@@ -1,4 +1,4 @@
-import { User, UserRole } from '@/types';
+import { User, UserRole } from '@/validation/index';
 
 const CURRENT_USER_KEY = 'currentUser';
 const USERS_KEY = 'users';

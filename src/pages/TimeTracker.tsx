@@ -10,13 +10,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar, Plus, Trash2, Clock } from "lucide-react";
-import Header from "@/components/layout/Header";
-import { getCurrentUser } from "@/utils/auth";
-import { saveTimeEntry, generateId, calculateHours, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/utils/storage";
-import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/types";
-import DailyTrackerForm from "@/components/forms/DailyTrackerForm";
-import WeeklyTimeTracker from "@/components/forms/WeeklyTimeTracker";
-import MonthlyTimeTracker from "@/components/forms/MonthlyTimeTracker";
+import Header from "@/components/dashboard/Header";
+import { getCurrentUser } from "@/lib/auth";
+import { saveTimeEntry, generateId, calculateHours, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
+import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
+import DailyTrackerForm from "@/components/users/DailyTrackerForm";
+import WeeklyTimeTracker from "@/components/users/WeeklyTimeTracker";
+import MonthlyTimeTracker from "@/components/users/MonthlyTimeTracker";
 
 interface FormData {
   date: string;

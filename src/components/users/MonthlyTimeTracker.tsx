@@ -5,39 +5,40 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isFuture, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, addDays, isFuture, isToday } from "date-fns";
 import DailyTrackerForm from "./DailyTrackerForm";
-import { getCurrentUser } from "@/utils/auth";
-import { getTimeEntryStatusForDate } from "@/utils/storage";
+import { getCurrentUser } from "@/lib/auth";
+import { getTimeEntryStatusForDate } from "@/services/storage";
 
-export default function WeeklyTimeTracker() {
-  const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
+export default function MonthlyTimeTracker() {
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDateForEntry, setSelectedDateForEntry] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Generate the 7 days of the selected week
-    const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 }); // Start from Monday
-    const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-    
-    // Filter out future dates
-    const validDates = weekDays.filter(date => !isFuture(date) || isToday(date));
-    setSelectedDates(validDates);
-  }, [selectedWeek]);
+    // Generate the days of the selected month
+    const monthStart = startOfMonth(selectedMonth);
+    const monthEnd = endOfMonth(selectedMonth);
+    const monthDays = Array.from({ length: monthEnd.getDate() }, (_, i) => addDays(monthStart, i));
 
-  const handlePreviousWeek = () => {
-    setSelectedWeek(prev => subWeeks(prev, 1));
+    // Filter out future dates
+    const validDates = monthDays.filter(date => !isFuture(date) || isToday(date));
+    setSelectedDates(validDates);
+  }, [selectedMonth]);
+
+  const handlePreviousMonth = () => {
+    setSelectedMonth(prev => subMonths(prev, 1));
   };
 
-  const handleNextWeek = () => {
-    const nextWeek = addWeeks(selectedWeek, 1);
-    const nextWeekStart = startOfWeek(nextWeek, { weekStartsOn: 1 });
-    
-    // Only allow if the week start is not in the future
-    if (!isFuture(nextWeekStart) || isToday(nextWeekStart)) {
-      setSelectedWeek(nextWeek);
+  const handleNextMonth = () => {
+    const nextMonth = addMonths(selectedMonth, 1);
+    const nextMonthStart = startOfMonth(nextMonth);
+
+    // Only allow if the month start is not in the future
+    if (!isFuture(nextMonthStart) || isToday(nextMonthStart)) {
+      setSelectedMonth(nextMonth);
     }
   };
 
@@ -46,14 +47,14 @@ export default function WeeklyTimeTracker() {
     setIsDialogOpen(true);
   };
 
-  const canGoToNextWeek = () => {
-    const nextWeek = addWeeks(selectedWeek, 1);
-    const nextWeekStart = startOfWeek(nextWeek, { weekStartsOn: 1 });
-    return !isFuture(nextWeekStart) || isToday(nextWeekStart);
+  const canGoToNextMonth = () => {
+    const nextMonth = addMonths(selectedMonth, 1);
+    const nextMonthStart = startOfMonth(nextMonth);
+    return !isFuture(nextMonthStart) || isToday(nextMonthStart);
   };
 
-  const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
+  const monthStart = startOfMonth(selectedMonth);
+  const monthEnd = endOfMonth(selectedMonth);
 
   return (
     <div className="space-y-6">
@@ -63,26 +64,26 @@ export default function WeeklyTimeTracker() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2">
               <CalendarIcon className="h-5 w-5" />
-              <span>Weekly Time Tracker</span>
+              <span>Monthly Time Tracker</span>
             </CardTitle>
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handlePreviousWeek}
+                onClick={handlePreviousMonth}
                 className="flex items-center space-x-1"
               >
                 <ChevronLeft className="h-4 w-4" />
                 <span>Previous</span>
               </Button>
               <Badge variant="secondary" className="px-3 py-1">
-                {format(weekStart, "MMM dd")} - {format(weekEnd, "MMM dd, yyyy")}
+                {format(monthStart, "MMM yyyy")}
               </Badge>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleNextWeek}
-                disabled={!canGoToNextWeek()}
+                onClick={handleNextMonth}
+                disabled={!canGoToNextMonth()}
                 className="flex items-center space-x-1"
               >
                 <span>Next</span>
@@ -93,18 +94,15 @@ export default function WeeklyTimeTracker() {
         </CardHeader>
       </Card>
 
-      {/* Weekly Calendar Grid */}
+      {/* Monthly Calendar Grid */}
       <div className="grid grid-cols-7 gap-4">
-        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, index) => {
-          const currentDate = addDays(weekStart, index);
-          const isValidDate = selectedDates.some(date => 
-            format(date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd')
-          );
+        {selectedDates.map((currentDate, index) => {
+          const day = format(currentDate, "EEEE");
           const isCurrentDay = isToday(currentDate);
           const isFutureDate = isFuture(currentDate) && !isToday(currentDate);
 
           return (
-            <Card key={day} className={`${isCurrentDay ? 'ring-2 ring-primary' : ''} ${isFutureDate ? 'opacity-50' : ''}`}>
+            <Card key={`day-${index}`} className={`${isCurrentDay ? 'ring-2 ring-primary' : ''} ${isFutureDate ? 'opacity-50' : ''}`}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-center">
                   {day}
@@ -117,7 +115,11 @@ export default function WeeklyTimeTracker() {
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="text-center space-y-2">
-                  {isValidDate ? (
+                  {isFutureDate ? (
+                    <div className="text-xs text-muted-foreground py-2">
+                      Future Date
+                    </div>
+                  ) : (
                     <>
                       <Button
                         size="sm"
@@ -145,10 +147,6 @@ export default function WeeklyTimeTracker() {
                         return null;
                       })()}
                     </>
-                  ) : (
-                    <div className="text-xs text-muted-foreground py-2">
-                      {isFutureDate ? 'Future Date' : 'No Entry'}
-                    </div>
                   )}
                 </div>
               </CardContent>

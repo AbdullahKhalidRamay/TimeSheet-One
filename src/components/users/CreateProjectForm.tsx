@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,18 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2 } from "lucide-react";
-import { saveProject, generateId } from "@/utils/storage";
-import { getCurrentUser } from "@/utils/auth";
-import { Project, ProjectLevel, ProjectTask, ProjectSubtask } from "@/types";
+import { Plus, Trash2, Edit2 } from "lucide-react";
+import { saveProject, generateId } from "@/services/storage";
+import { getCurrentUser } from "@/lib/auth";
+import { Project, ProjectLevel, ProjectTask, ProjectSubtask } from "@/validation/index";
 
 interface CreateProjectFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingProject?: Project | null;
 }
 
-export default function CreateProjectForm({ isOpen, onClose, onSuccess }: CreateProjectFormProps) {
+export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingProject }: CreateProjectFormProps) {
   const [projectName, setProjectName] = useState("");
   const [isBillable, setIsBillable] = useState(false);
   const [levels, setLevels] = useState<ProjectLevel[]>([
@@ -29,6 +30,29 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
   ]);
 
   const currentUser = getCurrentUser();
+  const isEditing = !!editingProject;
+
+  // Load editing data when editingProject changes
+  useEffect(() => {
+    if (editingProject && isOpen) {
+      setProjectName(editingProject.name);
+      setIsBillable(editingProject.isBillable);
+      setLevels(editingProject.levels.length > 0 ? editingProject.levels : [{
+        id: generateId(),
+        name: "",
+        tasks: []
+      }]);
+    } else if (!isOpen) {
+      // Reset form when closing
+      setProjectName("");
+      setIsBillable(false);
+      setLevels([{
+        id: generateId(),
+        name: "",
+        tasks: []
+      }]);
+    }
+  }, [editingProject, isOpen]);
 
   const addLevel = () => {
     setLevels([...levels, {
@@ -137,12 +161,12 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
     }
 
     const project: Project = {
-      id: generateId(),
+      id: isEditing ? editingProject!.id : generateId(),
       name: projectName,
       levels: levels.filter(level => level.name.trim()),
       isBillable,
-      createdBy: currentUser?.name || "Unknown",
-      createdAt: new Date().toISOString()
+      createdBy: isEditing ? editingProject!.createdBy : (currentUser?.name || "Unknown"),
+      createdAt: isEditing ? editingProject!.createdAt : new Date().toISOString()
     };
 
     saveProject(project);
@@ -165,10 +189,14 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
       <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
         <DialogHeader className="border-b border-gray-200 pb-4">
           <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Plus className="h-6 w-6 text-blue-600" />
+            <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100' : 'bg-blue-100'}`}>
+              {isEditing ? (
+                <Edit2 className="h-6 w-6 text-orange-600" />
+              ) : (
+                <Plus className="h-6 w-6 text-blue-600" />
+              )}
             </div>
-            <span>Create New Project</span>
+            <span>{isEditing ? 'Edit Project' : 'Create New Project'}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -333,10 +361,17 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess }: Create
           </Button>
           <Button
             onClick={handleSubmit} 
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 font-semibold shadow-lg transition-all duration-200"
+            className={`${isEditing 
+              ? 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800' 
+              : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
+            } text-white px-8 py-3 font-semibold shadow-lg transition-all duration-200`}
           >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Project
+            {isEditing ? (
+              <Edit2 className="h-5 w-5 mr-2" />
+            ) : (
+              <Plus className="h-5 w-5 mr-2" />
+            )}
+            {isEditing ? 'Update Project' : 'Create Project'}
           </Button>
         </DialogFooter>
       </DialogContent>

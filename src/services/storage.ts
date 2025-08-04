@@ -1,4 +1,4 @@
-import { TimeEntry, Project, Product, Department, Notification, ApprovalAction, Team } from '@/types';
+import { TimeEntry, Project, Product, Department, Notification, ApprovalAction, Team } from '@/validation/index';
 
 // Storage keys
 const TIME_ENTRIES_KEY = 'timeEntries';
@@ -91,6 +91,12 @@ export const saveProject = (project: Project): void => {
   localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
 };
 
+export const deleteProject = (projectId: string): void => {
+  const projects = getProjects();
+  const filteredProjects = projects.filter(p => p.id !== projectId);
+  localStorage.setItem(PROJECTS_KEY, JSON.stringify(filteredProjects));
+};
+
 // Products
 export const getProducts = (): Product[] => {
   const productsStr = localStorage.getItem(PRODUCTS_KEY);
@@ -110,6 +116,12 @@ export const saveProduct = (product: Product): void => {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
 };
 
+export const deleteProduct = (productId: string): void => {
+  const products = getProducts();
+  const filteredProducts = products.filter(p => p.id !== productId);
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(filteredProducts));
+};
+
 // Departments
 export const getDepartments = (): Department[] => {
   const departmentsStr = localStorage.getItem(DEPARTMENTS_KEY);
@@ -127,6 +139,12 @@ export const saveDepartment = (department: Department): void => {
   }
   
   localStorage.setItem(DEPARTMENTS_KEY, JSON.stringify(departments));
+};
+
+export const deleteDepartment = (departmentId: string): void => {
+  const departments = getDepartments();
+  const filteredDepartments = departments.filter(d => d.id !== departmentId);
+  localStorage.setItem(DEPARTMENTS_KEY, JSON.stringify(filteredDepartments));
 };
 
 // Notifications

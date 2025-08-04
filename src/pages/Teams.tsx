@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, DollarSign, UserPlus, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import { getAllUsers, getCurrentUser } from "@/utils/auth";
-import { User } from "@/types";
-import { rolePermissions, Team, Project } from "@/types";
-import CreateTeamForm from "@/components/forms/CreateTeamForm";
-import { getTeams, getProjects, deleteTeam } from "@/utils/storage";
+import { Users, Plus, DollarSign, UserPlus, ChevronDown, ChevronRight, Trash2, Edit } from "lucide-react";
+import Header from "@/components/dashboard/Header";
+import { getAllUsers, getCurrentUser } from "@/lib/auth";
+import { User } from "@/validation/index";
+import { rolePermissions, Team, Project } from "@/validation/index";
+import CreateTeamForm from "@/components/users/CreateTeamForm";
+import { getTeams, getProjects, deleteTeam, addMemberToTeam } from "@/services/storage";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Teams() {
   const [users, setUsers] = useState<User[]>([]);
@@ -18,6 +19,7 @@ export default function Teams() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [isCreateTeamOpen, setCreateTeamOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const currentUser = getCurrentUser();
 
   useEffect(() => {
@@ -210,13 +212,6 @@ export default function Teams() {
                   <TableHead>Email</TableHead>
                   <TableHead>Total Hours</TableHead>
                   <TableHead>Role</TableHead>
-                  {permissions.canViewBillableRates && (
-                    <>
-                      <TableHead>Billable Rate (USD)</TableHead>
-                      <TableHead>Total Billable Hours</TableHead>
-                    </>
-                  )}
-                  <TableHead>Group</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -238,33 +233,38 @@ export default function Teams() {
                         {getRoleLabel(user.role)}
                       </Badge>
                     </TableCell>
-                    {permissions.canViewBillableRates && (
-                      <>
-                        <TableCell>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-muted-foreground">-</span>
-                            <Button variant="link" size="sm" className="h-auto p-0 text-primary">
-                              Change
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>{user.totalBillableHours.toFixed(1)}h</TableCell>
-                      </>
-                    )}
-                    <TableCell>
-                      <Button variant="link" size="sm" className="h-auto p-0 text-primary">
-                        + Group
-                      </Button>
-                    </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm">
-                          Role
-                        </Button>
                         {permissions.canManageTeams && (
-                          <Button variant="ghost" size="sm" className="text-muted-foreground">
-                            •••
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Add to Team
+                                <ChevronDown className="h-4 w-4 ml-2" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              {teams.length > 0 ? (
+                                teams.map((team) => (
+                                  <DropdownMenuItem
+                                    key={team.id}
+                                    onClick={() => {
+                                      if (addMemberToTeam(team.id, user.id)) {
+                                        loadTeams();
+                                      }
+                                    }}
+                                  >
+                                    {team.name}
+                                  </DropdownMenuItem>
+                                ))
+                              ) : (
+                                <DropdownMenuItem disabled>
+                                  No teams available
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </div>
                     </TableCell>
@@ -343,16 +343,30 @@ export default function Teams() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {currentUser?.role === 'owner' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteTeam(team.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {permissions.canManageTeams && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingTeam(team);
+                            setCreateTeamOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {currentUser?.role === 'owner' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteTeam(team.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -372,8 +386,16 @@ export default function Teams() {
 
       <CreateTeamForm 
         isOpen={isCreateTeamOpen} 
-        onClose={() => setCreateTeamOpen(false)} 
-        onSuccess={() => { loadUsers(); loadTeams(); }} 
+        onClose={() => {
+          setCreateTeamOpen(false);
+          setEditingTeam(null);
+        }} 
+        onSuccess={() => {
+          loadUsers();
+          loadTeams();
+          setEditingTeam(null);
+        }}
+        editing={editingTeam}
       />
     </div>
   );

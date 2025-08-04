@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Plus, Trash2, Clock, DollarSign } from "lucide-react";
-import { getCurrentUser } from "@/utils/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { 
   saveTimeEntry, 
   generateId, 
@@ -21,8 +21,8 @@ import {
   getUserAssociatedDepartments,
   determineIsBillable,
   calculateHours
-} from "@/utils/storage";
-import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/types";
+} from "@/services/storage";
+import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
 
 interface ProjectEntry {
   id: string;

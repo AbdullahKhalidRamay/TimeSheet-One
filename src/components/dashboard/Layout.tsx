@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
-import { getCurrentUser, initializeAuth } from "@/utils/auth";
-import { initializeSampleData } from "@/utils/sampleData";
+import { getCurrentUser, initializeAuth } from "@/lib/auth";
+import { initializeSampleData } from "@/store/sampleData";
 
 export default function Layout() {
   const currentUser = getCurrentUser();

@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bell, Check, X, Eye } from "lucide-react";
-import Header from "@/components/layout/Header";
-import { getCurrentUser } from "@/utils/auth";
-import { getNotifications, markNotificationAsRead } from "@/utils/storage";
-import { Notification } from "@/types";
+import Header from "@/components/dashboard/Header";
+import { getCurrentUser } from "@/lib/auth";
+import { getNotifications, markNotificationAsRead } from "@/services/storage";
+import { Notification } from "@/validation/index";
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);

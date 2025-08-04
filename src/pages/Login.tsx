@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllUsers, setCurrentUser } from "@/utils/auth";
+import { getAllUsers, setCurrentUser } from "@/lib/auth";
 import { Clock } from "lucide-react";
 
 export default function Login() {

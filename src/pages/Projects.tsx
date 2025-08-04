@@ -3,14 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import CreateProjectForm from "@/components/forms/CreateProjectForm";
-import CreateProductForm from "@/components/forms/CreateProductForm";
-import CreateDepartmentForm from "@/components/forms/CreateDepartmentForm";
+import CreateProjectForm from "@/components/users/CreateProjectForm";
+import CreateProductForm from "@/components/users/CreateProductForm";
+import CreateDepartmentForm from "@/components/users/CreateDepartmentForm";
 import { Badge } from "@/components/ui/badge";
-import { FolderOpen, Plus, Building2, Package, Users } from "lucide-react";
-import Header from "@/components/layout/Header";
-import { getProjects, getProducts, getDepartments } from "@/utils/storage";
-import { Project, Product, Department } from "@/types";
+import { FolderOpen, Plus, Building2, Package, Users, Trash2, Edit2 } from "lucide-react";
+import Header from "@/components/dashboard/Header";
+import { getProjects, getProducts, getDepartments, deleteProject, deleteProduct, deleteDepartment } from "@/services/storage";
+import { Project, Product, Department } from "@/validation/index";
+import { getCurrentUser } from "@/lib/auth";
+import { rolePermissions } from "@/validation/index";
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -20,6 +22,12 @@ export default function Projects() {
   const [isProjectFormOpen, setProjectFormOpen] = useState(false);
   const [isProductFormOpen, setProductFormOpen] = useState(false);
   const [isDepartmentFormOpen, setDepartmentFormOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  
+  const currentUser = getCurrentUser();
+  const permissions = rolePermissions[currentUser?.role || 'employee'];
 
   useEffect(() => {
     loadData();
@@ -54,6 +62,74 @@ export default function Projects() {
 
   const handleDepartmentSuccess = () => {
     setDepartmentFormOpen(false);
+    setEditingDepartment(null);
+    loadData();
+  };
+
+  // Edit handlers
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setProjectFormOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setProductFormOpen(true);
+  };
+
+  const handleEditDepartment = (department: Department) => {
+    setEditingDepartment(department);
+    setDepartmentFormOpen(true);
+  };
+
+  // Delete handlers
+  const handleDeleteProject = (projectId: string) => {
+    if (confirm('Are you sure you want to delete this project?')) {
+      deleteProject(projectId);
+      loadData();
+    }
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    if (confirm('Are you sure you want to delete this product?')) {
+      deleteProduct(productId);
+      loadData();
+    }
+  };
+
+  const handleDeleteDepartment = (departmentId: string) => {
+    if (confirm('Are you sure you want to delete this department?')) {
+      deleteDepartment(departmentId);
+      loadData();
+    }
+  };
+
+  // Close handlers with reset
+  const handleCloseProjectForm = () => {
+    setProjectFormOpen(false);
+    setEditingProject(null);
+  };
+
+  const handleCloseProductForm = () => {
+    setProductFormOpen(false);
+    setEditingProduct(null);
+  };
+
+  const handleCloseDepartmentForm = () => {
+    setDepartmentFormOpen(false);
+    setEditingDepartment(null);
+  };
+
+  // Update success handlers
+  const handleProjectSuccessUpdated = () => {
+    setProjectFormOpen(false);
+    setEditingProject(null);
+    loadData();
+  };
+
+  const handleProductSuccessUpdated = () => {
+    setProductFormOpen(false);
+    setEditingProduct(null);
     loadData();
   };
 
@@ -105,6 +181,7 @@ export default function Projects() {
                       <TableHead>Created By</TableHead>
                       <TableHead>Created Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -119,6 +196,28 @@ export default function Projects() {
                         <TableCell>{new Date(project.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Badge className="bg-success text-success-foreground">Active</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {permissions.canManageProjects && (
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditProject(project)}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteProject(project.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -154,6 +253,7 @@ export default function Projects() {
                       <TableHead>Created By</TableHead>
                       <TableHead>Created Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -168,6 +268,28 @@ export default function Projects() {
                         <TableCell>{new Date(product.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Badge className="bg-success text-success-foreground">Active</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {permissions.canManageProjects && (
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditProduct(product)}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteProduct(product.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -203,6 +325,7 @@ export default function Projects() {
                       <TableHead>Created By</TableHead>
                       <TableHead>Created Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -218,6 +341,28 @@ export default function Projects() {
                         <TableCell>
                           <Badge className="bg-success text-success-foreground">Active</Badge>
                         </TableCell>
+                        <TableCell>
+                          {permissions.canManageProjects && (
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditDepartment(department)}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteDepartment(department.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -230,20 +375,23 @@ export default function Projects() {
 
       <CreateProjectForm
         isOpen={isProjectFormOpen} 
-        onClose={() => setProjectFormOpen(false)} 
-        onSuccess={handleProjectSuccess}
+        onClose={handleCloseProjectForm} 
+        onSuccess={handleProjectSuccessUpdated}
+        editingProject={editingProject}
       />
 
       <CreateProductForm
         isOpen={isProductFormOpen} 
-        onClose={() => setProductFormOpen(false)}
-        onSuccess={handleProductSuccess}
+        onClose={handleCloseProductForm}
+        onSuccess={handleProductSuccessUpdated}
+        editingProduct={editingProduct}
       />
 
       <CreateDepartmentForm
         isOpen={isDepartmentFormOpen}
-        onClose={() => setDepartmentFormOpen(false)}
+        onClose={handleCloseDepartmentForm}
         onSuccess={handleDepartmentSuccess}
+        editingDepartment={editingDepartment}
       />
     </div>
   );

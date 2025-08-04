@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,18 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2 } from "lucide-react";
-import { saveProduct, generateId } from "@/utils/storage";
-import { getCurrentUser } from "@/utils/auth";
-import { Product, ProductStage, ProductTask, ProductSubtask } from "@/types";
+import { Plus, Trash2, Edit2 } from "lucide-react";
+import { saveProduct, generateId } from "@/services/storage";
+import { getCurrentUser } from "@/lib/auth";
+import { Product, ProductStage, ProductTask, ProductSubtask } from "@/validation/index";
 
 interface CreateProductFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingProduct?: Product | null;
 }
 
-export default function CreateProductForm({ isOpen, onClose, onSuccess }: CreateProductFormProps) {
+export default function CreateProductForm({ isOpen, onClose, onSuccess, editingProduct }: CreateProductFormProps) {
   const [productName, setProductName] = useState("");
   const [isBillable, setIsBillable] = useState(false);
   const [stages, setStages] = useState<ProductStage[]>([
@@ -29,6 +30,29 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess }: Create
   ]);
 
   const currentUser = getCurrentUser();
+  const isEditing = !!editingProduct;
+
+  // Load editing data when editingProduct changes
+  useEffect(() => {
+    if (editingProduct && isOpen) {
+      setProductName(editingProduct.name);
+      setIsBillable(editingProduct.isBillable);
+      setStages(editingProduct.stages.length > 0 ? editingProduct.stages : [{
+        id: generateId(),
+        name: "",
+        tasks: []
+      }]);
+    } else if (!isOpen) {
+      // Reset form when closing
+      setProductName("");
+      setIsBillable(false);
+      setStages([{
+        id: generateId(),
+        name: "",
+        tasks: []
+      }]);
+    }
+  }, [editingProduct, isOpen]);
 
   const addStage = () => {
     setStages([...stages, {
@@ -137,12 +161,12 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess }: Create
     }
 
     const product: Product = {
-      id: generateId(),
+      id: isEditing ? editingProduct!.id : generateId(),
       name: productName,
       stages: stages.filter(stage => stage.name.trim()),
       isBillable,
-      createdBy: currentUser?.name || "Unknown",
-      createdAt: new Date().toISOString()
+      createdBy: isEditing ? editingProduct!.createdBy : (currentUser?.name || "Unknown"),
+      createdAt: isEditing ? editingProduct!.createdAt : new Date().toISOString()
     };
 
     saveProduct(product);
@@ -166,10 +190,14 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess }: Create
       <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
         <DialogHeader className="border-b border-gray-200 pb-4">
           <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Plus className="h-6 w-6 text-purple-600" />
+            <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100' : 'bg-purple-100'}`}>
+              {isEditing ? (
+                <Edit2 className="h-6 w-6 text-orange-600" />
+              ) : (
+                <Plus className="h-6 w-6 text-purple-600" />
+              )}
             </div>
-            <span>Create New Product</span>
+            <span>{isEditing ? 'Edit Product' : 'Create New Product'}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -335,10 +363,17 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess }: Create
           </Button>
           <Button
             onClick={handleSubmit} 
-            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-3 font-semibold shadow-lg transition-all duration-200"
+            className={`${isEditing 
+              ? 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800' 
+              : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800'
+            } text-white px-8 py-3 font-semibold shadow-lg transition-all duration-200`}
           >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Product
+            {isEditing ? (
+              <Edit2 className="h-5 w-5 mr-2" />
+            ) : (
+              <Plus className="h-5 w-5 mr-2" />
+            )}
+            {isEditing ? 'Update Product' : 'Create Product'}
           </Button>
         </DialogFooter>
       </DialogContent>

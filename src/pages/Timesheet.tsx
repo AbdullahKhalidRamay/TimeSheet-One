@@ -7,13 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { DateRange } from "react-day-picker";
 import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon } from "lucide-react";
-import Header from "@/components/layout/Header";
-import { getCurrentUser } from "@/utils/auth";
-import { getTimeEntries, deleteTimeEntry } from "@/utils/storage";
-import { TimeEntry } from "@/types";
-import { rolePermissions } from "@/types";
-import { formatTime } from "@/utils/storage";
+import Header from "@/components/dashboard/Header";
+import { getCurrentUser } from "@/lib/auth";
+import { getTimeEntries, deleteTimeEntry } from "@/services/storage";
+import { TimeEntry } from "@/validation/index";
+import { rolePermissions } from "@/validation/index";
+import { formatTime } from "@/services/storage";
 import { useNavigate } from "react-router-dom";
+import EditTimeEntryForm from "@/components/users/EditTimeEntryForm";
 
 export default function Timesheet() {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -22,6 +23,8 @@ export default function Timesheet() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [isEditFormOpen, setEditFormOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
 
@@ -172,6 +175,23 @@ const getDateRange = () => {
     }
     
     alert(`Submitted ${pendingEntries.length} entries for approval`);
+  };
+
+  // Edit handlers
+  const handleEditEntry = (entry: TimeEntry) => {
+    setEditingEntry(entry);
+    setEditFormOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditFormOpen(false);
+    setEditingEntry(null);
+    loadTimeEntries();
+  };
+
+  const handleCloseEditForm = () => {
+    setEditFormOpen(false);
+    setEditingEntry(null);
   };
 
   const permissions = rolePermissions[currentUser?.role || 'employee'];
@@ -421,7 +441,12 @@ const getDateRange = () => {
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         {canEdit(entry) && (
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEditEntry(entry)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
@@ -444,6 +469,13 @@ const getDateRange = () => {
           </CardContent>
         </Card>
       </div>
+
+      <EditTimeEntryForm
+        isOpen={isEditFormOpen}
+        onClose={handleCloseEditForm}
+        onSuccess={handleEditSuccess}
+        editingEntry={editingEntry}
+      />
     </div>
   );
 }

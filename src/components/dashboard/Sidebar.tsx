@@ -14,8 +14,8 @@ import {
   User
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getCurrentUser, logout } from "@/utils/auth";
-import { rolePermissions } from "@/types";
+import { getCurrentUser, logout } from "@/lib/auth";
+import { rolePermissions } from "@/validation/index";
 
 const navigation = [
   {

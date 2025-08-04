@@ -1,21 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getAllUsers, getCurrentUser } from "@/utils/auth";
-import { getProjects, getProducts, getDepartments, saveTeam } from "@/utils/storage";
-import { User, Team } from "@/types";
+import { getAllUsers, getCurrentUser } from "@/lib/auth";
+import { getProjects, getProducts, getDepartments, saveTeam } from "@/services/storage";
+import { User, Team } from "@/validation/index";
 import { Users, Trash2 } from "lucide-react";
 
 interface CreateTeamFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editing?: Team | null;
 }
 
-export default function CreateTeamForm({ isOpen, onClose, onSuccess }: CreateTeamFormProps) {
+export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: CreateTeamFormProps) {
   const [teamName, setTeamName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
@@ -27,13 +28,31 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess }: CreateTea
   const products = getProducts();
   const departments = getDepartments();
 
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (editing && isOpen) {
+      setTeamName(editing.name);
+      setSelectedMembers(editing.memberIds);
+      setSelectedProjects(editing.associatedProjects);
+      setSelectedProducts(editing.associatedProducts);
+      setSelectedDepartments(editing.associatedDepartments);
+    }
+  }, [editing, isOpen]);
+
   const handleSubmit = () => {
     if (!teamName.trim() || selectedMembers.length === 0) {
       alert("Please fill out all fields");
       return;
     }
 
-    const newTeam: Team = {
+    const teamData: Team = editing ? {
+      ...editing,
+      name: teamName,
+      memberIds: selectedMembers,
+      associatedProjects: selectedProjects,
+      associatedProducts: selectedProducts,
+      associatedDepartments: selectedDepartments,
+    } : {
       id: Date.now().toString(),
       name: teamName,
       memberIds: selectedMembers,
@@ -44,7 +63,7 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess }: CreateTea
       createdAt: new Date().toISOString(),
     };
 
-    saveTeam(newTeam);
+    saveTeam(teamData);
     onSuccess();
     handleClose();
   };
@@ -62,7 +81,7 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess }: CreateTea
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Create New Team</DialogTitle>
+          <DialogTitle>{editing ? 'Edit Team' : 'Create New Team'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -166,7 +185,7 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess }: CreateTea
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSubmit}>Create Team</Button>
+          <Button onClick={handleSubmit}>{editing ? 'Update Team' : 'Create Team'}</Button>
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
         </DialogFooter>
       </DialogContent>

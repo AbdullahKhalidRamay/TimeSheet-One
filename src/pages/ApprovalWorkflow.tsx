@@ -7,11 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CheckSquare, X, Check, Clock, History, MessageSquare } from "lucide-react";
-import Header from "@/components/layout/Header";
-import { getCurrentUser } from "@/utils/auth";
-import { getTimeEntries, updateTimeEntryStatus, getApprovalHistory } from "@/utils/storage";
-import { TimeEntry, ApprovalAction } from "@/types";
-import { rolePermissions } from "@/types";
+import Header from "@/components/dashboard/Header";
+import { getCurrentUser } from "@/lib/auth";
+import { getTimeEntries, updateTimeEntryStatus, getApprovalHistory } from "@/services/storage";
+import { TimeEntry, ApprovalAction } from "@/validation/index";
+import { rolePermissions } from "@/validation/index";
 
 export default function ApprovalWorkflow() {
   const [pendingEntries, setPendingEntries] = useState<TimeEntry[]>([]);

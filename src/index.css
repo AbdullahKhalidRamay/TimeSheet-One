@@ -2,81 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Professional Outlook-inspired design system */
+/* Nucleus One Design System */
 
 @layer base {
   :root {
-    /* Professional Outlook-like color palette */
-    --background: 0 0% 98%;
-    --foreground: 225 15% 15%;
+    /* Light Mode Colors */
+    --primary: 262 83% 58%;           /* Purple brand color */
+    --primary-foreground: 210 20% 98%; 
+    --primary-glow: 262 83% 70%;      /* Lighter purple for effects */
 
-    --card: 0 0% 100%;
-    --card-foreground: 225 15% 15%;
+    --secondary: 210 40% 96%;         /* Light gray */
+    --secondary-foreground: 222.2 84% 4.9%;
+
+    --background: 0 0% 100%;          /* Pure white */
+    --foreground: 222.2 84% 4.9%;    /* Near black text */
+
+    --muted: 210 40% 96%;             /* Subtle backgrounds */
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96%;            /* Interactive elements */
+    --accent-foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;                /* Card backgrounds */
+    --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 225 15% 15%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    /* Microsoft-inspired primary colors */
-    --primary: 206 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 206 100% 45%;
+    /* Semantic Colors */
+    --success: 142 76% 36%;           /* Green for success states */
+    --success-foreground: 355.7 100% 97.3%;
 
-    --secondary: 210 16% 95%;
-    --secondary-foreground: 225 15% 25%;
+    --warning: 32 95% 44%;            /* Orange for warnings */
+    --warning-foreground: 355.7 100% 97.3%;
 
-    --muted: 210 16% 97%;
-    --muted-foreground: 215 16% 47%;
-
-    --accent: 43 96% 56%;
-    --accent-foreground: 225 15% 15%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 43 96% 56%;
-    --warning-foreground: 225 15% 15%;
+    --destructive: 0 62.8% 30.6%;     /* Red for errors/delete */
+    --destructive-foreground: 210 20% 98%;
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 206 100% 50%;
+    --ring: 262 83% 58%;
 
-    /* Professional spacing and radius */
-    --radius: 0.25rem;
+    --radius: 0.5rem;
 
-    /* Custom design tokens */
-    --nav-background: 0 0% 100%;
-    --nav-border: 220 13% 91%;
-    --sidebar-width: 280px;
-    
-    /* Status colors */
-    --status-pending: 43 96% 56%;
-    --status-approved: 142 76% 36%;
-    --status-rejected: 0 84% 60%;
-    
     /* Role colors */
     --role-owner: 271 81% 56%;
     --role-manager: 206 100% 50%;
     --role-finance: 142 76% 36%;
     --role-employee: 215 16% 47%;
 
-    --sidebar-background: 0 0% 98%;
+    /* Status colors */
+    --status-pending: 32 95% 44%;
+    --status-approved: 142 76% 36%;
+    --status-rejected: 0 62.8% 30.6%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
+    /* Sidebar colors */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 210 20% 98%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222.2 84% 4.9%;
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 262 83% 58%;
   }
 
   .dark {

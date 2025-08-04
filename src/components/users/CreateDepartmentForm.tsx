@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,18 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2 } from "lucide-react";
-import { saveDepartment, generateId } from "@/utils/storage";
-import { getCurrentUser } from "@/utils/auth";
-import { Department, DepartmentFunction, DepartmentDuty, DepartmentSubduty } from "@/types";
+import { Plus, Trash2, Edit2 } from "lucide-react";
+import { saveDepartment, generateId } from "@/services/storage";
+import { getCurrentUser } from "@/lib/auth";
+import { Department, DepartmentFunction, DepartmentDuty, DepartmentSubduty } from "@/validation/index";
 
 interface CreateDepartmentFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingDepartment?: Department | null;
 }
 
-export default function CreateDepartmentForm({ isOpen, onClose, onSuccess }: CreateDepartmentFormProps) {
+export default function CreateDepartmentForm({ isOpen, onClose, onSuccess, editingDepartment }: CreateDepartmentFormProps) {
   const [departmentName, setDepartmentName] = useState("");
   const [functions, setFunctions] = useState<DepartmentFunction[]>([
     {
@@ -27,8 +28,31 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess }: Cre
     }
   ]);
 
-const currentUser = getCurrentUser();
+  const currentUser = getCurrentUser();
   const [isBillable, setIsBillable] = useState(false);
+  const isEditing = !!editingDepartment;
+
+  // Load editing data when editingDepartment changes
+  useEffect(() => {
+    if (editingDepartment && isOpen) {
+      setDepartmentName(editingDepartment.name);
+      setIsBillable(editingDepartment.isBillable);
+      setFunctions(editingDepartment.functions.length > 0 ? editingDepartment.functions : [{
+        id: generateId(),
+        name: "",
+        duties: []
+      }]);
+    } else if (!isOpen) {
+      // Reset form when closing
+      setDepartmentName("");
+      setIsBillable(false);
+      setFunctions([{
+        id: generateId(),
+        name: "",
+        duties: []
+      }]);
+    }
+  }, [editingDepartment, isOpen]);
 
   const addFunction = () => {
     setFunctions([...functions, {
@@ -136,13 +160,13 @@ const currentUser = getCurrentUser();
       return;
     }
 
-const department: Department = {
-      id: generateId(),
+    const department: Department = {
+      id: isEditing ? editingDepartment!.id : generateId(),
       name: departmentName,
       functions: functions.filter(func => func.name.trim()),
       isBillable,
-      createdBy: currentUser?.name || "Unknown",
-      createdAt: new Date().toISOString()
+      createdBy: isEditing ? editingDepartment!.createdBy : (currentUser?.name || "Unknown"),
+      createdAt: isEditing ? editingDepartment!.createdAt : new Date().toISOString()
     };
 
     saveDepartment(department);
@@ -165,7 +189,16 @@ onClose();
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Department</DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100' : 'bg-green-100'}`}>
+              {isEditing ? (
+                <Edit2 className="h-6 w-6 text-orange-600" />
+              ) : (
+                <Plus className="h-6 w-6 text-green-600" />
+              )}
+            </div>
+            <span>{isEditing ? 'Edit Department' : 'Create New Department'}</span>
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -319,8 +352,19 @@ onClose();
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
-            Create Department
+          <Button 
+            onClick={handleSubmit}
+            className={`${isEditing 
+              ? 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800' 
+              : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
+            } text-white font-semibold shadow-lg transition-all duration-200`}
+          >
+            {isEditing ? (
+              <Edit2 className="h-4 w-4 mr-2" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
+            {isEditing ? 'Update Department' : 'Create Department'}
           </Button>
         </DialogFooter>
       </DialogContent>
