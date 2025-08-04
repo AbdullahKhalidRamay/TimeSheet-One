@@ -76,7 +76,7 @@ export default function Notifications() {
   };
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="dashboard-layout">
       <Header 
         title="Notifications"
         showSearch
@@ -89,7 +89,7 @@ export default function Notifications() {
         </Button>
       </Header>
 
-      <div className="p-6 space-y-6">
+      <div className="dashboard-content">
         {/* Notification Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>

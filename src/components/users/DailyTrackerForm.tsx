@@ -275,11 +275,10 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
   };
 
   return (
-    <Card className="max-w-6xl mx-auto shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/5"></div>
-        <CardTitle className="flex items-center space-x-3 text-xl font-semibold relative z-10">
-          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+    <Card className="max-w-6xl mx-auto bg-card border-border shadow-lg">
+      <CardHeader className="bg-primary text-primary-foreground rounded-t-lg">
+        <CardTitle className="flex items-center space-x-3 text-xl font-semibold">
+          <div className="p-2 bg-primary-foreground/20 rounded-lg">
             <Calendar className="h-6 w-6" />
           </div>
           <span>Daily Time Tracker</span>
@@ -305,28 +304,29 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
         {/* Project Selection */}
         <div className="space-y-6">
           <div className="flex items-center space-x-2 mb-4">
-            <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
-            <Label className="text-lg font-semibold text-gray-800">Select Projects, Products, and Departments</Label>
+            <div className="h-2 w-2 bg-primary rounded-full"></div>
+            <Label className="text-lg font-semibold text-foreground">Select Projects, Products, and Departments</Label>
           </div>
           
           {/* Projects */}
           {availableProjects.length > 0 && (
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
+            <Card className="p-6 bg-blue-50/30 border-blue-200">
               <h4 className="font-semibold text-blue-800 mb-4 flex items-center space-x-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                 <span>Projects</span>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {availableProjects.map((project) => (
-                  <div key={project.id} className="flex items-center space-x-3 p-3 rounded-lg bg-white/70 hover:bg-white transition-colors border border-blue-200/50">
+                  <div key={project.id} className="flex items-center space-x-3 p-3 rounded-lg bg-background hover:bg-accent/50 transition-colors border border-border">
                     <Checkbox
+                      id={`project-${project.id}`}
                       checked={selectedProjects.some(p => p.id === project.id)}
                       onCheckedChange={(checked) => 
                         handleProjectSelection(project, 'project', checked as boolean)
                       }
-                      className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                      className="border-border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white"
                     />
-                    <Label className="font-medium text-gray-700 cursor-pointer flex-1">{project.name}</Label>
+                    <Label htmlFor={`project-${project.id}`} className="font-medium text-foreground cursor-pointer flex-1">{project.name}</Label>
                     {project.isBillable && <DollarSign className="h-4 w-4 text-green-600" />}
                   </div>
                 ))}
@@ -336,22 +336,23 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
 
           {/* Products */}
           {availableProducts.length > 0 && (
-            <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200">
+            <Card className="p-6 bg-purple-50/30 border-purple-200">
               <h4 className="font-semibold text-purple-800 mb-4 flex items-center space-x-2">
                 <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
                 <span>Products</span>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {availableProducts.map((product) => (
-                  <div key={product.id} className="flex items-center space-x-3 p-3 rounded-lg bg-white/70 hover:bg-white transition-colors border border-purple-200/50">
+                  <div key={product.id} className="flex items-center space-x-3 p-3 rounded-lg bg-background hover:bg-accent/50 transition-colors border border-border">
                     <Checkbox
+                      id={`product-${product.id}`}
                       checked={selectedProjects.some(p => p.id === product.id)}
                       onCheckedChange={(checked) => 
                         handleProjectSelection(product, 'product', checked as boolean)
                       }
-                      className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                      className="border-border data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600 data-[state=checked]:text-white"
                     />
-                    <Label className="font-medium text-gray-700 cursor-pointer flex-1">{product.name}</Label>
+                    <Label htmlFor={`product-${product.id}`} className="font-medium text-foreground cursor-pointer flex-1">{product.name}</Label>
                     {product.isBillable && <DollarSign className="h-4 w-4 text-green-600" />}
                   </div>
                 ))}
@@ -361,22 +362,23 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
 
           {/* Departments */}
           {availableDepartments.length > 0 && (
-            <Card className="p-6 bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200">
+            <Card className="p-6 bg-orange-50/30 border-orange-200">
               <h4 className="font-semibold text-orange-800 mb-4 flex items-center space-x-2">
                 <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                 <span>Departments</span>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {availableDepartments.map((department) => (
-                  <div key={department.id} className="flex items-center space-x-3 p-3 rounded-lg bg-white/70 hover:bg-white transition-colors border border-orange-200/50">
+                  <div key={department.id} className="flex items-center space-x-3 p-3 rounded-lg bg-background hover:bg-accent/50 transition-colors border border-border">
                     <Checkbox
+                      id={`department-${department.id}`}
                       checked={selectedProjects.some(p => p.id === department.id)}
                       onCheckedChange={(checked) => 
                         handleProjectSelection(department, 'department', checked as boolean)
                       }
-                      className="data-[state=checked]:bg-orange-600 data-[state=checked]:border-orange-600"
+                      className="border-border data-[state=checked]:bg-orange-600 data-[state=checked]:border-orange-600 data-[state=checked]:text-white"
                     />
-                    <Label className="font-medium text-gray-700 cursor-pointer flex-1">{department.name}</Label>
+                    <Label htmlFor={`department-${department.id}`} className="font-medium text-foreground cursor-pointer flex-1">{department.name}</Label>
                     {department.isBillable && <DollarSign className="h-4 w-4 text-green-600" />}
                   </div>
                 ))}
@@ -606,7 +608,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
         )}
 
         {/* Action Buttons */}
-        <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+        <div className="flex justify-between items-center pt-6 border-t border-border">
           <Button 
             variant="outline"
             size="lg"
@@ -620,7 +622,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
               });
               setSelectedProjects([]);
             }}
-            className="px-6 py-3 font-medium border-2 hover:bg-gray-50"
+            className="border-border text-foreground hover:bg-accent"
           >
             Reset Form
           </Button>
@@ -628,7 +630,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
             size="lg"
             onClick={handleSubmit}
             disabled={formData.projectEntries.length === 0 || getTotalHours() === 0}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-8 py-3 font-semibold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Calendar className="mr-2 h-5 w-5" />
             Save Time Entries

@@ -90,7 +90,7 @@ export default function Teams() {
   };
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="dashboard-layout">
       <Header 
         title="Teams"
         showSearch
@@ -109,7 +109,7 @@ export default function Teams() {
         </Button>
       </Header>
 
-      <div className="p-6 space-y-6">
+      <div className="dashboard-content">
         {/* Team Summary */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>

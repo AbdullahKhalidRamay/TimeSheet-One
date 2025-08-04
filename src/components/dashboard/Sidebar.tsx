@@ -11,7 +11,8 @@ import {
   CheckSquare, 
   Settings,
   LogOut,
-  User
+  User,
+  BarChart3
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCurrentUser, logout } from "@/lib/auth";
@@ -53,6 +54,12 @@ const navigation = [
     href: "/approval",
     icon: CheckSquare,
     roles: ["manager", "owner"],
+  },
+  {
+    name: "Reports",
+    href: "/reports",
+    icon: BarChart3,
+    roles: ["finance_manager", "manager", "owner"],
   },
 ];
 
@@ -96,14 +103,14 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="flex h-full w-64 flex-col bg-card border-r border-border">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 flex flex-col bg-sidebar-background border-r border-sidebar-border animate-fade-in">
       {/* Header */}
       <div className="p-6">
         <div className="flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-primary text-primary-foreground animate-float">
             <Clock className="h-4 w-4" />
           </div>
-          <span className="text-lg font-semibold">Timesheet App</span>
+          <span className="text-subheading font-bold bg-gradient-primary bg-clip-text text-transparent">Timeflow</span>
         </div>
       </div>
 
@@ -111,21 +118,26 @@ export default function Sidebar() {
 
       {/* User Info */}
       <div className="p-4">
-        <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-            <User className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{currentUser.name}</p>
-            <div className="flex items-center space-x-2">
-              <span 
-                className={cn(
-                  "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-white",
-                  getRoleColor(currentUser.role)
-                )}
-              >
-                {getRoleLabel(currentUser.role)}
-              </span>
+        <div className="card-glass rounded-lg p-3 hover-scale">
+          <div className="flex items-center space-x-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground">
+              <User className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate text-sidebar-foreground">{currentUser.name}</p>
+              <div className="flex items-center space-x-2">
+                <span 
+                  className={cn(
+                    "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border animate-pulse-glow",
+                    currentUser.role === 'owner' && 'role-owner',
+                    currentUser.role === 'manager' && 'role-manager', 
+                    currentUser.role === 'finance_manager' && 'role-finance',
+                    currentUser.role === 'employee' && 'role-employee'
+                  )}
+                >
+                  {getRoleLabel(currentUser.role)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -143,8 +155,9 @@ export default function Sidebar() {
                 key={item.name}
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start hover:bg-blue-100 hover:text-blue-700 transition-colors",
-                  isActive && "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  "w-full justify-start hover-scale hover-glow transition-all duration-200",
+                  isActive && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
+                  !isActive && "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                 )}
                 onClick={() => navigate(item.href)}
               >
@@ -162,13 +175,13 @@ export default function Sidebar() {
       <div className="p-4">
         <Button
           variant="ghost"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
+          className="w-full justify-start text-sidebar-foreground hover:text-destructive hover-scale hover-glow transition-all duration-200"
           onClick={handleLogout}
         >
           <LogOut className="mr-3 h-4 w-4" />
           Logout
         </Button>
       </div>
-    </div>
+    </aside>
   );
 }

@@ -186,10 +186,10 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
-        <DialogHeader className="border-b border-gray-200 pb-4">
-          <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center space-x-3">
-            <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100' : 'bg-blue-100'}`}>
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100/30' : 'bg-blue-100/30'}`}>
               {isEditing ? (
                 <Edit2 className="h-6 w-6 text-orange-600" />
               ) : (
@@ -200,51 +200,54 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-8 p-6">
+        <div className="space-y-6 p-6 bg-muted/30 rounded-lg border">
           {/* Project Name */}
-          <div className="space-y-3">
-            <Label htmlFor="projectName" className="text-base font-semibold text-gray-700">Project Name</Label>
+          <div className="space-y-2">
+            <Label htmlFor="projectName" className="text-sm font-medium text-foreground">Project Name</Label>
             <Input
               id="projectName"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder="Enter a descriptive project name"
-              className="text-base p-3 border-2 focus:border-blue-500 transition-colors"
+              className="bg-background border-border focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           {/* Billable Status */}
-          <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="isBillable"
-                checked={isBillable}
-                onCheckedChange={(checked) => setIsBillable(checked as boolean)}
-                className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
-              />
-              <Label htmlFor="isBillable" className="text-base font-medium text-gray-700 cursor-pointer">💰 This project is billable</Label>
-            </div>
-          </Card>
+          <div className="flex items-center space-x-3 p-3 bg-card rounded-lg border border-border">
+            <Checkbox
+              id="isBillable"
+              checked={isBillable}
+              onCheckedChange={(checked) => setIsBillable(checked as boolean)}
+              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
+            <Label htmlFor="isBillable" className="text-sm font-medium text-card-foreground cursor-pointer">💰 This project is billable</Label>
+          </div>
 
           {/* Project Levels */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Project Levels</Label>
-              <Button type="button" onClick={addLevel} size="sm">
+              <Label className="text-sm font-medium text-foreground">Project Levels</Label>
+              <Button 
+                type="button" 
+                onClick={addLevel} 
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Level
               </Button>
             </div>
 
             {levels.map((level, levelIndex) => (
-              <Card key={level.id} className="p-4">
+              <Card key={level.id} className="p-4 bg-card border-border shadow-sm hover:shadow-md transition-shadow">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Input
                       value={level.name}
                       onChange={(e) => updateLevel(level.id, e.target.value)}
                       placeholder="Level name"
-                      className="flex-1"
+                      className="flex-1 bg-background border-border focus:ring-2 focus:ring-primary/20"
                     />
                     {levels.length > 1 && (
                       <Button
@@ -252,6 +255,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
                         variant="outline"
                         size="sm"
                         onClick={() => removeLevel(level.id)}
+                        className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -350,26 +354,21 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
           </div>
         </div>
 
-        <DialogFooter className="flex justify-between items-center border-t border-gray-200 pt-6 px-6">
-          <Button 
-            variant="outline" 
-            onClick={handleClose} 
-            className="px-6 py-3 font-medium border-2 hover:bg-gray-50"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit} 
+          <Button 
+            onClick={handleSubmit}
             className={`${isEditing 
               ? 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800' 
               : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
-            } text-white px-8 py-3 font-semibold shadow-lg transition-all duration-200`}
+            } text-white font-semibold shadow-lg transition-all duration-200`}
           >
             {isEditing ? (
-              <Edit2 className="h-5 w-5 mr-2" />
+              <Edit2 className="h-4 w-4 mr-2" />
             ) : (
-              <Plus className="h-5 w-5 mr-2" />
+              <Plus className="h-4 w-4 mr-2" />
             )}
             {isEditing ? 'Update Project' : 'Create Project'}
           </Button>

@@ -244,25 +244,25 @@ export default function TimeTracker() {
   };
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="dashboard-layout">
       <Header title="Time Tracker" />
 
-      <div className="p-6">
-        <Tabs defaultValue="entry-form" className="w-full">
+      <div className="dashboard-content">
+        <Tabs defaultValue="entry-form" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="entry-form">1st Approach</TabsTrigger>
             <TabsTrigger value="trackers">Trackers</TabsTrigger>
           </TabsList>
           
           <TabsContent value="entry-form">
-            <Card className="max-w-4xl mx-auto">
-              <CardHeader className="bg-primary text-primary-foreground">
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>Add Time Entry</span>
+            <Card className="max-w-4xl mx-auto card-primary">
+              <CardHeader className="bg-gradient-primary text-primary-foreground rounded-t-lg">
+                <CardTitle className="flex items-center space-x-3">
+                  <Calendar className="h-6 w-6" />
+                  <span className="text-display">Add Time Entry</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="p-8 space-y-8">
             {/* Date and Category */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -460,10 +460,10 @@ export default function TimeTracker() {
             {/* Action Buttons */}
             <div className="flex justify-between pt-4">
               <Button variant="outline">Cancel</Button>
-              <Button onClick={handleSubmit} className="bg-primary hover:bg-primary-hover">
-                <Calendar className="mr-2 h-4 w-4" />
-                Add Time Entry
-              </Button>
+                <Button onClick={handleSubmit} className="btn-primary">
+                  <Calendar className="mr-2 h-5 w-5" />
+                  Add Time Entry
+                </Button>
                 </div>
               </CardContent>
             </Card>

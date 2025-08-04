@@ -134,7 +134,7 @@ export default function Projects() {
   };
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="dashboard-layout">
       <Header 
         title="Projects & Tasks"
         showSearch
@@ -147,7 +147,7 @@ export default function Projects() {
         </Button>
       </Header>
 
-      <div className="p-6">
+      <div className="dashboard-content">
         <Tabs defaultValue="projects" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="projects">Projects</TabsTrigger>

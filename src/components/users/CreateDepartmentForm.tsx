@@ -187,10 +187,10 @@ onClose();
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center space-x-3">
-            <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100' : 'bg-green-100'}`}>
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100/30' : 'bg-green-100/30'}`}>
               {isEditing ? (
                 <Edit2 className="h-6 w-6 text-orange-600" />
               ) : (
@@ -201,47 +201,54 @@ onClose();
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 p-6 bg-muted/30 rounded-lg border">
           {/* Department Name */}
           <div className="space-y-2">
-            <Label htmlFor="departmentName">Department Name</Label>
+            <Label htmlFor="departmentName" className="text-sm font-medium text-foreground">Department Name</Label>
             <Input
               id="departmentName"
               value={departmentName}
               onChange={(e) => setDepartmentName(e.target.value)}
               placeholder="Enter department name"
+              className="bg-background border-border focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
-{/* Billable Status */}
-          <div className="flex items-center space-x-2">
+          {/* Billable Status */}
+          <div className="flex items-center space-x-3 p-3 bg-card rounded-lg border border-border">
             <Checkbox
               id="isBillable"
               checked={isBillable}
               onCheckedChange={(checked) => setIsBillable(checked as boolean)}
+              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
-            <Label htmlFor="isBillable">This department is billable</Label>
+            <Label htmlFor="isBillable" className="text-sm font-medium text-card-foreground cursor-pointer">This department is billable</Label>
           </div>
 
           {/* Department Functions */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Department Functions</Label>
-              <Button type="button" onClick={addFunction} size="sm">
+              <Label className="text-sm font-medium text-foreground">Department Functions</Label>
+              <Button 
+                type="button" 
+                onClick={addFunction} 
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Function
               </Button>
             </div>
 
             {functions.map((func, functionIndex) => (
-              <Card key={func.id} className="p-4">
+              <Card key={func.id} className="p-4 bg-card border-border shadow-sm hover:shadow-md transition-shadow">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Input
                       value={func.name}
                       onChange={(e) => updateFunction(func.id, e.target.value)}
                       placeholder="Function name"
-                      className="flex-1"
+                      className="flex-1 bg-background border-border focus:ring-2 focus:ring-primary/20"
                     />
                     {functions.length > 1 && (
                       <Button
@@ -249,6 +256,7 @@ onClose();
                         variant="outline"
                         size="sm"
                         onClick={() => removeFunction(func.id)}
+                        className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

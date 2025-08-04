@@ -263,10 +263,10 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
-        <DialogHeader className="border-b border-gray-200 pb-4">
-          <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center space-x-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
+            <div className="p-2 bg-orange-100/30 rounded-lg">
               <Edit2 className="h-6 w-6 text-orange-600" />
             </div>
             <span>Edit Time Entry</span>
@@ -436,18 +436,18 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
           </div>
         </div>
 
-        <DialogFooter className="flex justify-between items-center border-t border-gray-200 pt-6 px-6">
+        <DialogFooter className="flex justify-between items-center border-t border-border pt-6">
           <Button 
             variant="outline" 
-            onClick={handleClose} 
-            className="px-6 py-3 font-medium border-2 hover:bg-gray-50"
+            onClick={handleClose}
+            className="border-border text-foreground hover:bg-accent"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Cancel
           </Button>
           <Button
-            onClick={handleSubmit} 
-            className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white px-8 py-3 font-semibold shadow-lg transition-all duration-200"
+            onClick={handleSubmit}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-all duration-200"
           >
             <Edit2 className="h-5 w-5 mr-2" />
             Update Time Entry

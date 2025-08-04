@@ -197,7 +197,7 @@ const getDateRange = () => {
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="dashboard-layout">
       <Header 
         title="Team Timesheet"
         showSearch
@@ -217,7 +217,7 @@ const getDateRange = () => {
         </Button>
       </Header>
 
-      <div className="p-6 space-y-6">
+      <div className="dashboard-content">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>

@@ -1,6 +1,6 @@
-import { saveTimeEntry, saveProject, saveProduct, saveDepartment, saveTeam, generateId } from './storage';
-import { getCurrentUser, getAllUsers } from './auth';
-import { TimeEntry, Project, Product, Department, ProjectDetail, Team } from '@/types';
+import { saveTimeEntry, saveProject, saveProduct, saveDepartment, saveTeam, generateId } from '../services/storage';
+import { getCurrentUser, getAllUsers } from '../lib/auth';
+import { TimeEntry, Project, Product, Department, ProjectDetail, Team } from '../validation';
 
 export const initializeSampleData = () => {
   // Only initialize if no data exists
