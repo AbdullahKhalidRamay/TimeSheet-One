@@ -1,12 +1,37 @@
-export type UserRole = 'employee' | 'finance_manager' | 'manager' | 'owner';
+export type UserRole = 'employee' | 'manager' | 'owner';
+
+export type JobTitle = 
+  // Manager job titles
+  | 'Finance Manager'
+  | 'IT Manager'
+  | 'Sales Manager'
+  | 'Marketing Manager'
+  | 'HR Manager'
+  | 'Team Lead'
+  // Owner job titles
+  | 'CEO'
+  | 'President'
+  | 'VP'
+  // Employee job titles
+  | 'IT Employee'
+  | 'Sales Employee'
+  | 'Marketing Employee'
+  | 'HR Employee'
+  | 'Finance Employee'
+  | 'Customer Service Employee'
+  | 'Operations Employee'
+  | 'Data Analyst'
+  | 'Software Developer'
+  | 'Business Analyst';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  jobTitle: JobTitle;
   billableRate?: number;
-  totalHours: number;
+  availableHours: number;
   totalBillableHours: number;
 }
 
@@ -15,10 +40,13 @@ export interface TimeEntry {
   userId: string;
   userName: string;
   date: string;
-  clockIn: string;
-  clockOut: string;
-  breakTime: number;
-  totalHours: number;
+  clockIn?: string; // Made optional for backward compatibility
+  clockOut?: string; // Made optional for backward compatibility
+  breakTime?: number; // Made optional for backward compatibility
+  actualHours: number; // New field for actual hours worked
+  billableHours: number; // New field for billable hours
+  totalHours?: number; // Sum of actual + billable hours (deprecated)
+  availableHours?: number; // User's available hours from profile
   task: string;
   projectDetails: ProjectDetail;
   isBillable: boolean;
@@ -182,16 +210,6 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
     canViewBillableRates: false,
     canManageProjects: false,
     canManageTeams: false,
-    canApproveEntries: false,
-    canViewApprovalHistory: false,
-    canReapprove: false,
-  },
-  finance_manager: {
-    canViewAllTimesheets: true,
-    canEditOthersTimesheets: false,
-    canViewBillableRates: true,
-    canManageProjects: true,
-    canManageTeams: true,
     canApproveEntries: false,
     canViewApprovalHistory: false,
     canReapprove: false,

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { saveProject, generateId } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
@@ -200,7 +200,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 p-6 bg-muted/30 rounded-lg border">
+        <div className="space-y-6 p-6 bg-muted/30 rounded-lg border border-gray-300">
           {/* Project Name */}
           <div className="space-y-2">
             <Label htmlFor="projectName" className="text-sm font-medium text-foreground">Project Name</Label>
@@ -209,19 +209,21 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder="Enter a descriptive project name"
-              className="bg-background border-border focus:ring-2 focus:ring-primary/20"
+              className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           {/* Billable Status */}
-          <div className="flex items-center space-x-3 p-3 bg-card rounded-lg border border-border">
-            <Checkbox
+          <div className="flex items-center space-x-3 p-3 bg-card rounded-lg border border-gray-300">
+            <Switch
               id="isBillable"
               checked={isBillable}
-              onCheckedChange={(checked) => setIsBillable(checked as boolean)}
-              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              onCheckedChange={setIsBillable}
             />
-            <Label htmlFor="isBillable" className="text-sm font-medium text-card-foreground cursor-pointer">💰 This project is billable</Label>
+            <Label htmlFor="isBillable" className="text-sm font-medium text-card-foreground cursor-pointer">
+              <span className="inline-block animate-pulse text-green-600 font-bold mr-1">$</span>
+              Billable only
+            </Label>
           </div>
 
           {/* Project Levels */}
@@ -240,14 +242,14 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
             </div>
 
             {levels.map((level, levelIndex) => (
-              <Card key={level.id} className="p-4 bg-card border-border shadow-sm hover:shadow-md transition-shadow">
+              <Card key={level.id} className="p-4 bg-card border-gray-300 shadow-sm hover:shadow-md transition-shadow">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Input
                       value={level.name}
                       onChange={(e) => updateLevel(level.id, e.target.value)}
                       placeholder="Level name"
-                      className="flex-1 bg-background border-border focus:ring-2 focus:ring-primary/20"
+                      className="flex-1 bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
                     />
                     {levels.length > 1 && (
                       <Button

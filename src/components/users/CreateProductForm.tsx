@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { saveProduct, generateId } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
@@ -217,13 +217,15 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
           {/* Billable Status */}
           <Card className="p-4 bg-gradient-to-r from-green-50 to-purple-50 border-green-200">
             <div className="flex items-center space-x-3">
-              <Checkbox
+              <Switch
                 id="isBillable"
                 checked={isBillable}
-                onCheckedChange={(checked) => setIsBillable(checked as boolean)}
-                className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                onCheckedChange={setIsBillable}
               />
-              <Label htmlFor="isBillable" className="text-base font-medium text-gray-700 cursor-pointer">💰 This product is billable</Label>
+              <Label htmlFor="isBillable" className="text-base font-medium text-gray-700 cursor-pointer">
+                <span className="inline-block animate-pulse text-green-600 font-bold mr-1">$</span>
+                Billable only
+              </Label>
             </div>
           </Card>
 

@@ -1,8 +1,12 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { initializeAuth, getCurrentUser } from "@/lib/auth";
+import { startReminderService } from "@/services/reminderService";
+import "@/utils/resetData"; // Import for development utilities
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import Login from "./pages/Login";
 import Timesheet from "./pages/Timesheet";
@@ -13,32 +17,56 @@ import Notifications from "./pages/Notifications";
 import ApprovalWorkflow from "./pages/ApprovalWorkflow";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<DashboardLayout />}>
-            <Route index element={<Timesheet />} />
-            <Route path="timesheet" element={<Timesheet />} />
-            <Route path="time-tracker" element={<TimeTracker />} />
-            <Route path="projects" element={<Projects />} />
-            <Route path="teams" element={<Teams />} />
-            <Route path="notifications" element={<Notifications />} />
-            <Route path="approval" element={<ApprovalWorkflow />} />
-            <Route path="reports" element={<Reports />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+// Protected Route Component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const currentUser = getCurrentUser();
+  return currentUser ? <>{children}</> : <Navigate to="/login" replace />;
+};
+
+const App = () => {
+  useEffect(() => {
+    // Initialize authentication system with default users
+    initializeAuth();
+    
+    // Start the reminder service for time entry notifications
+    startReminderService();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/timesheet" replace />} />
+              <Route path="timesheet" element={<ErrorBoundary><Timesheet /></ErrorBoundary>} />
+            <Route path="time-tracker" element={<ErrorBoundary><TimeTracker /></ErrorBoundary>} />
+              <Route path="projects" element={<ErrorBoundary><Projects /></ErrorBoundary>} />
+              <Route path="teams" element={<ErrorBoundary><Teams /></ErrorBoundary>} />
+              <Route path="notifications" element={<ErrorBoundary><Notifications /></ErrorBoundary>} />
+              <Route path="approval" element={<ErrorBoundary><ApprovalWorkflow /></ErrorBoundary>} />
+              <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CheckSquare, X, Check, Clock, History, MessageSquare } from "lucide-react";
+import { CheckSquare, X, Check, Clock, History, MessageSquare, Search, DollarSign } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
 import { getTimeEntries, updateTimeEntryStatus, getApprovalHistory } from "@/services/storage";
@@ -89,9 +90,6 @@ export default function ApprovalWorkflow() {
     <div className="dashboard-layout">
       <Header 
         title="Approval Workflow"
-        showSearch
-        searchPlaceholder="Search by project, task, employee..."
-        onSearch={handleSearch}
       />
 
       <div className="dashboard-content">
@@ -139,6 +137,20 @@ export default function ApprovalWorkflow() {
           </Card>
         </div>
 
+        {/* Search Bar */}
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by project, task, employee..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+            />
+          </div>
+          <span className="text-sm text-muted-foreground">{filteredPendingEntries.length} pending entries</span>
+        </div>
+
         <Tabs defaultValue="approval" className="space-y-6">
           <TabsList>
             <TabsTrigger value="approval">Approval</TabsTrigger>
@@ -162,7 +174,9 @@ export default function ApprovalWorkflow() {
                       <TableHead>Date</TableHead>
                       <TableHead>Project Details</TableHead>
                       <TableHead>Task</TableHead>
-                      <TableHead>Hours</TableHead>
+                      <TableHead>Actual Hours</TableHead>
+                      <TableHead>Billable Hours</TableHead>
+                      <TableHead>Available Hours</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -190,7 +204,16 @@ export default function ApprovalWorkflow() {
                         <TableCell>
                           <div className="max-w-48 truncate">{entry.task}</div>
                         </TableCell>
-                        <TableCell>{entry.totalHours.toFixed(1)}h</TableCell>
+                        <TableCell>{(entry.actualHours || 0).toFixed(1)}h</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-1">
+                            <span>{(entry.billableHours || 0).toFixed(1)}h</span>
+                            {entry.isBillable && (
+                              <DollarSign className="h-4 w-4 text-success" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{(entry.availableHours || 0).toFixed(1)}h</TableCell>
                         <TableCell>
                           {new Date(entry.createdAt).toLocaleDateString()}
                         </TableCell>

@@ -1,4 +1,4 @@
-import { Bell, Search, User } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "../ThemeToggle";
@@ -11,9 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getCurrentUser } from "@/lib/auth";
-import { getNotifications } from "@/services/storage";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 interface HeaderProps {
   title: string;
@@ -32,15 +31,6 @@ export default function Header({
 }: HeaderProps) {
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (currentUser) {
-      const notifications = getNotifications(currentUser.id);
-      const unreadNotifications = notifications.filter(n => !n.isRead);
-      setUnreadCount(unreadNotifications.length);
-    }
-  }, [currentUser]);
 
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
@@ -68,14 +58,7 @@ export default function Header({
           
           {children}
 
-          <Button variant="ghost" size="icon" className="hover-scale hover-glow relative" onClick={() => navigate('/notifications')}>
-            <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center animate-pulse-glow">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </Button>
+          <NotificationBell />
           
           <ThemeToggle />
           

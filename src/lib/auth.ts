@@ -5,40 +5,197 @@ const USERS_KEY = 'users';
 
 // Default users for demo
 const defaultUsers: User[] = [
+  // 3 Owners
   {
     id: '1',
-    name: 'John Owner',
-    email: 'owner@company.com',
+    name: 'John Mitchell',
+    email: 'ceo@company.com',
     role: 'owner',
-    billableRate: 150,
-    totalHours: 0,
+    jobTitle: 'CEO',
+    billableRate: 200,
+    availableHours: 8,
     totalBillableHours: 0,
   },
   {
     id: '2',
-    name: 'Jane Manager',
-    email: 'manager@company.com',
-    role: 'manager',
-    billableRate: 100,
-    totalHours: 0,
+    name: 'Sarah Williams',
+    email: 'president@company.com',
+    role: 'owner',
+    jobTitle: 'President',
+    billableRate: 180,
+    availableHours: 8,
     totalBillableHours: 0,
   },
   {
     id: '3',
-    name: 'Bob Finance',
-    email: 'finance@company.com',
-    role: 'finance_manager',
-    billableRate: 80,
-    totalHours: 0,
+    name: 'Michael Chen',
+    email: 'vp@company.com',
+    role: 'owner',
+    jobTitle: 'VP',
+    billableRate: 170,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  // 6 Managers
+  {
+    id: '4',
+    name: 'Jessica Rodriguez',
+    email: 'finance.manager@company.com',
+    role: 'manager',
+    jobTitle: 'Finance Manager',
+    billableRate: 120,
+    availableHours: 8,
     totalBillableHours: 0,
   },
   {
-    id: '4',
-    name: 'Alice Employee',
-    email: 'employee@company.com',
+    id: '5',
+    name: 'David Thompson',
+    email: 'it.manager@company.com',
+    role: 'manager',
+    jobTitle: 'IT Manager',
+    billableRate: 130,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '6',
+    name: 'Lisa Anderson',
+    email: 'sales.manager@company.com',
+    role: 'manager',
+    jobTitle: 'Sales Manager',
+    billableRate: 110,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '7',
+    name: 'Robert Johnson',
+    email: 'marketing.manager@company.com',
+    role: 'manager',
+    jobTitle: 'Marketing Manager',
+    billableRate: 115,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '8',
+    name: 'Amanda Davis',
+    email: 'hr.manager@company.com',
+    role: 'manager',
+    jobTitle: 'HR Manager',
+    billableRate: 105,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '9',
+    name: 'Kevin Brown',
+    email: 'team.lead@company.com',
+    role: 'manager',
+    jobTitle: 'Team Lead',
+    billableRate: 95,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  // 10 Employees
+  {
+    id: '10',
+    name: 'Emily Wilson',
+    email: 'emily.wilson@company.com',
     role: 'employee',
+    jobTitle: 'IT Employee',
+    billableRate: 75,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '11',
+    name: 'James Garcia',
+    email: 'james.garcia@company.com',
+    role: 'employee',
+    jobTitle: 'Sales Employee',
+    billableRate: 65,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '12',
+    name: 'Maria Lopez',
+    email: 'maria.lopez@company.com',
+    role: 'employee',
+    jobTitle: 'Marketing Employee',
+    billableRate: 70,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '13',
+    name: 'Christopher Taylor',
+    email: 'chris.taylor@company.com',
+    role: 'employee',
+    jobTitle: 'HR Employee',
+    billableRate: 60,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '14',
+    name: 'Jennifer Martinez',
+    email: 'jennifer.martinez@company.com',
+    role: 'employee',
+    jobTitle: 'Finance Employee',
+    billableRate: 68,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '15',
+    name: 'Daniel White',
+    email: 'daniel.white@company.com',
+    role: 'employee',
+    jobTitle: 'Customer Service Employee',
     billableRate: 50,
-    totalHours: 0,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '16',
+    name: 'Ashley Jackson',
+    email: 'ashley.jackson@company.com',
+    role: 'employee',
+    jobTitle: 'Operations Employee',
+    billableRate: 55,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '17',
+    name: 'Matthew Harris',
+    email: 'matthew.harris@company.com',
+    role: 'employee',
+    jobTitle: 'Data Analyst',
+    billableRate: 80,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '18',
+    name: 'Nicole Clark',
+    email: 'nicole.clark@company.com',
+    role: 'employee',
+    jobTitle: 'Software Developer',
+    billableRate: 85,
+    availableHours: 8,
+    totalBillableHours: 0,
+  },
+  {
+    id: '19',
+    name: 'Ryan Lewis',
+    email: 'ryan.lewis@company.com',
+    role: 'employee',
+    jobTitle: 'Business Analyst',
+    billableRate: 78,
+    availableHours: 8,
     totalBillableHours: 0,
   },
 ];
@@ -76,16 +233,47 @@ export const updateUser = (user: User): void => {
 };
 
 export const initializeAuth = (): void => {
-  // Initialize with default users if none exist
-  const users = getAllUsers();
-  if (users.length === 0) {
+  try {
+    // Check if we have users and if they have the new jobTitle field
+    const usersStr = localStorage.getItem(USERS_KEY);
+    let users = usersStr ? JSON.parse(usersStr) : [];
+    
+    // Check if users have the new jobTitle field, if not, reset the data
+    if (users.length > 0 && !users[0].jobTitle) {
+      console.log('Migrating user data to new structure with jobTitle...');
+      localStorage.removeItem(USERS_KEY);
+      localStorage.removeItem(CURRENT_USER_KEY);
+      users = [];
+    }
+    
+    // Check if users have zero availableHours (old data), if so, reset the data
+    if (users.length > 0 && users[0].availableHours === 0) {
+      console.log('Migrating user data to new structure with availableHours...');
+      localStorage.removeItem(USERS_KEY);
+      localStorage.removeItem(CURRENT_USER_KEY);
+      users = [];
+    }
+    
+    // Initialize with default users if none exist or after migration
+    if (users.length === 0) {
+      localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
+      users = defaultUsers;
+    }
+    
+    // Set first user as current user for demo if none is set
+    const currentUser = getCurrentUser();
+    if (!currentUser && users.length > 0) {
+      setCurrentUser(users[0]);
+    }
+    
+    console.log(`Initialized with ${users.length} users`);
+  } catch (error) {
+    console.error('Error initializing auth:', error);
+    // If there's any error, reset everything
+    localStorage.removeItem(USERS_KEY);
+    localStorage.removeItem(CURRENT_USER_KEY);
     localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
-  }
-  
-  // Set first user as current user for demo if none is set
-  const currentUser = getCurrentUser();
-  if (!currentUser && users.length > 0) {
-    setCurrentUser(users[0]);
+    setCurrentUser(defaultUsers[0]);
   }
 };
 

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Check, X, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Bell, Check, X, Eye, Search } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
 import { getNotifications, markNotificationAsRead } from "@/services/storage";
@@ -16,20 +17,20 @@ export default function Notifications() {
   const [typeFilter, setTypeFilter] = useState("all");
   const currentUser = getCurrentUser();
 
-  useEffect(() => {
-    if (currentUser) {
-      loadNotifications();
-    }
-  }, [currentUser]);
-
-  const loadNotifications = () => {
+  const loadNotifications = useCallback(() => {
     if (currentUser) {
       const userNotifications = getNotifications(currentUser.id);
       setNotifications(userNotifications.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ));
     }
-  };
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadNotifications();
+    }
+  }, [currentUser, loadNotifications]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -79,9 +80,6 @@ export default function Notifications() {
     <div className="dashboard-layout">
       <Header 
         title="Notifications"
-        showSearch
-        searchPlaceholder="Search notifications..."
-        onSearch={handleSearch}
       >
         <Button variant="outline">
           <Check className="mr-2 h-4 w-4" />
@@ -129,35 +127,48 @@ export default function Notifications() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium">Filter:</span>
-            <Select value={readFilter} onValueChange={setReadFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Notifications</SelectItem>
-                <SelectItem value="unread">Unread</SelectItem>
-                <SelectItem value="read">Read</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Search Bar and Filters */}
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search notifications..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            </div>
+            <span className="text-sm text-muted-foreground">{filteredNotifications.length} notifications</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="approval">Approvals</SelectItem>
-                <SelectItem value="rejection">Rejections</SelectItem>
-                <SelectItem value="status_change">Status Changes</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">Filter:</span>
+              <Select value={readFilter} onValueChange={setReadFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Notifications</SelectItem>
+                  <SelectItem value="unread">Unread</SelectItem>
+                  <SelectItem value="read">Read</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="approval">Approvals</SelectItem>
+                  <SelectItem value="rejection">Rejections</SelectItem>
+                  <SelectItem value="status_change">Status Changes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <span className="text-sm text-muted-foreground">{filteredNotifications.length} notifications</span>
         </div>
 
         {/* Notifications List */}

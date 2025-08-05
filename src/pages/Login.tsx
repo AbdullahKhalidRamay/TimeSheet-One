@@ -43,11 +43,13 @@ export default function Login() {
               <SelectContent>
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
-                    <div className="flex items-center space-x-2">
-                      <span>{user.name}</span>
-                      <span className="text-muted-foreground">
-                        ({user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())})
-                      </span>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{user.name}</span>
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <span>{user.jobTitle}</span>
+                        <span>•</span>
+                        <span>({user.role.charAt(0).toUpperCase() + user.role.slice(1)})</span>
+                      </div>
                     </div>
                   </SelectItem>
                 ))}
@@ -65,10 +67,10 @@ export default function Login() {
           
           <div className="text-sm text-muted-foreground space-y-1">
             <p><strong>Demo Users:</strong></p>
-            <p>• Owner - Full access to all features</p>
-            <p>• Manager - Access to management features</p>
-            <p>• Finance Manager - Financial data access</p>
-            <p>• Employee - Basic timesheet access</p>
+            <p>• Owner (CEO/President/VP) - Full access to all features</p>
+            <p>• Manager (Various departments) - Access to management features</p>
+            <p>• Employee (Various roles) - Basic timesheet access</p>
+            <p className="text-xs mt-2">Total: {users.length} users available</p>
           </div>
         </CardContent>
       </Card>

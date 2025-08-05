@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,32 @@ import {
   getUserAssociatedProducts,
   getUserAssociatedDepartments,
   determineIsBillable,
-  calculateHours
+  calculateHours,
+  deleteTimeEntry
 } from "@/services/storage";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
+
+interface Level {
+  id: string;
+  name: string;
+  tasks?: Task[];
+  duties?: Task[];
+}
+
+interface Task {
+  id: string;
+  name: string;
+  levelId?: string;
+  taskId?: string;
+  subtasks?: Subtask[];
+  tasks?: Subtask[];
+}
+
+interface Subtask {
+  id: string;
+  name: string;
+  taskId?: string;
+}
 
 interface ProjectEntry {
   id: string;
@@ -31,38 +54,39 @@ interface ProjectEntry {
   level?: string;
   task?: string;
   subtask?: string;
-  clockIn: string;
-  clockOut: string;
-  breakTime: number;
-  hours: number;
+  actualHours: number;
+  billableHours: number;
+  totalHours: number;
+  availableHours: number;
   isBillable: boolean;
   isBillableDisabled: boolean;
   description: string;
-  selectedLevels: any[];
-  selectedTasks: any[];
-  selectedSubtasks: any[];
+  selectedLevels: Level[];
+  selectedTasks: Task[];
+  selectedSubtasks: Subtask[];
 }
 
 interface DailyTrackerFormData {
   date: string;
   projectEntries: ProjectEntry[];
-  clockIn: string;
-  clockOut: string;
   breakTime: number;
+  availableHours: number;
 }
 
 interface DailyTrackerFormProps {
   initialDate?: string;
+  editingEntries?: TimeEntry[];
   onClose?: () => void;
 }
 
-export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerFormProps) {
+export default function DailyTrackerForm({ initialDate, editingEntries, onClose }: DailyTrackerFormProps) {
+  const currentUser = getCurrentUser();
+  
   const [formData, setFormData] = useState<DailyTrackerFormData>({
     date: initialDate || new Date().toISOString().split('T')[0],
     projectEntries: [],
-    clockIn: '',
-    clockOut: '',
-    breakTime: 30
+    breakTime: 30,
+    availableHours: currentUser?.availableHours || 0
   });
 
   const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
@@ -70,13 +94,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
   const [availableDepartments, setAvailableDepartments] = useState<Department[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<(Project | Product | Department)[]>([]);
 
-  const currentUser = getCurrentUser();
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = () => {
+  const loadData = useCallback(() => {
     if (currentUser) {
       // Load only user-associated projects, products, and departments
       const userProjects = getUserAssociatedProjects(currentUser.id);
@@ -87,7 +105,113 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
       setAvailableProjects(userProjects);
       setAvailableProducts(userProducts);
       setAvailableDepartments(userDepartments);
+      
+      // Load editing entries if provided
+      if (editingEntries && editingEntries.length > 0) {
+        loadEditingEntries(userProjects, userProducts, userDepartments);
+      }
     }
+  }, [currentUser, editingEntries]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Function to load existing entries for editing
+  const loadEditingEntries = (userProjects: Project[], userProducts: Product[], userDepartments: Department[]) => {
+    if (!editingEntries || editingEntries.length === 0) return;
+
+    const newProjectEntries: ProjectEntry[] = [];
+    const newSelectedProjects: (Project | Product | Department)[] = [];
+
+    editingEntries.forEach(entry => {
+      let projectItem: Project | Product | Department | null = null;
+      let category: 'project' | 'product' | 'department' = entry.projectDetails.category;
+
+      // Find the project/product/department item
+      switch (category) {
+        case 'project':
+          projectItem = userProjects.find(p => p.name === entry.projectDetails.name) || null;
+          break;
+        case 'product':
+          projectItem = userProducts.find(p => p.name === entry.projectDetails.name) || null;
+          break;
+        case 'department':
+          projectItem = userDepartments.find(d => d.name === entry.projectDetails.name) || null;
+          break;
+      }
+
+      if (projectItem) {
+        // Parse selected levels, tasks, and subtasks
+        const selectedLevels = parseSelectionString(entry.projectDetails.level || '', projectItem, category, 'levels');
+        const selectedTasks = parseSelectionString(entry.projectDetails.task || '', projectItem, category, 'tasks', selectedLevels);
+        const selectedSubtasks = parseSelectionString(entry.projectDetails.subtask || '', projectItem, category, 'subtasks', selectedTasks);
+
+        const projectEntry: ProjectEntry = {
+          id: entry.id, // Use the original entry ID for editing
+          project: projectItem,
+          category,
+          level: entry.projectDetails.level,
+          task: entry.projectDetails.task,
+          subtask: entry.projectDetails.subtask,
+          actualHours: entry.actualHours,
+          billableHours: entry.billableHours,
+          totalHours: entry.totalHours || entry.actualHours + entry.billableHours,
+          availableHours: entry.availableHours || 0,
+          isBillable: entry.isBillable,
+          isBillableDisabled: true,
+          description: entry.task || entry.projectDetails.description,
+          selectedLevels,
+          selectedTasks,
+          selectedSubtasks
+        };
+
+        newProjectEntries.push(projectEntry);
+        newSelectedProjects.push(projectItem);
+      }
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      projectEntries: newProjectEntries
+    }));
+    setSelectedProjects(newSelectedProjects);
+  };
+
+  // Helper function to parse selection strings back to objects
+  const parseSelectionString = (
+    selectionStr: string, 
+    projectItem: Project | Product | Department, 
+    category: 'project' | 'product' | 'department',
+    type: 'levels' | 'tasks' | 'subtasks',
+    parentItems?: any[]
+  ): any[] => {
+    if (!selectionStr) return [];
+    
+    const names = selectionStr.split(', ').filter(name => name.trim());
+    const results: any[] = [];
+
+    names.forEach(name => {
+      if (type === 'levels') {
+        const levels = getLevelsForProject(projectItem, category);
+        const level = levels.find(l => l.name === name);
+        if (level) results.push(level);
+      } else if (type === 'tasks' && parentItems) {
+        parentItems.forEach(level => {
+          const tasks = getTasksForLevel(level, category);
+          const task = tasks.find(t => t.name === name);
+          if (task) results.push({ ...task, levelId: level.id });
+        });
+      } else if (type === 'subtasks' && parentItems) {
+        parentItems.forEach(task => {
+          const subtasks = getSubtasksForTask(task, category);
+          const subtask = subtasks.find(st => st.name === name);
+          if (subtask) results.push({ ...subtask, taskId: task.id });
+        });
+      }
+    });
+
+    return results;
   };
 
   const handleProjectSelection = (item: Project | Product | Department, category: 'project' | 'product' | 'department', checked: boolean) => {
@@ -98,10 +222,10 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
         id: generateId(),
         project: item,
         category,
-        clockIn: '',
-        clockOut: '',
-        breakTime: 30,
-        hours: 0,
+        actualHours: 0,
+        billableHours: 0,
+        totalHours: 0,
+        availableHours: currentUser?.availableHours || 0,
         isBillable: billableStatus,
         isBillableDisabled: true, // Auto-determined
         description: '',
@@ -122,7 +246,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
     }
   };
 
-  const updateProjectEntry = (entryId: string, field: string, value: any) => {
+  const updateProjectEntry = (entryId: string, field: string, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       projectEntries: prev.projectEntries.map(entry => 
@@ -131,7 +255,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
     }));
   };
 
-  const handleLevelSelection = (entryId: string, level: any, checked: boolean) => {
+  const handleLevelSelection = (entryId: string, level: Level, checked: boolean) => {
     const entry = formData.projectEntries.find(e => e.id === entryId);
     if (!entry) return;
 
@@ -145,7 +269,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
     }
   };
 
-  const handleTaskSelection = (entryId: string, task: any, levelId: string, checked: boolean) => {
+  const handleTaskSelection = (entryId: string, task: Task, levelId: string, checked: boolean) => {
     const entry = formData.projectEntries.find(e => e.id === entryId);
     if (!entry) return;
 
@@ -160,7 +284,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
     }
   };
 
-  const handleSubtaskSelection = (entryId: string, subtask: any, taskId: string, checked: boolean) => {
+  const handleSubtaskSelection = (entryId: string, subtask: Subtask, taskId: string, checked: boolean) => {
     const entry = formData.projectEntries.find(e => e.id === entryId);
     if (!entry) return;
 
@@ -186,7 +310,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
     }
   };
 
-  const getTasksForLevel = (level: any, category: 'project' | 'product' | 'department') => {
+  const getTasksForLevel = (level: Level, category: 'project' | 'product' | 'department') => {
     switch (category) {
       case 'project':
       case 'product':
@@ -198,7 +322,7 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
     }
   };
 
-  const getSubtasksForTask = (task: any, category: 'project' | 'product' | 'department') => {
+  const getSubtasksForTask = (task: Task, category: 'project' | 'product' | 'department') => {
     switch (category) {
       case 'project':
       case 'product':
@@ -213,9 +337,16 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
   const handleSubmit = () => {
     if (!currentUser) return;
 
+    // If editing, first delete the original entries for this date
+    if (editingEntries && editingEntries.length > 0) {
+      editingEntries.forEach(entry => {
+        deleteTimeEntry(entry.id);
+      });
+    }
+
     // Create separate time entries for each project entry
     formData.projectEntries.forEach(entry => {
-      if (entry.hours > 0) {
+      if (entry.totalHours > 0) {
         const projectDetails: ProjectDetail = {
           category: entry.category,
           name: entry.project.name,
@@ -230,15 +361,15 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
           userId: currentUser.id,
           userName: currentUser.name,
           date: formData.date,
-          clockIn: entry.clockIn,
-          clockOut: entry.clockOut,
-          breakTime: entry.breakTime,
-          totalHours: entry.hours,
+          actualHours: entry.actualHours,
+          billableHours: entry.billableHours,
+          totalHours: entry.totalHours,
+          availableHours: entry.availableHours,
           task: entry.description,
           projectDetails,
           isBillable: entry.isBillable,
           status: 'pending',
-          createdAt: new Date().toISOString(),
+          createdAt: editingEntries && editingEntries.length > 0 ? editingEntries[0].createdAt : new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
 
@@ -250,13 +381,15 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
     setFormData({
       date: new Date().toISOString().split('T')[0],
       projectEntries: [],
-      clockIn: '',
-      clockOut: '',
-      breakTime: 30
+      breakTime: 30,
+      availableHours: currentUser?.availableHours || 0
     });
     setSelectedProjects([]);
     
-    alert('Time entries saved successfully!');
+    const message = editingEntries && editingEntries.length > 0 
+      ? 'Time entries updated successfully!' 
+      : 'Time entries saved successfully!';
+    alert(message);
     
     // Call onClose if provided
     if (onClose) {
@@ -265,12 +398,12 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
   };
 
   const getTotalHours = () => {
-    return formData.projectEntries.reduce((total, entry) => total + entry.hours, 0);
+    return formData.projectEntries.reduce((total, entry) => total + entry.totalHours, 0);
   };
 
   const getTotalBillableHours = () => {
     return formData.projectEntries.reduce((total, entry) => 
-      total + (entry.isBillable ? entry.hours : 0), 0
+      total + entry.billableHours, 0
     );
   };
 
@@ -285,20 +418,22 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
         </CardTitle>
       </CardHeader>
       <CardContent className="p-8 space-y-8">
-        {/* Date Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="date">Date</Label>
-          <DatePicker
-            date={formData.date ? new Date(formData.date) : undefined}
-            onDateChange={(date) => 
-              setFormData(prev => ({ 
-                ...prev, 
-                date: date ? date.toISOString().split('T')[0] : '' 
-              }))
-            }
-            placeholder="Select date"
-            className="w-full max-w-xs"
-          />
+        {/* Date */}
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="date">Date</Label>
+            <DatePicker
+              date={formData.date ? new Date(formData.date) : undefined}
+              onDateChange={(date) => 
+                setFormData(prev => ({ 
+                  ...prev, 
+                  date: date ? date.toISOString().split('T')[0] : '' 
+                }))
+              }
+              placeholder="Select date"
+              className="w-full max-w-xs"
+            />
+          </div>
         </div>
 
         {/* Project Selection */}
@@ -479,65 +614,59 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
                 </div>
               ))}
 
-              {/* Clock In/Out Times and Hours Calculation */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Hours Input */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Clock In</Label>
-                  <Input
-                    type="time"
-                    value={entry.clockIn}
-                    onChange={(e) => {
-                      const newClockIn = e.target.value;
-                      updateProjectEntry(entry.id, 'clockIn', newClockIn);
-                      // Recalculate hours if both times are available
-                      if (newClockIn && entry.clockOut) {
-                        const calculatedHours = calculateHours(newClockIn, entry.clockOut, entry.breakTime);
-                        updateProjectEntry(entry.id, 'hours', calculatedHours);
-                      }
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Clock Out</Label>
-                  <Input
-                    type="time"
-                    value={entry.clockOut}
-                    onChange={(e) => {
-                      const newClockOut = e.target.value;
-                      updateProjectEntry(entry.id, 'clockOut', newClockOut);
-                      // Recalculate hours if both times are available
-                      if (entry.clockIn && newClockOut) {
-                        const calculatedHours = calculateHours(entry.clockIn, newClockOut, entry.breakTime);
-                        updateProjectEntry(entry.id, 'hours', calculatedHours);
-                      }
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Break (min)</Label>
+                  <Label>Actual Hours</Label>
                   <Input
                     type="number"
+                    step="0.5"
                     min="0"
-                    max="480"
-                    value={entry.breakTime}
+                    max="24"
+                    value={entry.actualHours}
                     onChange={(e) => {
-                      const newBreakTime = parseInt(e.target.value) || 0;
-                      updateProjectEntry(entry.id, 'breakTime', newBreakTime);
-                      // Recalculate hours if both times are available
-                      if (entry.clockIn && entry.clockOut) {
-                        const calculatedHours = calculateHours(entry.clockIn, entry.clockOut, newBreakTime);
-                        updateProjectEntry(entry.id, 'hours', calculatedHours);
-                      }
+                      const actualHours = parseFloat(e.target.value) || 0;
+                      updateProjectEntry(entry.id, 'actualHours', actualHours);
+                      // Update total hours
+                      updateProjectEntry(entry.id, 'totalHours', actualHours + entry.billableHours);
                     }}
+                    placeholder="Enter actual hours"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Calculated Hours</Label>
+                  <Label>Billable Hours</Label>
                   <Input
-                    value={entry.hours.toFixed(2)}
-                    readOnly
-                    className="bg-muted font-semibold"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="24"
+                    value={entry.billableHours}
+                    onChange={(e) => {
+                      const billableHours = parseFloat(e.target.value) || 0;
+                      updateProjectEntry(entry.id, 'billableHours', billableHours);
+                      // Update total hours
+                      updateProjectEntry(entry.id, 'totalHours', entry.actualHours + billableHours);
+                    }}
+                    placeholder="Enter billable hours"
+                    disabled={!entry.isBillable}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Available Hours</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="24"
+                    value={entry.availableHours}
+                    onChange={(e) => {
+                      const newAvailableHours = parseFloat(e.target.value) || 0;
+                      updateProjectEntry(entry.id, 'availableHours', newAvailableHours);
+                    }}
+                    className="bg-muted/50 font-semibold"
+                    placeholder="Available hours for this project"
+                  />
+                  <p className="text-xs text-muted-foreground">Hours available for this project</p>
                 </div>
               </div>
               
@@ -583,8 +712,8 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
                       <Clock className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 font-medium">Total Hours</p>
-                      <p className="text-xl font-bold text-gray-800">{getTotalHours().toFixed(1)}</p>
+                      <p className="text-sm text-gray-600 font-medium">Actual Hours</p>
+                      <p className="text-xl font-bold text-gray-800">{formData.projectEntries.reduce((sum, entry) => sum + entry.actualHours, 0).toFixed(1)}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3 bg-white/70 px-4 py-3 rounded-lg">
@@ -616,8 +745,6 @@ export default function DailyTrackerForm({ initialDate, onClose }: DailyTrackerF
               setFormData({
                 date: new Date().toISOString().split('T')[0],
                 projectEntries: [],
-                clockIn: '',
-                clockOut: '',
                 breakTime: 30
               });
               setSelectedProjects([]);

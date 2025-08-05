@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,14 +6,32 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Calendar, Plus, Trash2, Clock } from "lucide-react";
+import { Calendar } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
-import { saveTimeEntry, generateId, calculateHours, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
+import { saveTimeEntry, generateId, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
+
+interface Level {
+  id?: string;
+  name: string;
+  tasks?: Task[];
+  duties?: Task[];
+}
+
+interface Task {
+  id?: string;
+  name: string;
+  subtasks?: Subtask[];
+  tasks?: Subtask[];
+}
+
+interface Subtask {
+  id?: string;
+  name: string;
+}
 import DailyTrackerForm from "@/components/users/DailyTrackerForm";
 import WeeklyTimeTracker from "@/components/users/WeeklyTimeTracker";
 import MonthlyTimeTracker from "@/components/users/MonthlyTimeTracker";
@@ -26,14 +44,12 @@ interface FormData {
   task: string;
   subtask: string;
   description: string;
-  clockIn: string;
-  clockOut: string;
-  breakTime: number;
+  actualHours: number;
+  billableHours: number;
   isBillable: boolean;
 }
 
 export default function TimeTracker() {
-  const [selectedProjects, setSelectedProjects] = useState<Project[]>([]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     category: '',
@@ -42,62 +58,32 @@ export default function TimeTracker() {
     task: '',
     subtask: '',
     description: '',
-    clockIn: '',
-    clockOut: '',
-    breakTime: 30,
+    actualHours: 0,
+    billableHours: 0,
     isBillable: false,
   });
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [availableLevels, setAvailableLevels] = useState<any[]>([]);
-  const [availableTasks, setAvailableTasks] = useState<any[]>([]);
-  const [availableSubtasks, setAvailableSubtasks] = useState<any[]>([]);
+  const [availableLevels, setAvailableLevels] = useState<Level[]>([]);
+  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
+  const [availableSubtasks, setAvailableSubtasks] = useState<Subtask[]>([]);
   const [isBillableDisabled, setIsBillableDisabled] = useState(false);
 
   const currentUser = getCurrentUser();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (formData.category && formData.projectName) {
-      loadLevels();
-      // Automatically determine and set billable status
-      const billableStatus = determineIsBillable(formData.category as 'project' | 'product' | 'department', formData.projectName);
-      setFormData(prev => ({ ...prev, isBillable: billableStatus }));
-      setIsBillableDisabled(true);
-    } else {
-      // Reset billable status and enable toggle when no project/product/department is selected
-      setFormData(prev => ({ ...prev, isBillable: false }));
-      setIsBillableDisabled(false);
-    }
-  }, [formData.category, formData.projectName]);
-
-  useEffect(() => {
-    if (formData.level) {
-      loadTasks();
-    }
-  }, [formData.level]);
-
-  useEffect(() => {
-    if (formData.task) {
-      loadSubtasks();
-    }
-  }, [formData.task]);
-
-  const loadData = () => {
+  // Define callback functions first before using them in useEffect
+  const loadData = useCallback(() => {
     if (currentUser) {
       setProjects(getUserAssociatedProjects(currentUser.id));
       setProducts(getUserAssociatedProducts(currentUser.id));
       setDepartments(getUserAssociatedDepartments(currentUser.id));
     }
-  };
+  }, [currentUser]);
 
-  const loadLevels = () => {
-    let levels: any[] = [];
+  const loadLevels = useCallback(() => {
+    let levels: Level[] = [];
     
     if (formData.category === 'project') {
       const project = projects.find(p => p.name === formData.projectName);
@@ -113,10 +99,10 @@ export default function TimeTracker() {
     setAvailableLevels(levels);
     setAvailableTasks([]);
     setAvailableSubtasks([]);
-  };
+  }, [formData.category, formData.projectName, projects, products, departments]);
 
-  const loadTasks = () => {
-    let tasks: any[] = [];
+  const loadTasks = useCallback(() => {
+    let tasks: Task[] = [];
     
     const level = availableLevels.find(l => l.name === formData.level);
     if (level) {
@@ -131,10 +117,10 @@ export default function TimeTracker() {
     
     setAvailableTasks(tasks);
     setAvailableSubtasks([]);
-  };
+  }, [availableLevels, formData.level, formData.category]);
 
-  const loadSubtasks = () => {
-    let subtasks: any[] = [];
+  const loadSubtasks = useCallback(() => {
+    let subtasks: Subtask[] = [];
     
     const task = availableTasks.find(t => t.name === formData.task);
     if (task) {
@@ -146,9 +132,40 @@ export default function TimeTracker() {
     }
     
     setAvailableSubtasks(subtasks);
-  };
+  }, [availableTasks, formData.task, formData.category]);
 
-  const handleInputChange = (field: string, value: any) => {
+  // useEffect hooks after function declarations
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (formData.category && formData.projectName) {
+      loadLevels();
+      // Automatically determine and set billable status
+      const billableStatus = determineIsBillable(formData.category as 'project' | 'product' | 'department', formData.projectName);
+      setFormData(prev => ({ ...prev, isBillable: billableStatus }));
+      setIsBillableDisabled(true);
+    } else {
+      // Reset billable status and enable toggle when no project/product/department is selected
+      setFormData(prev => ({ ...prev, isBillable: false }));
+      setIsBillableDisabled(false);
+    }
+  }, [formData.category, formData.projectName, loadLevels]);
+
+  useEffect(() => {
+    if (formData.level) {
+      loadTasks();
+    }
+  }, [formData.level, loadTasks]);
+
+  useEffect(() => {
+    if (formData.task) {
+      loadSubtasks();
+    }
+  }, [formData.task, loadSubtasks]);
+
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Reset dependent fields when parent changes
@@ -164,7 +181,21 @@ export default function TimeTracker() {
   const handleSubmit = () => {
     if (!currentUser) return;
 
-    const totalHours = calculateHours(formData.clockIn, formData.clockOut, formData.breakTime);
+    // Validation
+    if (!formData.date || !formData.category || !formData.projectName) {
+      alert('Please fill in all required fields: Date, Category, and Project/Product/Department selection.');
+      return;
+    }
+
+    if (!currentUser.availableHours || currentUser.availableHours <= 0) {
+      alert('No available hours found in your profile. Please contact your administrator.');
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      alert('Please provide a task description.');
+      return;
+    }
 
     const projectDetails: ProjectDetail = {
       category: formData.category as 'project' | 'product' | 'department',
@@ -175,15 +206,16 @@ export default function TimeTracker() {
       description: formData.description,
     };
 
+    const availableHours = currentUser.availableHours;
+
     const timeEntry: TimeEntry = {
       id: generateId(),
       userId: currentUser.id,
       userName: currentUser.name,
       date: formData.date,
-      clockIn: formData.clockIn,
-      clockOut: formData.clockOut,
-      breakTime: formData.breakTime,
-      totalHours,
+      actualHours: currentUser.availableHours,
+      billableHours: formData.isBillable ? currentUser.availableHours : 0,
+      availableHours: availableHours,
       task: formData.description,
       projectDetails,
       isBillable: formData.isBillable,
@@ -194,6 +226,8 @@ export default function TimeTracker() {
 
     saveTimeEntry(timeEntry);
     
+    alert('Time entry saved successfully!');
+    
     // Reset form
     setFormData({
       date: new Date().toISOString().split('T')[0],
@@ -203,9 +237,8 @@ export default function TimeTracker() {
       task: '',
       subtask: '',
       description: '',
-      clockIn: '',
-      clockOut: '',
-      breakTime: 30,
+      actualHours: 0,
+      billableHours: 0,
       isBillable: false,
     });
     setIsBillableDisabled(false);
@@ -295,24 +328,19 @@ export default function TimeTracker() {
 {formData.category && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>{formData.category.charAt(0).toUpperCase() + formData.category.slice(1)} Association</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {getProjectOptions().map((item) => (
-                      <div key={item.id} className="flex items-center space-x-3">
-                        <Checkbox
-                          checked={selectedProjects.includes(item)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedProjects((prev) => [...prev, item]);
-                            } else {
-                              setSelectedProjects((prev) => prev.filter((proj) => proj.id !== item.id));
-                            }
-                          }}
-                        />
-                        <Label>{item.name}</Label>
-                      </div>
-                    ))}
-                  </div>
+                  <Label>{formData.category.charAt(0).toUpperCase() + formData.category.slice(1)} Selection</Label>
+                  <Select value={formData.projectName} onValueChange={(value) => handleInputChange('projectName', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Select ${formData.category.charAt(0).toUpperCase() + formData.category.slice(1)}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getProjectOptions().map((item) => (
+                        <SelectItem key={item.id} value={item.name}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {formData.projectName && availableLevels.length > 0 && (
@@ -323,8 +351,8 @@ export default function TimeTracker() {
                         <SelectValue placeholder={`Select ${getLevelLabel()}`} />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableLevels.map((level) => (
-                          <SelectItem key={level.id} value={level.name}>
+                        {availableLevels.map((level, index) => (
+                          <SelectItem key={level.id || `level-${index}`} value={level.name}>
                             {level.name}
                           </SelectItem>
                         ))}
@@ -345,8 +373,8 @@ export default function TimeTracker() {
                       <SelectValue placeholder={`Select ${getTaskLabel()}`} />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableTasks.map((task) => (
-                        <SelectItem key={task.id} value={task.name}>
+                      {availableTasks.map((task, index) => (
+                        <SelectItem key={task.id || `task-${index}`} value={task.name}>
                           {task.name}
                         </SelectItem>
                       ))}
@@ -362,8 +390,8 @@ export default function TimeTracker() {
                         <SelectValue placeholder={`Select ${getSubtaskLabel()}`} />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableSubtasks.map((subtask) => (
-                          <SelectItem key={subtask.id} value={subtask.name}>
+                        {availableSubtasks.map((subtask, index) => (
+                          <SelectItem key={subtask.id || `subtask-${index}`} value={subtask.name}>
                             {subtask.name}
                           </SelectItem>
                         ))}
@@ -374,60 +402,17 @@ export default function TimeTracker() {
               </div>
             )}
 
-{/* Hours and Billable Inputs */}
-            {selectedProjects.map((project) => (
-              <div key={project.id} className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>{project.name} - Hours</Label>
-                    <Input
-                      type="number"
-                      onChange={(e) => handleInputChange(project.name + '_hours', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Switch
-                      onCheckedChange={(checked) => handleInputChange(project.name + '_isBillable', checked)}
-                    />
-                    <Label>Billable</Label>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Textarea
-                      placeholder="Task Description"
-                      onChange={(e) => handleInputChange(project.name + '_description', e.target.value)}
-                      rows={2}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+{/* Available Hours Input */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="clockIn">Clock In</Label>
+                <Label htmlFor="availableHours">Available Hours</Label>
                 <Input
-                  id="clockIn"
-                  type="time"
-                  value={formData.clockIn}
-                  onChange={(e) => handleInputChange('clockIn', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="clockOut">Clock Out</Label>
-                <Input
-                  id="clockOut"
-                  type="time"
-                  value={formData.clockOut}
-                  onChange={(e) => handleInputChange('clockOut', e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="breakTime">Break (minutes)</Label>
-                <Input
-                  id="breakTime"
+                  id="availableHours"
                   type="number"
-                  value={formData.breakTime}
-                  onChange={(e) => handleInputChange('breakTime', parseInt(e.target.value) || 0)}
+                  value={currentUser && currentUser.availableHours ? currentUser.availableHours.toFixed(1) : '0.0'}
+                  readOnly
+                  className="bg-muted font-semibold"
+                  placeholder="Available hours"
                 />
               </div>
             </div>
@@ -459,8 +444,26 @@ export default function TimeTracker() {
 
             {/* Action Buttons */}
             <div className="flex justify-between pt-4">
-              <Button variant="outline">Cancel</Button>
-                <Button onClick={handleSubmit} className="btn-primary">
+              <Button variant="outline" onClick={() => {
+                setFormData({
+                  date: new Date().toISOString().split('T')[0],
+                  category: '',
+                  projectName: '',
+                  level: '',
+                  task: '',
+                  subtask: '',
+                  description: '',
+                  actualHours: 0,
+                  billableHours: 0,
+                  isBillable: false,
+                });
+                setIsBillableDisabled(false);
+              }}>Cancel</Button>
+                <Button 
+                  onClick={handleSubmit} 
+                  className="btn-primary"
+                  disabled={!formData.date || !formData.category || !formData.projectName || !currentUser?.availableHours || currentUser.availableHours <= 0}
+                >
                   <Calendar className="mr-2 h-5 w-5" />
                   Add Time Entry
                 </Button>

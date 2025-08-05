@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { saveDepartment, generateId } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
@@ -216,13 +216,15 @@ onClose();
 
           {/* Billable Status */}
           <div className="flex items-center space-x-3 p-3 bg-card rounded-lg border border-border">
-            <Checkbox
+            <Switch
               id="isBillable"
               checked={isBillable}
-              onCheckedChange={(checked) => setIsBillable(checked as boolean)}
-              className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              onCheckedChange={setIsBillable}
             />
-            <Label htmlFor="isBillable" className="text-sm font-medium text-card-foreground cursor-pointer">This department is billable</Label>
+            <Label htmlFor="isBillable" className="text-sm font-medium text-card-foreground cursor-pointer">
+              <span className="inline-block animate-pulse text-green-600 font-bold mr-1">$</span>
+              Billable only
+            </Label>
           </div>
 
           {/* Department Functions */}

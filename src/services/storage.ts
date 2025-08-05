@@ -75,7 +75,16 @@ export const updateTimeEntryStatus = (entryId: string, status: 'approved' | 'rej
 // Projects
 export const getProjects = (): Project[] => {
   const projectsStr = localStorage.getItem(PROJECTS_KEY);
-  return projectsStr ? JSON.parse(projectsStr) : [];
+  if (!projectsStr) {
+    const defaultProjects: Project[] = [
+      { id: 'P1', name: 'Project Alpha', levels: [], isBillable: true, createdBy: '1', createdAt: new Date().toISOString() },
+      { id: 'P2', name: 'Project Beta', levels: [], isBillable: false, createdBy: '2', createdAt: new Date().toISOString() },
+      { id: 'P3', name: 'Project Gamma', levels: [], isBillable: true, createdBy: '3', createdAt: new Date().toISOString() },
+    ];
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(defaultProjects));
+    return defaultProjects;
+  }
+  return JSON.parse(projectsStr);
 };
 
 export const saveProject = (project: Project): void => {
@@ -100,7 +109,16 @@ export const deleteProject = (projectId: string): void => {
 // Products
 export const getProducts = (): Product[] => {
   const productsStr = localStorage.getItem(PRODUCTS_KEY);
-  return productsStr ? JSON.parse(productsStr) : [];
+  if (!productsStr) {
+    const defaultProducts: Product[] = [
+      { id: 'PR1', name: 'Product Apple', stages: [], isBillable: false, createdBy: '1', createdAt: new Date().toISOString() },
+      { id: 'PR2', name: 'Product Banana', stages: [], isBillable: true, createdBy: '2', createdAt: new Date().toISOString() },
+      { id: 'PR3', name: 'Product Cherry', stages: [], isBillable: false, createdBy: '3', createdAt: new Date().toISOString() },
+    ];
+    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(defaultProducts));
+    return defaultProducts;
+  }
+  return JSON.parse(productsStr);
 };
 
 export const saveProduct = (product: Product): void => {
@@ -125,7 +143,16 @@ export const deleteProduct = (productId: string): void => {
 // Departments
 export const getDepartments = (): Department[] => {
   const departmentsStr = localStorage.getItem(DEPARTMENTS_KEY);
-  return departmentsStr ? JSON.parse(departmentsStr) : [];
+  if (!departmentsStr) {
+    const defaultDepartments: Department[] = [
+      { id: 'D1', name: 'Department X', functions: [], isBillable: true, createdBy: '1', createdAt: new Date().toISOString() },
+      { id: 'D2', name: 'Department Y', functions: [], isBillable: false, createdBy: '2', createdAt: new Date().toISOString() },
+      { id: 'D3', name: 'Department Z', functions: [], isBillable: true, createdBy: '3', createdAt: new Date().toISOString() },
+    ];
+    localStorage.setItem(DEPARTMENTS_KEY, JSON.stringify(defaultDepartments));
+    return defaultDepartments;
+  }
+  return JSON.parse(departmentsStr);
 };
 
 export const saveDepartment = (department: Department): void => {
@@ -280,7 +307,7 @@ export const associateTeamWithDepartment = (teamId: string, departmentId: string
 };
 
 // Enhanced local storage retrieval function with error handling
-const getData = (key: string): any[] => {
+const getData = <T>(key: string): T[] => {
   try {
     const dataStr = localStorage.getItem(key);
     return dataStr ? JSON.parse(dataStr) : [];
@@ -291,7 +318,7 @@ const getData = (key: string): any[] => {
 };
 
 // Enhanced data saving with error handling
-const saveData = (key: string, data: any[]): void => {
+const saveData = <T>(key: string, data: T[]): void => {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {

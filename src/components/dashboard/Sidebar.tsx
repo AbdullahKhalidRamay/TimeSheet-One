@@ -23,31 +23,31 @@ const navigation = [
     name: "Timesheet",
     href: "/timesheet",
     icon: Clock,
-    roles: ["employee", "finance_manager", "manager", "owner"],
+    roles: ["employee", "manager", "owner"],
   },
   {
     name: "Time Tracker", 
     href: "/time-tracker",
     icon: Timer,
-    roles: ["employee", "finance_manager", "manager", "owner"],
+    roles: ["employee", "manager", "owner"],
   },
   {
     name: "Projects & Tasks",
     href: "/projects",
     icon: FolderOpen,
-    roles: ["finance_manager", "manager", "owner"],
+    roles: ["manager", "owner"],
   },
   {
     name: "Teams",
     href: "/teams",
     icon: Users,
-    roles: ["finance_manager", "manager", "owner"],
+    roles: ["manager", "owner"],
   },
   {
     name: "Notifications",
     href: "/notifications",
     icon: Bell,
-    roles: ["employee", "finance_manager", "manager", "owner"],
+    roles: ["employee", "manager", "owner"],
   },
   {
     name: "Approval Workflow",
@@ -59,7 +59,7 @@ const navigation = [
     name: "Reports",
     href: "/reports",
     icon: BarChart3,
-    roles: ["finance_manager", "manager", "owner"],
+    roles: ["manager", "owner"],
   },
 ];
 
@@ -86,20 +86,13 @@ export default function Sidebar() {
     switch (role) {
       case "owner": return "bg-role-owner";
       case "manager": return "bg-role-manager";
-      case "finance_manager": return "bg-role-finance";
       case "employee": return "bg-role-employee";
       default: return "bg-muted";
     }
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case "finance_manager": return "Finance Manager";
-      case "manager": return "Manager";
-      case "owner": return "Owner";
-      case "employee": return "Employee";
-      default: return role;
-    }
+  const getJobTitleLabel = (jobTitle: string) => {
+    return jobTitle;
   };
 
   return (
@@ -131,11 +124,10 @@ export default function Sidebar() {
                     "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border animate-pulse-glow",
                     currentUser.role === 'owner' && 'role-owner',
                     currentUser.role === 'manager' && 'role-manager', 
-                    currentUser.role === 'finance_manager' && 'role-finance',
                     currentUser.role === 'employee' && 'role-employee'
                   )}
                 >
-                  {getRoleLabel(currentUser.role)}
+                  {getJobTitleLabel(currentUser.jobTitle)}
                 </span>
               </div>
             </div>

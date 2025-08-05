@@ -18,6 +18,8 @@ interface CreateTeamFormProps {
 
 export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: CreateTeamFormProps) {
   const [teamName, setTeamName] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -32,6 +34,8 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
   useEffect(() => {
     if (editing && isOpen) {
       setTeamName(editing.name);
+      setDescription(editing.description || "");
+      setSelectedLeader(editing.leaderId || null);
       setSelectedMembers(editing.memberIds);
       setSelectedProjects(editing.associatedProjects);
       setSelectedProducts(editing.associatedProducts);
@@ -48,6 +52,8 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
     const teamData: Team = editing ? {
       ...editing,
       name: teamName,
+      description: description,
+      leaderId: selectedLeader,
       memberIds: selectedMembers,
       associatedProjects: selectedProjects,
       associatedProducts: selectedProducts,
@@ -55,6 +61,8 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
     } : {
       id: Date.now().toString(),
       name: teamName,
+      description: description,
+      leaderId: selectedLeader,
       memberIds: selectedMembers,
       associatedProjects: selectedProjects,
       associatedProducts: selectedProducts,
@@ -70,6 +78,8 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
 
   const handleClose = () => {
     setTeamName("");
+    setDescription("");
+    setSelectedLeader(null);
     setSelectedMembers([]);
     setSelectedProjects([]);
     setSelectedProducts([]);
@@ -101,6 +111,33 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-foreground font-medium">Team Description (Optional)</Label>
+            <Input
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter team description"
+              className="border-input bg-background text-foreground focus:border-primary focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-foreground font-medium">Select Team Leader (Optional)</Label>
+            <select
+              value={selectedLeader || ""}
+              onChange={(e) => setSelectedLeader(e.target.value || null)}
+              className="w-full p-2 border border-input bg-background text-foreground rounded-md focus:border-primary focus:ring-primary/20"
+            >
+              <option value="">Select a leader</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} - {user.jobTitle}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-3">
             <Label className="text-foreground font-medium">Select Team Members</Label>
             <div className="max-h-40 overflow-y-auto border border-border rounded-lg p-4 bg-muted/30">
@@ -119,7 +156,10 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
                       }}
                       className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
-                    <Label htmlFor={`member-${user.id}`} className="text-sm text-foreground cursor-pointer flex-1">{user.name}</Label>
+                    <div className="flex-1">
+                      <Label htmlFor={`member-${user.id}`} className="text-sm text-foreground cursor-pointer font-medium">{user.name}</Label>
+                      <p className="text-xs text-muted-foreground">{user.jobTitle}</p>
+                    </div>
                   </div>
                 ))}
               </div>

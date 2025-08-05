@@ -11,9 +11,7 @@ import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar a
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser, getAllUsers } from "@/lib/auth";
 import { getTimeEntries, deleteTimeEntry, getProjects } from "@/services/storage";
-import { TimeEntry, rolePermissions } from "@/validation/index";
-import { useNavigate } from "react-router-dom";
-import EditSingleTimeEntryForm from "@/components/users/EditSingleTimeEntryForm";
+import { TimeEntry } from "@/validation/index";
 
 interface GroupedEntry {
   date: string;
@@ -25,12 +23,16 @@ interface GroupedEntry {
   projectDetails: {
     category: string;
     name: string;
-    level?: string;
+level?: string;
     task: string;
-    subtask?: string;
+    subtask: string;
     description: string;
   };
 }
+import { rolePermissions } from "@/validation/index";
+import { formatTime } from "@/services/storage";
+import { useNavigate } from "react-router-dom";
+import EditTimeEntryForm from "@/components/users/EditTimeEntryForm";
 
 export default function Timesheet() {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -40,17 +42,18 @@ export default function Timesheet() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [billableFilter, setBillableFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
-  const [isDailyTrackerOpen, setDailyTrackerOpen] = useState(false);
+  const [isEditFormOpen, setEditFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
   const users = getAllUsers();
   const projects = getProjects();
 
-  const loadTimeEntries = useCallback(() => {
+const loadTimeEntries = useCallback(() => {
     const allEntries = getTimeEntries();
+    const permissions = rolePermissions[currentUser?.role || 'employee'];
     
-    if (currentUser?.role === 'owner') {
+if (currentUser?.role === 'owner') {
       setTimeEntries(allEntries);
     } else if (currentUser?.role === 'manager') {
       setTimeEntries(allEntries);
@@ -109,35 +112,6 @@ export default function Timesheet() {
     return matchesSearch && matchesStatus && matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
   });
 
-  // Get entries for overtime calculation (current month if no date filter)
-  const overtimeEntries = timeEntries.filter(entry => {
-    const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
-    const matchesBillable = billableFilter === 'all' || 
-      (billableFilter === 'billable' && entry.isBillable) ||
-      (billableFilter === 'non-billable' && !entry.isBillable);
-    const matchesProject = projectFilter === 'all' || entry.projectDetails.name === projects.find(p => p.id === projectFilter)?.name;
-    
-    const entryDate = new Date(entry.date);
-    let matchesDateFilter = true;
-    
-    if (dateRange && dateRange.from) {
-      // Use selected date range
-      const startDate = new Date(dateRange.from);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(dateRange.to || dateRange.from);
-      endDate.setHours(23, 59, 59, 999);
-      matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
-    } else {
-      // Default to current month if no date range selected
-      const now = new Date();
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      matchesDateFilter = entryDate >= currentMonthStart && entryDate <= currentMonthEnd;
-    }
-
-    return matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
-  });
-
   // Group entries by date and sum hours for the same date
   const groupedEntries = filteredEntries.reduce((groups, entry) => {
     const date = entry.date;
@@ -155,81 +129,32 @@ export default function Timesheet() {
 
   // Calculate summary statistics based on grouped data
   const dailySummaries = Object.values(groupedEntries);
-  const totalActualHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.entries.reduce((sumHours: number, entry: TimeEntry) => sumHours + entry.actualHours, 0), 0);
-  const totalBillableHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.entries.reduce((sumHours: number, entry: TimeEntry) => sumHours + (entry.isBillable ? entry.billableHours : 0), 0), 0);
+  const totalHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.totalHours, 0);
+  const regularHours = dailySummaries.filter((day: GroupedEntry) => day.totalHours <= 8).reduce((sum, day: GroupedEntry) => sum + day.totalHours, 0);
+  const overtimeHours = dailySummaries.filter((day: GroupedEntry) => day.totalHours > 8).reduce((sum, day: GroupedEntry) => sum + (day.totalHours - 8), 0);
+  const totalBillableHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.entries.reduce((sumHours: number, entry: TimeEntry) => sumHours + (entry.isBillable ? entry.totalHours : 0), 0), 0);
   const daysWorked = dailySummaries.length;
-  
-  // Calculate overtime based on total expected hours for the period
-  const calculateOvertimeHours = () => {
-    const standardDailyHours = 8;
-    
-    // Calculate total actual hours from overtime entries
-    const totalActualHoursForOvertime = overtimeEntries.reduce((sum, entry) => sum + entry.actualHours, 0);
-    
-    // Calculate expected hours for the period
-    let expectedHours = 0;
-    
-    if (dateRange && dateRange.from) {
-      // Use selected date range
-      const startDate = new Date(dateRange.from);
-      const endDate = new Date(dateRange.to || dateRange.from);
-      
-      // Count working days (Monday to Friday) in the selected range
-      let workDays = 0;
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dayOfWeek = d.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Monday to Friday
-          workDays++;
-        }
-      }
-      expectedHours = workDays * standardDailyHours;
-    } else {
-      // Default to current month
-      const now = new Date();
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
-      // Count working days in current month
-      let workDays = 0;
-      for (let d = new Date(currentMonthStart); d <= currentMonthEnd; d.setDate(d.getDate() + 1)) {
-        const dayOfWeek = d.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Monday to Friday
-          workDays++;
-        }
-      }
-      expectedHours = workDays * standardDailyHours;
-    }
-    
-    // Calculate overtime (total actual - expected, but never negative)
-    const overtime = Math.max(0, totalActualHoursForOvertime - expectedHours);
-    return overtime;
-  };
-  
-  const overtimeCalculated = calculateOvertimeHours();
-  const averageHours = totalActualHours / (daysWorked || 1);
-  
-  // Get current user's available hours
-  const availableHours = currentUser?.availableHours || 0;
+  const fixedMonthlyHours = 160; // Example fixed hours for a month. Can be configured.
+  const overtimeCalculated = Math.max(0, totalHours - fixedMonthlyHours); // Calculating overtime against fixed monthly hours.
+  const averageHours = totalHours / (daysWorked || 1);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'bg-green-600 text-white';
-      case 'rejected': return 'bg-red-600 text-white';
-      case 'pending': return 'bg-yellow-500 text-black';
-      default: return 'bg-gray-200 text-gray-800';
+      case 'approved': return 'bg-status-approved text-white';
+      case 'rejected': return 'bg-status-rejected text-white';
+      case 'pending': return 'bg-status-pending text-black';
+      default: return 'bg-muted';
     }
   };
 
   const canEdit = (entry: TimeEntry) => {
     if (currentUser?.role === 'owner') return true;
-    if (currentUser?.role === 'manager') return entry.status === 'pending';
     if (entry.userId !== currentUser?.id) return false;
     return entry.status === 'pending';
   };
 
   const canDelete = (entry: TimeEntry) => {
     if (currentUser?.role === 'owner') return true;
-    if (currentUser?.role === 'manager') return entry.status === 'pending';
     if (entry.userId !== currentUser?.id) return false;
     return entry.status === 'pending';
   };
@@ -272,22 +197,21 @@ export default function Timesheet() {
   // Edit handlers
   const handleEditEntry = (entry: TimeEntry) => {
     setEditingEntry(entry);
-    setDailyTrackerOpen(true);
+    setEditFormOpen(true);
   };
 
   const handleEditSuccess = () => {
-    setDailyTrackerOpen(false);
+    setEditFormOpen(false);
     setEditingEntry(null);
     loadTimeEntries();
   };
 
-  const handleCloseDailyTracker = () => {
-    setDailyTrackerOpen(false);
+  const handleCloseEditForm = () => {
+    setEditFormOpen(false);
     setEditingEntry(null);
   };
 
   const permissions = rolePermissions[currentUser?.role || 'employee'];
-
 
   return (
     <div className="dashboard-layout">
@@ -314,18 +238,9 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">HOURS</p>
-                  <div className="flex items-center space-x-4">
-                    <div>
-                      <p className="text-2xl font-bold text-green-600">{totalBillableHours.toFixed(1)}</p>
-                      <p className="text-xs text-muted-foreground">Billable</p>
-                    </div>
-                    <div className="text-muted-foreground text-lg">|</div>
-                    <div>
-                      <p className="text-2xl font-bold text-blue-600">{totalActualHours.toFixed(1)}</p>
-                      <p className="text-xs text-muted-foreground">Actual</p>
-                    </div>
-                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Hours</p>
+                  <p className="text-3xl font-bold text-primary">{totalHours.toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground">Billable: {totalBillableHours.toFixed(1)}h | Actual: {totalHours.toFixed(1)}h</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Clock className="h-6 w-6 text-primary" />
@@ -339,7 +254,7 @@ export default function Timesheet() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Daily Average</p>
-                  <p className="text-3xl font-bold text-green-600">{averageHours.toFixed(1)}</p>
+                  <p className="text-3xl font-bold text-success">{averageHours.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">Hours per day</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-success/10 flex items-center justify-center">
@@ -355,9 +270,7 @@ export default function Timesheet() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Overtime</p>
                   <p className="text-3xl font-bold text-warning">{overtimeCalculated.toFixed(1)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {dateRange && dateRange.from ? 'Above expected hours' : 'Above expected hours (current month)'}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Above {fixedMonthlyHours}h/month</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-warning/10 flex items-center justify-center">
                   <Timer className="h-6 w-6 text-warning" />
@@ -396,19 +309,18 @@ export default function Timesheet() {
           <span className="text-sm text-muted-foreground">{filteredEntries.length} entries</span>
         </div>
 
-        {/* Filters */}
-        <div className="space-y-4">
-          <div className="flex items-center space-x-4 flex-wrap">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Date Filter:</span>
-              <DateRangePicker
-                dateRange={dateRange}
-                onDateRangeChange={setDateRange}
-                placeholder="Select date range"
-                className="w-60"
-              />
-            </div>
-          </div>
+          {/* Filters */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4 flex-wrap">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium">Date Filter:</span>
+                <DateRangePicker
+                  dateRange={dateRange}
+                  onDateRangeChange={setDateRange}
+                  placeholder="Select date range"
+                  className="w-60"
+                />
+              </div>
           <div className="flex items-center space-x-4 flex-wrap">
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium">Status:</span>
@@ -486,11 +398,11 @@ export default function Timesheet() {
                     <TableHead>Employee</TableHead>
                   )}
                   <TableHead>Date</TableHead>
-                <TableHead>Project Details</TableHead>
+                  <TableHead>Project Details</TableHead>
                 <TableHead>Tasks</TableHead>
                 <TableHead>Actual Hours</TableHead>
                 <TableHead>Billable Hours</TableHead>
-                <TableHead>Available Hours</TableHead>
+                <TableHead>Total Hours</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Action</TableHead>
                 </TableRow>
@@ -537,7 +449,7 @@ export default function Timesheet() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <span className="font-medium">{(entry.availableHours || 0).toFixed(1)}h</span>
+                        <span className="font-medium">{entry.totalHours.toFixed(1)}h</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -577,15 +489,12 @@ export default function Timesheet() {
         </Card>
       </div>
 
-      {isDailyTrackerOpen && editingEntry && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <EditSingleTimeEntryForm 
-            entry={editingEntry}
-            onClose={handleCloseDailyTracker}
-            onSuccess={handleEditSuccess}
-          />
-        </div>
-      )}
+      <EditTimeEntryForm
+        isOpen={isEditFormOpen}
+        onClose={handleCloseEditForm}
+        onSuccess={handleEditSuccess}
+        editingEntry={editingEntry}
+      />
     </div>
   );
 }

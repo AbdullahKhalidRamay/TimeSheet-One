@@ -7,7 +7,8 @@ import CreateProjectForm from "@/components/users/CreateProjectForm";
 import CreateProductForm from "@/components/users/CreateProductForm";
 import CreateDepartmentForm from "@/components/users/CreateDepartmentForm";
 import { Badge } from "@/components/ui/badge";
-import { FolderOpen, Plus, Building2, Package, Users, Trash2, Edit2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { FolderOpen, Plus, Building2, Package, Users, Trash2, Edit2, Search } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getProjects, getProducts, getDepartments, deleteProject, deleteProduct, deleteDepartment } from "@/services/storage";
 import { Project, Product, Department } from "@/validation/index";
@@ -43,7 +44,7 @@ export default function Projects() {
     setSearchQuery(query);
   };
 
-  const filterBySearch = (items: any[]) => {
+  const filterBySearch = <T extends { name: string }>(items: T[]): T[] => {
     if (!searchQuery) return items;
     return items.filter(item => 
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -137,9 +138,6 @@ export default function Projects() {
     <div className="dashboard-layout">
       <Header 
         title="Projects & Tasks"
-        showSearch
-        searchPlaceholder="Search projects, products, departments..."
-        onSearch={handleSearch}
       >
         <Button variant="outline">
           <Package className="mr-2 h-4 w-4" />
@@ -154,6 +152,19 @@ export default function Projects() {
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
           </TabsList>
+
+          {/* Search Bar */}
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search projects, products, departments..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            </div>
+          </div>
 
           <TabsContent value="projects" className="space-y-4">
             <div className="flex justify-between items-center">

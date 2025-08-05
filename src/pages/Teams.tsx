@@ -4,14 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, DollarSign, UserPlus, ChevronDown, ChevronRight, Trash2, Edit } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, UserPlus, ChevronDown, Search, Edit, Trash2 } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getAllUsers, getCurrentUser } from "@/lib/auth";
 import { User } from "@/validation/index";
-import { rolePermissions, Team, Project } from "@/validation/index";
-import CreateTeamForm from "@/components/users/CreateTeamForm";
+import { rolePermissions, Team } from "@/validation/index";
 import { getTeams, getProjects, deleteTeam, addMemberToTeam } from "@/services/storage";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import CreateTeamForm from "@/components/users/CreateTeamForm";
 
 export default function Teams() {
   const [users, setUsers] = useState<User[]>([]);
@@ -38,7 +39,7 @@ export default function Teams() {
     const matchesSearch = !searchQuery ||
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchQuery.toLowerCase());
+      user.jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || statusFilter === 'active'; // Assume all users are active for now
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
@@ -46,28 +47,20 @@ export default function Teams() {
     return matchesSearch && matchesStatus && matchesRole;
   });
 
-  const getRoleColor = (role: string) => {
+  const getJobTitleColor = (role: string) => {
     switch (role) {
       case "owner": return "bg-role-owner text-white";
       case "manager": return "bg-role-manager text-white";
-      case "finance_manager": return "bg-role-finance text-white";
       case "employee": return "bg-role-employee text-white";
       default: return "bg-muted";
     }
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case "finance_manager": return "Finance Manager";
-      case "manager": return "Manager";
-      case "owner": return "Owner";
-      case "employee": return "Employee";
-      default: return role;
-    }
+  const getJobTitleLabel = (jobTitle: string) => {
+    return jobTitle;
   };
 
   const [teams, setTeams] = useState<Team[]>([]);
-  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
   useEffect(() => {
@@ -76,10 +69,6 @@ export default function Teams() {
 
   const loadTeams = () => {
     setTeams(getTeams());
-  };
-
-  const toggleTeam = (teamId: string) => {
-    setExpandedTeamId(prev => (prev === teamId ? null : teamId));
   };
 
   const handleDeleteTeam = (teamId: string) => {
@@ -93,9 +82,6 @@ export default function Teams() {
     <div className="dashboard-layout">
       <Header 
         title="Teams"
-        showSearch
-        searchPlaceholder="Search by name or email..."
-        onSearch={handleSearch}
       >
         {permissions.canManageTeams && (
           <Button onClick={() => setCreateTeamOpen(true)}>
@@ -156,47 +142,59 @@ export default function Teams() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Hours</p>
-                  <p className="text-3xl font-bold text-success">
-                    {users.reduce((sum, user) => sum + user.totalHours, 0).toFixed(1)}
+                  <p className="text-sm font-medium text-muted-foreground">Owners</p>
+                  <p className="text-3xl font-bold text-role-owner">
+                    {users.filter(u => u.role === 'owner').length}
                   </p>
                 </div>
-                <DollarSign className="h-8 w-8 text-success" />
+                <Users className="h-8 w-8 text-role-owner" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium">Filter:</span>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Search Bar and Filters */}
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            </div>
+            <span className="text-sm text-muted-foreground">{filteredUsers.length} members</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="owner">Owner</SelectItem>
-                <SelectItem value="manager">Manager</SelectItem>
-                <SelectItem value="finance_manager">Finance Manager</SelectItem>
-                <SelectItem value="employee">Employee</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">Filter:</span>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <span className="text-sm text-muted-foreground">{filteredUsers.length} members</span>
         </div>
 
         {/* Members Table */}
@@ -210,8 +208,7 @@ export default function Teams() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Total Hours</TableHead>
-                  <TableHead>Role</TableHead>
+<TableHead>Role</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -227,10 +224,9 @@ export default function Teams() {
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.totalHours.toFixed(1)}h</TableCell>
                     <TableCell>
-                      <Badge className={getRoleColor(user.role)}>
-                        {getRoleLabel(user.role)}
+                      <Badge className={getJobTitleColor(user.role)}>
+                        {getJobTitleLabel(user.jobTitle)}
                       </Badge>
                     </TableCell>
                     <TableCell>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Edit2, Trash2 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { saveTimeEntry, calculateHours, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
+import { saveTimeEntry, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
 
 interface EditTimeEntryFormProps {
@@ -37,17 +37,25 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
   const [projects, setProjects] = useState<Project[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [availableLevels, setAvailableLevels] = useState<any[]>([]);
-  const [availableTasks, setAvailableTasks] = useState<any[]>([]);
-  const [availableSubtasks, setAvailableSubtasks] = useState<any[]>([]);
+  const [availableLevels, setAvailableLevels] = useState<{ name: string; tasks?: unknown[]; duties?: unknown[] }[]>([]);
+  const [availableTasks, setAvailableTasks] = useState<{ name: string; subtasks?: unknown[]; tasks?: unknown[] }[]>([]);
+  const [availableSubtasks, setAvailableSubtasks] = useState<{ name: string }[]>([]);
   const [isBillableDisabled, setIsBillableDisabled] = useState(false);
 
   const currentUser = getCurrentUser();
   const isEditing = !!editingEntry;
 
+  const loadData = useCallback(() => {
+    if (currentUser) {
+      setProjects(getUserAssociatedProjects(currentUser.id));
+      setProducts(getUserAssociatedProducts(currentUser.id));
+      setDepartments(getUserAssociatedDepartments(currentUser.id));
+    }
+  }, [currentUser]);
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     if (editingEntry && isOpen) {
@@ -83,40 +91,8 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
     }
   }, [editingEntry, isOpen]);
 
-  useEffect(() => {
-    if (formData.category && formData.projectName) {
-      loadLevels();
-      const billableStatus = determineIsBillable(formData.category as 'project' | 'product' | 'department', formData.projectName);
-      setFormData(prev => ({ ...prev, isBillable: billableStatus }));
-      setIsBillableDisabled(true);
-    } else {
-      setFormData(prev => ({ ...prev, isBillable: false }));
-      setIsBillableDisabled(false);
-    }
-  }, [formData.category, formData.projectName]);
-
-  useEffect(() => {
-    if (formData.level) {
-      loadTasks();
-    }
-  }, [formData.level]);
-
-  useEffect(() => {
-    if (formData.task) {
-      loadSubtasks();
-    }
-  }, [formData.task]);
-
-  const loadData = () => {
-    if (currentUser) {
-      setProjects(getUserAssociatedProjects(currentUser.id));
-      setProducts(getUserAssociatedProducts(currentUser.id));
-      setDepartments(getUserAssociatedDepartments(currentUser.id));
-    }
-  };
-
-  const loadLevels = () => {
-    let levels: any[] = [];
+  const loadLevels = useCallback(() => {
+    let levels: { name: string; tasks?: unknown[]; duties?: unknown[] }[] = [];
     
     if (formData.category === 'project') {
       const project = projects.find(p => p.name === formData.projectName);
@@ -132,42 +108,66 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
     setAvailableLevels(levels);
     setAvailableTasks([]);
     setAvailableSubtasks([]);
-  };
+  }, [formData.category, formData.projectName, projects, products, departments]);
 
-  const loadTasks = () => {
-    let tasks: any[] = [];
+  useEffect(() => {
+    if (formData.category && formData.projectName) {
+      loadLevels();
+      const billableStatus = determineIsBillable(formData.category as 'project' | 'product' | 'department', formData.projectName);
+      setFormData(prev => ({ ...prev, isBillable: billableStatus }));
+      setIsBillableDisabled(true);
+    } else {
+      setFormData(prev => ({ ...prev, isBillable: false }));
+      setIsBillableDisabled(false);
+    }
+  }, [formData.category, formData.projectName, loadLevels]);
+
+  const loadTasks = useCallback(() => {
+    let tasks: { name: string; subtasks?: unknown[]; tasks?: unknown[] }[] = [];
     
     const level = availableLevels.find(l => l.name === formData.level);
     if (level) {
       if (formData.category === 'project') {
-        tasks = level.tasks || [];
+        tasks = (level.tasks as { name: string; subtasks?: unknown[] }[]) || [];
       } else if (formData.category === 'product') {
-        tasks = level.tasks || [];
+        tasks = (level.tasks as { name: string; subtasks?: unknown[] }[]) || [];
       } else if (formData.category === 'department') {
-        tasks = level.duties || [];
+        tasks = (level.duties as { name: string; tasks?: unknown[] }[]) || [];
       }
     }
     
     setAvailableTasks(tasks);
     setAvailableSubtasks([]);
-  };
+  }, [availableLevels, formData.level, formData.category]);
 
-  const loadSubtasks = () => {
-    let subtasks: any[] = [];
+  const loadSubtasks = useCallback(() => {
+    let subtasks: { name: string }[] = [];
     
     const task = availableTasks.find(t => t.name === formData.task);
     if (task) {
       if (formData.category === 'department') {
-        subtasks = task.tasks || [];
+        subtasks = (task.tasks as { name: string }[]) || [];
       } else {
-        subtasks = task.subtasks || [];
+        subtasks = (task.subtasks as { name: string }[]) || [];
       }
     }
     
     setAvailableSubtasks(subtasks);
-  };
+  }, [availableTasks, formData.task, formData.category]);
 
-  const handleInputChange = (field: string, value: any) => {
+  useEffect(() => {
+    if (formData.level) {
+      loadTasks();
+    }
+  }, [formData.level, loadTasks]);
+
+  useEffect(() => {
+    if (formData.task) {
+      loadSubtasks();
+    }
+  }, [formData.task, loadSubtasks]);
+
+  const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Reset dependent fields when parent changes
@@ -183,7 +183,7 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
   const handleSubmit = () => {
     if (!currentUser || !editingEntry) return;
 
-    const totalHours = calculateHours(formData.clockIn, formData.clockOut, formData.breakTime);
+    const availableHours = editingEntry.availableHours || currentUser.availableHours;
 
     const projectDetails: ProjectDetail = {
       category: formData.category as 'project' | 'product' | 'department',
@@ -200,7 +200,7 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
       clockIn: formData.clockIn,
       clockOut: formData.clockOut,
       breakTime: formData.breakTime,
-      totalHours,
+      availableHours,
       task: formData.description,
       projectDetails,
       isBillable: formData.isBillable,
