@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { initializeAuth, getCurrentUser } from "@/lib/auth";
 import { startReminderService } from "@/services/reminderService";
 import "@/utils/resetData"; // Import for development utilities
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import Login from "./pages/Login";
 import Timesheet from "./pages/Timesheet";
@@ -16,6 +18,7 @@ import Teams from "./pages/Teams";
 import Notifications from "./pages/Notifications";
 import ApprovalWorkflow from "./pages/ApprovalWorkflow";
 import Reports from "./pages/Reports";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -38,33 +41,38 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/timesheet" replace />} />
-              <Route path="timesheet" element={<ErrorBoundary><Timesheet /></ErrorBoundary>} />
-            <Route path="time-tracker" element={<ErrorBoundary><TimeTracker /></ErrorBoundary>} />
-              <Route path="projects" element={<ErrorBoundary><Projects /></ErrorBoundary>} />
-              <Route path="teams" element={<ErrorBoundary><Teams /></ErrorBoundary>} />
-              <Route path="notifications" element={<ErrorBoundary><Notifications /></ErrorBoundary>} />
-              <Route path="approval" element={<ErrorBoundary><ApprovalWorkflow /></ErrorBoundary>} />
-              <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <SettingsProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route 
+                  path="/" 
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/timesheet" replace />} />
+                  <Route path="timesheet" element={<ErrorBoundary><Timesheet /></ErrorBoundary>} />
+                  <Route path="time-tracker" element={<ErrorBoundary><TimeTracker /></ErrorBoundary>} />
+                  <Route path="projects" element={<ErrorBoundary><Projects /></ErrorBoundary>} />
+                  <Route path="teams" element={<ErrorBoundary><Teams /></ErrorBoundary>} />
+                  <Route path="notifications" element={<ErrorBoundary><Notifications /></ErrorBoundary>} />
+                  <Route path="approval" element={<ErrorBoundary><ApprovalWorkflow /></ErrorBoundary>} />
+                  <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
+                  <Route path="settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </SettingsProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 };

@@ -327,8 +327,8 @@ export default function Timesheet() {
                     </div>
                   </div>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-primary" />
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Clock className="h-6 w-6 text-primary flex-shrink-0" />
                 </div>
               </div>
             </CardContent>
@@ -342,8 +342,8 @@ export default function Timesheet() {
                   <p className="text-3xl font-bold text-green-600">{averageHours.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">Hours per day</p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-success/10 flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-success" />
+                <div className="h-12 w-12 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="h-6 w-6 text-success flex-shrink-0" />
                 </div>
               </div>
             </CardContent>
@@ -351,16 +351,16 @@ export default function Timesheet() {
 
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
                   <p className="text-sm font-medium text-muted-foreground">Overtime</p>
                   <p className="text-3xl font-bold text-warning">{overtimeCalculated.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">
                     {dateRange && dateRange.from ? 'Above expected hours' : 'Above expected hours (current month)'}
                   </p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Timer className="h-6 w-6 text-warning" />
+                <div className="h-12 w-12 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <Timer className="h-6 w-6 text-warning flex-shrink-0" />
                 </div>
               </div>
             </CardContent>
@@ -374,8 +374,8 @@ export default function Timesheet() {
                   <p className="text-3xl font-bold text-primary">{daysWorked}</p>
                   <p className="text-sm text-muted-foreground">This period</p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <CalendarIcon className="h-6 w-6 text-primary" />
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <CalendarIcon className="h-6 w-6 text-primary flex-shrink-0" />
                 </div>
               </div>
             </CardContent>
@@ -496,7 +496,9 @@ export default function Timesheet() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEntries.map((entry) => (
+                {filteredEntries
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((entry) => (
                   <TableRow key={entry.id}>
                     {permissions.canViewAllTimesheets && (
                       <TableCell>

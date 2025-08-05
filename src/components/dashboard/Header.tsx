@@ -1,7 +1,6 @@
-import { Search, User } from "lucide-react";
+import { Search, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ThemeToggle } from "../ThemeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +36,10 @@ export default function Header({
     navigate('/login');
   };
 
+  const handleSettings = () => {
+    navigate('/settings');
+  };
+
   return (
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 animate-fade-in">
       <div className="flex h-16 items-center justify-between px-6">
@@ -60,8 +63,6 @@ export default function Header({
 
           <NotificationBell />
           
-          <ThemeToggle />
-          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full hover-scale">
@@ -82,6 +83,10 @@ export default function Header({
                 </div>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSettings}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Log out</span>

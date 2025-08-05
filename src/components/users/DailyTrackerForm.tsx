@@ -445,28 +445,45 @@ export default function DailyTrackerForm({ initialDate, editingEntries, onClose 
           
           {/* Projects */}
           {availableProjects.length > 0 && (
-            <Card className="p-6 bg-blue-50/30 border-blue-200">
-              <h4 className="font-semibold text-blue-800 mb-4 flex items-center space-x-2">
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span>Projects</span>
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {availableProjects.map((project) => (
-                  <div key={project.id} className="flex items-center space-x-3 p-3 rounded-lg bg-background hover:bg-accent/50 transition-colors border border-border">
-                    <Checkbox
-                      id={`project-${project.id}`}
-                      checked={selectedProjects.some(p => p.id === project.id)}
-                      onCheckedChange={(checked) => 
-                        handleProjectSelection(project, 'project', checked as boolean)
-                      }
-                      className="border-border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white"
-                    />
-                    <Label htmlFor={`project-${project.id}`} className="font-medium text-foreground cursor-pointer flex-1">{project.name}</Label>
-                    {project.isBillable && <DollarSign className="h-4 w-4 text-green-600" />}
-                  </div>
-                ))}
+                <h4 className="font-semibold text-blue-800 dark:text-blue-400">Projects</h4>
               </div>
-            </Card>
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-700">
+                      <th className="py-3 px-4 text-left font-medium text-gray-700 dark:text-gray-300">Select</th>
+                      <th className="py-3 px-4 text-left font-medium text-gray-700 dark:text-gray-300">Project Name</th>
+                      <th className="py-3 px-4 text-center font-medium text-gray-700 dark:text-gray-300">Billable</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availableProjects.map((project) => (
+                      <tr key={project.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="py-3 px-4">
+                          <Checkbox
+                            id={`project-${project.id}`}
+                            checked={selectedProjects.some(p => p.id === project.id)}
+                            onCheckedChange={(checked) => 
+                              handleProjectSelection(project, 'project', checked as boolean)
+                            }
+                            className="border-border data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white"
+                          />
+                        </td>
+                        <td className="py-3 px-4">
+                          <Label htmlFor={`project-${project.id}`} className="font-medium text-foreground cursor-pointer">{project.name}</Label>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {project.isBillable && <DollarSign className="h-4 w-4 text-green-600 mx-auto" />}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
           {/* Products */}
@@ -523,183 +540,191 @@ export default function DailyTrackerForm({ initialDate, editingEntries, onClose 
         </div>
 
         {/* Selected Project Entries */}
-        {formData.projectEntries.map((entry) => {
-          const categoryColors = {
-            project: 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100/30',
-            product: 'border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100/30',
-            department: 'border-orange-500 bg-gradient-to-br from-orange-50 to-orange-100/30'
-          };
-          
-          return (
-            <Card key={entry.id} className={`border-l-4 ${categoryColors[entry.category]} shadow-md`}>
-              <CardHeader className="pb-4 border-b border-gray-100">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      entry.category === 'project' ? 'bg-blue-500' :
-                      entry.category === 'product' ? 'bg-purple-500' : 'bg-orange-500'
-                    }`}></div>
-                    <span className="font-semibold text-gray-800">{entry.project.name}</span>
-                  </div>
-                  <Badge variant={entry.category === 'project' ? 'default' : 
-                                entry.category === 'product' ? 'secondary' : 'outline'}
-                         className="capitalize font-medium">
-                    {entry.category}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Level Selection */}
-              <div className="space-y-2">
-                <Label>
-                  {entry.category === 'project' ? 'Levels' : 
-                   entry.category === 'product' ? 'Stages' : 'Functions'}
-                </Label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {getLevelsForProject(entry.project, entry.category).map((level) => (
-                    <div key={level.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={(entry.selectedLevels || []).some(l => l.id === level.id)}
-                        onCheckedChange={(checked) => 
-                          handleLevelSelection(entry.id, level, checked as boolean)
-                        }
-                      />
-                      <Label className="text-sm">{level.name}</Label>
+        {formData.projectEntries.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="h-2 w-2 bg-primary rounded-full"></div>
+              <Label className="text-lg font-semibold text-foreground">Project Hours Configuration</Label>
+            </div>
+            
+            {/* List View of Project Entries */}
+            <div className="space-y-4">
+              {formData.projectEntries.map((entry) => {
+                const categoryColors = {
+                  project: 'border-l-blue-500 bg-blue-50/30',
+                  product: 'border-l-purple-500 bg-purple-50/30',
+                  department: 'border-l-orange-500 bg-orange-50/30'
+                };
+                
+                return (
+                  <div key={entry.id} className={`border-l-4 ${categoryColors[entry.category]} p-4 rounded-lg shadow-sm`}>
+                    {/* Project Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-3 h-3 rounded-full ${
+                          entry.category === 'project' ? 'bg-blue-500' :
+                          entry.category === 'product' ? 'bg-purple-500' : 'bg-orange-500'
+                        }`}></div>
+                        <span className="font-semibold text-gray-800">{entry.project.name}</span>
+                        <Badge variant={entry.category === 'project' ? 'default' : 
+                                      entry.category === 'product' ? 'secondary' : 'outline'}
+                               className="capitalize font-medium">
+                          {entry.category}
+                        </Badge>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Task Selection */}
-              {(entry.selectedLevels || []).map((level) => (
-                <div key={level.id} className="space-y-2">
-                  <Label>
-                    {entry.category === 'department' ? 'Duties' : 'Tasks'} for {level.name}
-                  </Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {getTasksForLevel(level, entry.category).map((task) => (
-                      <div key={task.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={(entry.selectedTasks || []).some(t => t.id === task.id && t.levelId === level.id)}
-                          onCheckedChange={(checked) => 
-                            handleTaskSelection(entry.id, task, level.id, checked as boolean)
-                          }
-                        />
-                        <Label className="text-sm">{task.name}</Label>
+                    {/* Level Selection */}
+                    <div className="mb-4">
+                      <Label className="text-sm font-medium mb-2 block">
+                        {entry.category === 'project' ? 'Levels' : 
+                         entry.category === 'product' ? 'Stages' : 'Functions'}
+                      </Label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {getLevelsForProject(entry.project, entry.category).map((level) => (
+                          <div key={level.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={(entry.selectedLevels || []).some(l => l.id === level.id)}
+                              onCheckedChange={(checked) => 
+                                handleLevelSelection(entry.id, level, checked as boolean)
+                              }
+                            />
+                            <Label className="text-sm">{level.name}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Task Selection */}
+                    {(entry.selectedLevels || []).map((level) => (
+                      <div key={level.id} className="mb-4">
+                        <Label className="text-sm font-medium mb-2 block">
+                          {entry.category === 'department' ? 'Duties' : 'Tasks'} for {level.name}
+                        </Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {getTasksForLevel(level, entry.category).map((task) => (
+                            <div key={task.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={(entry.selectedTasks || []).some(t => t.id === task.id && t.levelId === level.id)}
+                                onCheckedChange={(checked) => 
+                                  handleTaskSelection(entry.id, task, level.id, checked as boolean)
+                                }
+                              />
+                              <Label className="text-sm">{task.name}</Label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-              ))}
 
-              {/* Subtask Selection */}
-              {(entry.selectedTasks || []).map((task) => (
-                <div key={task.id} className="space-y-2">
-                  <Label>
-                    {entry.category === 'department' ? 'Tasks' : 'Subtasks'} for {task.name}
-                  </Label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {getSubtasksForTask(task, entry.category).map((subtask) => (
-                      <div key={subtask.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={(entry.selectedSubtasks || []).some(st => st.id === subtask.id && st.taskId === task.id)}
-                          onCheckedChange={(checked) => 
-                            handleSubtaskSelection(entry.id, subtask, task.id, checked as boolean)
-                          }
-                        />
-                        <Label className="text-sm">{subtask.name}</Label>
+                    {/* Subtask Selection */}
+                    {(entry.selectedTasks || []).map((task) => (
+                      <div key={task.id} className="mb-4">
+                        <Label className="text-sm font-medium mb-2 block">
+                          {entry.category === 'department' ? 'Tasks' : 'Subtasks'} for {task.name}
+                        </Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {getSubtasksForTask(task, entry.category).map((subtask) => (
+                            <div key={subtask.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={(entry.selectedSubtasks || []).some(st => st.id === subtask.id && st.taskId === task.id)}
+                                onCheckedChange={(checked) => 
+                                  handleSubtaskSelection(entry.id, subtask, task.id, checked as boolean)
+                                }
+                              />
+                              <Label className="text-sm">{subtask.name}</Label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-              ))}
 
-              {/* Hours Input */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Actual Hours</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="24"
-                    value={entry.actualHours}
-                    onChange={(e) => {
-                      const actualHours = parseFloat(e.target.value) || 0;
-                      updateProjectEntry(entry.id, 'actualHours', actualHours);
-                      // Update total hours
-                      updateProjectEntry(entry.id, 'totalHours', actualHours + entry.billableHours);
-                    }}
-                    placeholder="Enter actual hours"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Billable Hours</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="24"
-                    value={entry.billableHours}
-                    onChange={(e) => {
-                      const billableHours = parseFloat(e.target.value) || 0;
-                      updateProjectEntry(entry.id, 'billableHours', billableHours);
-                      // Update total hours
-                      updateProjectEntry(entry.id, 'totalHours', entry.actualHours + billableHours);
-                    }}
-                    placeholder="Enter billable hours"
-                    disabled={!entry.isBillable}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Available Hours</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="24"
-                    value={entry.availableHours}
-                    onChange={(e) => {
-                      const newAvailableHours = parseFloat(e.target.value) || 0;
-                      updateProjectEntry(entry.id, 'availableHours', newAvailableHours);
-                    }}
-                    className="bg-muted/50 font-semibold"
-                    placeholder="Available hours for this project"
-                  />
-                  <p className="text-xs text-muted-foreground">Hours available for this project</p>
-                </div>
-              </div>
-              
-              {/* Billable and Description */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center space-x-3">
-                  <Switch
-                    checked={entry.isBillable}
-                    disabled={entry.isBillableDisabled}
-                    onCheckedChange={(checked) => 
-                      !entry.isBillableDisabled && updateProjectEntry(entry.id, 'isBillable', checked)
-                    }
-                  />
-                  <Label className={`${entry.isBillableDisabled ? 'text-muted-foreground' : ''}`}>
-                    💰 Billable {entry.isBillableDisabled && '(Auto-determined)'}
-                  </Label>
-                </div>
-                <div className="space-y-2">
-                  <Label>Task Description</Label>
-                  <Textarea
-                    placeholder="What did you work on?"
-                    value={entry.description}
-                    onChange={(e) => 
-                      updateProjectEntry(entry.id, 'description', e.target.value)
-                    }
-                    rows={2}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          );
-        })}
+                    {/* Hours Input */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="space-y-2">
+                        <Label>Actual Hours</Label>
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="24"
+                          value={entry.actualHours === 0 ? '' : entry.actualHours.toString()}
+                          onChange={(e) => {
+                            const actualHours = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                            updateProjectEntry(entry.id, 'actualHours', actualHours);
+                            updateProjectEntry(entry.id, 'totalHours', actualHours + entry.billableHours);
+                          }}
+                          placeholder="Enter actual hours"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Billable Hours</Label>
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="24"
+                          value={entry.billableHours === 0 ? '' : entry.billableHours.toString()}
+                          onChange={(e) => {
+                            const billableHours = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                            updateProjectEntry(entry.id, 'billableHours', billableHours);
+                            updateProjectEntry(entry.id, 'totalHours', entry.actualHours + billableHours);
+                          }}
+                          placeholder="Enter billable hours"
+                          disabled={!entry.isBillable}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Available Hours</Label>
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="24"
+                          value={entry.availableHours === 0 ? '' : entry.availableHours.toString()}
+                          onChange={(e) => {
+                            const newAvailableHours = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                            updateProjectEntry(entry.id, 'availableHours', newAvailableHours);
+                          }}
+                          className="bg-muted/50 font-semibold"
+                          placeholder="Available hours for this project"
+                        />
+                        <p className="text-xs text-muted-foreground">Free Hours you have</p>
+                      </div>
+                    </div>
+                    
+                    {/* Billable and Description */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3">
+                        <Switch
+                          checked={entry.isBillable}
+                          disabled={entry.isBillableDisabled}
+                          onCheckedChange={(checked) => 
+                            !entry.isBillableDisabled && updateProjectEntry(entry.id, 'isBillable', checked)
+                          }
+                        />
+                        <Label className={`${entry.isBillableDisabled ? 'text-muted-foreground' : ''}`}>
+                          💰 Billable {entry.isBillableDisabled && '(Auto-determined)'}
+                        </Label>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Task Description</Label>
+                        <Textarea
+                          placeholder="What did you work on?"
+                          value={entry.description}
+                          onChange={(e) => 
+                            updateProjectEntry(entry.id, 'description', e.target.value)
+                          }
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Summary */}
         {formData.projectEntries.length > 0 && (
