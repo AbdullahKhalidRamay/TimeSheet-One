@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Search, User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,10 @@ export default function Header({
 }: HeaderProps) {
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
+  const currentChildren = React.Children.toArray(children);
+  const actionButtons = currentChildren.filter(child => 
+    React.isValidElement(child) && child.type === Button
+  );
 
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
@@ -47,9 +52,9 @@ export default function Header({
           <h1 className="text-heading">{title}</h1>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center">
           {showSearch && (
-            <div className="relative w-64">
+            <div className="relative w-64 mr-4">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={searchPlaceholder}
@@ -58,41 +63,44 @@ export default function Header({
               />
             </div>
           )}
-          
-          {children}
 
-          <NotificationBell />
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full hover-scale">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-                    {currentUser?.name.charAt(0).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 animate-scale-in" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium">{currentUser?.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {currentUser?.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </p>
+          <div className="flex items-center space-x-3 mr-6">
+            {actionButtons}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <NotificationBell />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:scale-105 transition-transform duration-200">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-gradient-primary text-primary-foreground">
+                      {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 animate-scale-in" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    <p className="font-medium">{currentUser?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {currentUser?.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSettings}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSettings}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>

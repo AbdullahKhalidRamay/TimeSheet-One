@@ -68,52 +68,16 @@ export default function Timesheet() {
     setSearchQuery(query);
   };
 
+  const handleUserClick = (userId: string) => {
+    setSelectedUser(userId === selectedUser ? null : userId);
+  };
+
   const handleDeleteEntry = (entryId: string) => {
     const entry = timeEntries.find(e => e.id === entryId);
     if (entry && (entry.status === 'pending' || currentUser?.role === 'owner')) {
       deleteTimeEntry(entryId);
       loadTimeEntries();
     }
-  };
-
-  const handleUserClick = (userId: string) => {
-    setSelectedUser(userId === selectedUser ? null : userId);
-  };
-
-  const UserRecordCard = ({ userId }: { userId: string }) => {
-    const userEntries = timeEntries.filter(entry => entry.userId === userId);
-    const user = users.find(u => u.id === userId);
-    
-    const totalBillableHours = userEntries.reduce((sum, entry) => sum + entry.billableHours, 0);
-    const totalActualHours = userEntries.reduce((sum, entry) => sum + entry.actualHours, 0);
-    
-    return (
-      <Card className="mb-4 p-4">
-        <CardHeader>
-          <CardTitle>{user?.name}'s Time Records</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div>
-              <h4 className="font-semibold">Total Billable Hours: {totalBillableHours}</h4>
-              <h4 className="font-semibold">Total Actual Hours: {totalActualHours}</h4>
-            </div>
-            <div className="space-y-2">
-              {userEntries.map(entry => (
-                <div key={entry.id} className="border p-2 rounded">
-                  <p><span className="font-medium">Project:</span> {entry.projectDetails.name}</p>
-                  <p><span className="font-medium">Task:</span> {entry.task}</p>
-                  <p><span className="font-medium">Date:</span> {entry.date}</p>
-                  <p><span className="font-medium">Status:</span> {entry.status}</p>
-                  <p><span className="font-medium">Billable Hours:</span> {entry.billableHours}</p>
-                  <p><span className="font-medium">Actual Hours:</span> {entry.actualHours}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
   };
 
 
@@ -194,11 +158,41 @@ export default function Timesheet() {
     return groups;
   }, {} as Record<string, GroupedEntry>);
 
-  // Calculate summary statistics based on grouped data
-  const dailySummaries = Object.values(groupedEntries);
-  const totalActualHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.entries.reduce((sumHours: number, entry: TimeEntry) => sumHours + entry.actualHours, 0), 0);
-  const totalBillableHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.entries.reduce((sumHours: number, entry: TimeEntry) => sumHours + (entry.isBillable ? entry.billableHours : 0), 0), 0);
-  const daysWorked = dailySummaries.length;
+  const getStatsForEntries = (entries: TimeEntry[]) => {
+    const dailyEntries = entries.reduce((acc: { [key: string]: TimeEntry[] }, entry) => {
+      const date = entry.date;
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(entry);
+      return acc;
+    }, {});
+
+    const daysWorked = Object.keys(dailyEntries).length;
+    const totalActualHours = entries.reduce((sum, entry) => sum + entry.actualHours, 0);
+    const totalBillableHours = entries.reduce((sum, entry) => sum + (entry.isBillable ? entry.billableHours : 0), 0);
+    const averageHours = daysWorked ? totalActualHours / daysWorked : 0;
+
+    return {
+      totalActualHours,
+      totalBillableHours,
+      daysWorked,
+      averageHours,
+      entries
+    };
+  };
+
+  // Get entries based on current selection
+  const getFilteredStats = () => {
+    let entriesToUse = filteredEntries;
+    if (selectedUser) {
+      entriesToUse = filteredEntries.filter(entry => entry.userId === selectedUser);
+    }
+    return getStatsForEntries(entriesToUse);
+  };
+
+  const stats = getFilteredStats();
+  const totalActualHours = stats.totalActualHours;
+  const totalBillableHours = stats.totalBillableHours;
+  const daysWorked = stats.daysWorked;
   
   // Calculate overtime based on total expected hours for the period
   const calculateOvertimeHours = () => {
@@ -355,7 +349,9 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">HOURS</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s HOURS" : "TOTAL HOURS"}
+                  </p>
                   <div className="flex items-center space-x-4">
                     <div>
                       <p className="text-2xl font-bold text-green-600">{totalBillableHours.toFixed(1)}</p>
@@ -379,8 +375,10 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Daily Average</p>
-                  <p className="text-3xl font-bold text-green-600">{averageHours.toFixed(1)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s Daily Average" : "Daily Average"}
+                  </p>
+                  <p className="text-3xl font-bold text-green-600">{stats.averageHours.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">Hours per day</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
@@ -394,7 +392,9 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">Overtime</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s Overtime" : "Overtime"}
+                  </p>
                   <p className="text-3xl font-bold text-warning">{overtimeCalculated.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">
                     {dateRange && dateRange.from ? 'Above expected hours' : 'Above expected hours (current month)'}
@@ -411,7 +411,9 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Days Worked</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s Days Worked" : "Days Worked"}
+                  </p>
                   <p className="text-3xl font-bold text-primary">{daysWorked}</p>
                   <p className="text-sm text-muted-foreground">This period</p>
                 </div>
@@ -547,16 +549,13 @@ export default function Timesheet() {
                           className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
                           onClick={() => handleUserClick(entry.userId)}
                         >
-                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                          <div className={`h-8 w-8 rounded-full ${selectedUser === entry.userId ? 'bg-primary text-white' : 'bg-muted'} flex items-center justify-center text-xs font-medium`}>
                             {entry.userName.split(' ').map(n => n[0]).join('').toUpperCase()}
                           </div>
-                          <span className="font-medium">{entry.userName}</span>
+                          <span className={`font-medium ${selectedUser === entry.userId ? 'text-primary' : ''}`}>
+                            {entry.userName}
+                          </span>
                         </div>
-                        {selectedUser === entry.userId && (
-                          <div className="absolute left-0 mt-2 w-full z-10">
-                            <UserRecordCard userId={entry.userId} />
-                          </div>
-                        )}
                       </TableCell>
                     )}
                     <TableCell>

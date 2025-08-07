@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -258,7 +258,7 @@ export default function WeeklyTimeTracker() {
   const currentViewMode = getViewMode();
 
   // Get dates for monthly view based on selected date range
-  const getMonthlyDates = () => {
+  const getMonthlyDates = useCallback(() => {
     if (!dateRange?.from || !dateRange?.to) return [];
     const dates = [];
     const currentDate = new Date(dateRange.from);
@@ -271,7 +271,7 @@ export default function WeeklyTimeTracker() {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     return dates;
-  };
+  }, [dateRange]);
 
   // Initialize monthly data for selected date range
   useEffect(() => {
@@ -300,10 +300,10 @@ export default function WeeklyTimeTracker() {
         return updatedData;
       });
     }
-  }, [currentViewMode, projects, dateRange]);
+  }, [currentViewMode, projects, dateRange, getMonthlyDates]);
 
   // Monthly view helper functions
-  const updateProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: any) => {
+  const updateProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: string | number) => {
     setMonthlyData(prevData => ({
       ...prevData,
       [dateKey]: {
@@ -313,9 +313,9 @@ export default function WeeklyTimeTracker() {
           [field]: value,
           // Auto-calculate billable hours when actual hours or available hours change
           billableHours: field === 'actualHours' ? 
-            Math.min(value, prevData[dateKey][projectId]?.availableHours || 0) :
+            Math.min(Number(value), prevData[dateKey][projectId]?.availableHours || 0) :
             field === 'availableHours' ?
-            Math.min(prevData[dateKey][projectId]?.actualHours || 0, value) :
+            Math.min(prevData[dateKey][projectId]?.actualHours || 0, Number(value)) :
             prevData[dateKey][projectId]?.billableHours || 0
         }
       }
