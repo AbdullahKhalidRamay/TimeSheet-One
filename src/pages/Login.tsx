@@ -15,7 +15,7 @@ export default function Login() {
     const user = users.find(u => u.id === selectedUserId);
     if (user) {
       setCurrentUser(user);
-      navigate("/timesheet");
+      navigate("/tracker");
     }
   };
 

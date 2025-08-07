@@ -20,15 +20,15 @@ import { rolePermissions } from "@/validation/index";
 
 const navigation = [
   {
-    name: "Timesheet",
-    href: "/timesheet",
-    icon: Clock,
+    name: "Tracker",
+    href: "/tracker",
+    icon: Timer,
     roles: ["employee", "manager", "owner"],
   },
   {
-    name: "Time Tracker", 
-    href: "/time-tracker",
-    icon: Timer,
+    name: "Timesheet",
+    href: "/timesheet",
+    icon: Clock,
     roles: ["employee", "manager", "owner"],
   },
   {
@@ -44,12 +44,6 @@ const navigation = [
     roles: ["manager", "owner"],
   },
   {
-    name: "Notifications",
-    href: "/notifications",
-    icon: Bell,
-    roles: ["employee", "manager", "owner"],
-  },
-  {
     name: "Approval Workflow",
     href: "/approval",
     icon: CheckSquare,
@@ -60,6 +54,12 @@ const navigation = [
     href: "/reports",
     icon: BarChart3,
     roles: ["manager", "owner"],
+  },
+  {
+    name: "Notifications",
+    href: "/notifications",
+    icon: Bell,
+    roles: ["employee", "manager", "owner"],
   },
 ];
 

@@ -1,6 +1,306 @@
 # TimeFlow - Time Tracking System Documentation
+*Last Updated: August 7, 2025*
 
-## Overview
+## API Requirements and Data Architecture
+
+### Required APIs
+
+#### Authentication APIs
+```typescript
+POST /api/auth/login
+Request: {
+  email: string
+  password: string
+}
+Response: {
+  token: string
+  user: User
+}
+
+POST /api/auth/logout
+Response: { success: boolean }
+
+GET /api/auth/user
+Response: User
+
+GET /api/users
+Response: User[]
+```
+
+#### Time Entry APIs
+```typescript
+GET /api/time-entries
+Query Parameters: {
+  userId?: string
+  startDate?: string
+  endDate?: string
+  status?: 'pending' | 'approved' | 'rejected'
+}
+Response: TimeEntry[]
+
+POST /api/time-entries
+Request: {
+  userId: string
+  date: string
+  actualHours: number
+  billableHours: number
+  task: string
+  projectId: string
+}
+Response: TimeEntry
+
+PUT /api/time-entries/:id
+Request: {
+  actualHours?: number
+  billableHours?: number
+  task?: string
+  status?: string
+}
+Response: TimeEntry
+
+DELETE /api/time-entries/:id
+Response: { success: boolean }
+
+GET /api/time-entries/status/:date
+Response: {
+  hasEntries: boolean
+  entriesCount: number
+  totalHours: number
+  statuses: string[]
+}
+```
+
+#### Project Management APIs
+```typescript
+GET /api/projects
+Query Parameters: {
+  departmentId?: string
+  teamId?: string
+}
+Response: Project[]
+
+POST /api/projects
+Request: {
+  name: string
+  description: string
+  isBillable: boolean
+  departmentIds: string[]
+  teamIds: string[]
+}
+Response: Project
+
+PUT /api/projects/:id
+Request: Project
+Response: Project
+
+DELETE /api/projects/:id
+Response: { success: boolean }
+
+GET /api/projects/user/:userId
+Response: Project[]
+```
+
+#### Organization APIs
+```typescript
+GET /api/departments
+Response: Department[]
+
+GET /api/teams
+Query Parameters: {
+  departmentId?: string
+}
+Response: Team[]
+
+GET /api/products
+Response: Product[]
+```
+
+### Data Schema
+
+#### Users Collection
+```typescript
+interface User {
+  id: string
+  name: string
+  email: string
+  password: string // hashed
+  role: 'owner' | 'manager' | 'employee'
+  jobTitle: string
+  departmentIds: string[]
+  teamIds: string[]
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+#### TimeEntries Collection
+```typescript
+interface TimeEntry {
+  id: string
+  userId: string
+  userName: string
+  date: string
+  actualHours: number
+  billableHours: number
+  totalHours: number
+  availableHours: number
+  task: string
+  projectDetails: {
+    category: string
+    name: string
+    level: string
+    task: string
+    subtask: string
+    description: string
+  }
+  isBillable: boolean
+  status: 'pending' | 'approved' | 'rejected'
+  createdAt: string
+  updatedAt: string
+}
+```
+
+#### Projects Collection
+```typescript
+interface Project {
+  id: string
+  name: string
+  description: string
+  isBillable: boolean
+  status: 'active' | 'inactive'
+  departmentIds: string[]
+  teamIds: string[]
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+#### Departments Collection
+```typescript
+interface Department {
+  id: string
+  name: string
+  description: string
+  managerId: string
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+#### Teams Collection
+```typescript
+interface Team {
+  id: string
+  name: string
+  departmentId: string
+  memberIds: string[]
+  leaderId: string
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+### Entity Relationship Diagram
+```mermaid
+erDiagram
+    User ||--o{ TimeEntry : creates
+    User ||--o{ Team : belongs_to
+    User ||--o{ Department : belongs_to
+    Project ||--o{ TimeEntry : has
+    Project ||--o{ Team : assigned_to
+    Project ||--o{ Department : belongs_to
+    Department ||--o{ Team : has
+    Department ||--o{ User : has
+    Team ||--o{ User : has
+
+    User {
+        string id PK
+        string name
+        string email
+        string password
+        string role
+        string jobTitle
+        string[] departmentIds
+        string[] teamIds
+    }
+
+    TimeEntry {
+        string id PK
+        string userId FK
+        string date
+        number actualHours
+        number billableHours
+        number totalHours
+        string task
+        string status
+        string projectId FK
+    }
+
+    Project {
+        string id PK
+        string name
+        string description
+        boolean isBillable
+        string status
+        string[] departmentIds
+        string[] teamIds
+    }
+
+    Department {
+        string id PK
+        string name
+        string description
+        string managerId FK
+    }
+
+    Team {
+        string id PK
+        string name
+        string departmentId FK
+        string[] memberIds
+        string leaderId FK
+    }
+```
+
+### Data Flow Architecture
+```mermaid
+graph TD
+    UI[UI Layer] --> SL[Service Layer]
+    SL --> DL[Data Layer]
+    
+    subgraph UI Layer
+        LC[Login Component]
+        TC[Time Tracker Component]
+        TSC[Timesheet Component]
+        QF[Quick Form Component]
+    end
+    
+    subgraph Service Layer
+        AS[Auth Service]
+        TS[Time Entry Service]
+        PS[Project Service]
+        OS[Organization Service]
+    end
+    
+    subgraph Data Layer
+        DB[(Database)]
+        API[REST API]
+    end
+
+    LC --> AS
+    TC --> TS
+    TSC --> TS
+    QF --> TS
+    AS --> API
+    TS --> API
+    PS --> API
+    OS --> API
+    API --> DB
+```
+
+## Original Documentation
+
+### Overview
 TimeFlow is a comprehensive time tracking and project management system designed for organizations to track employee work hours, manage projects, and handle approval workflows. The system supports multiple user roles with different permission levels and provides detailed reporting capabilities.
 
 ## Features & Functionalities

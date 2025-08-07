@@ -7,11 +7,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Save, Check, Clock, AlertCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isFuture, isToday, differenceInDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DailyTrackerForm from "./DailyTrackerForm";
+import QuickTaskForm from "./QuickTaskForm";
 import { getCurrentUser } from "@/lib/auth";
 import { getTimeEntryStatusForDate, getUserAssociatedProjects, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
 import { Project, TimeEntry, ProjectDetail } from "@/validation/index";
@@ -54,7 +56,9 @@ export default function WeeklyTimeTracker() {
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isQuickTaskDialogOpen, setIsQuickTaskDialogOpen] = useState(false);
   const [selectedDateForEntry, setSelectedDateForEntry] = useState<Date | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
   const [weeklyData, setWeeklyData] = useState<ProjectWeekData>({});
@@ -438,6 +442,21 @@ export default function WeeklyTimeTracker() {
 
   return (
     <div className="space-y-6">
+      {/* Quick Task Form */}
+      {selectedProject && (
+        <QuickTaskForm 
+          isOpen={isQuickTaskDialogOpen}
+          onClose={() => {
+            setIsQuickTaskDialogOpen(false);
+            setSelectedProject(null);
+          }}
+          project={selectedProject}
+          onSuccess={() => {
+            setRefreshKey(prev => prev + 1);
+          }}
+        />
+      )}
+
       {/* Date Range Picker */}
       <Card>
         <CardContent className="p-4">
@@ -536,7 +555,7 @@ export default function WeeklyTimeTracker() {
                   const statusIndicator = getStatusIndicator(day);
                   return (
                     <th key={day.toString()} className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">
-                      <div className="flex items-center justify-center space-x-2 mb-2">
+                      <div className="flex items-center justify-center space-x-2">
                         <span>{format(day, 'E, MMM d')}</span>
                         {statusIndicator && (
                           <div 
@@ -547,10 +566,6 @@ export default function WeeklyTimeTracker() {
                           </div>
                         )}
                       </div>
-                      <div className="flex justify-around text-xs text-gray-600 dark:text-gray-400">
-                        <span>B</span>
-                        <span>A</span>
-                      </div>
                     </th>
                   );
                 })}
@@ -559,7 +574,23 @@ export default function WeeklyTimeTracker() {
             <tbody>
               {projects.map(project => (
                 <tr key={project.id} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">{project.name}</td>
+                  <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+                    <div className="flex items-center justify-between">
+                      <span>{project.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedProject(project);
+                          setIsQuickTaskDialogOpen(true);
+                        }}
+                        className="h-7 w-7 p-0"
+                        title="Quick add task"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
                   {weekDays.map(day => {
                     const dayKey = format(day, 'yyyy-MM-dd');
                     const hours = weeklyData[project.id]?.[dayKey] || { billable: 0, actual: 0 };

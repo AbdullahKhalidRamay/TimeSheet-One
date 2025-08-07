@@ -1,0 +1,11 @@
+1-	I want to add +icon in weeklytimetracker weekview with project name on clicking that in show me form in which we can add task description and in monthly and daily view of weeklytimetracker I want that I donot have to select project it should show all the project to which user is associated and given option for them for each like task ,billablehour,actualhour and available hour and if he donot add input of any  one hours option given billablehour,actualhour that project entry will not be submit other project entry will be submit on clicking save week but it give alert before submit if user click continue that add entry
+2-	I want you  to remove 1st Approch from timetracker and keep tracker only and in tracker remove  Dailytimetracker and Monthly time tracker keep only WeeklyTimeTracker Which have three views (daily ,weekly,monthly) so make weekletimetracker as main page of timetrackerpage remove tab concept from Timetracker page and only keep WeeklyTimetracker and name it Tracker and I want you that on clicking add entry button in timesheet page it should take you to tracker page which is now weeklty time tracker with name of tracker.  
+3-	I want you make Timetracker page as default page which open immediately after login and in sider bar move time tracker above timesheet and in owner sidebar move approval workflow and report above and notification at last  notification  
+4-	In timesheet I want you to move add entry button and submit timesheet button and export button along search bar below at other corner and in timeshhet I want that if I click on name of some one it will show me detail of that person records only in cards
+5-	And I want that in creating team in teamform with name it should also tell that this person in which team team name should in short as logo of project name and hower on it should show its name 
+6-	I want that in weeklyview  I want on hover on B and A it  should Show billable and actual hour
+
+7-	I also want you to analyze my whole project and tell where I am using local storage and I also want you to tell me data flow and tell me about apis which will I required to make backend and dataschema  
+
+ before reaching usage limit tell me what you have  done and what you have to?
+ 

@@ -39,6 +39,7 @@ export default function Timesheet() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [billableFilter, setBillableFilter] = useState("all");
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [projectFilter, setProjectFilter] = useState("all");
   const [isDailyTrackerOpen, setDailyTrackerOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
@@ -73,6 +74,46 @@ export default function Timesheet() {
       deleteTimeEntry(entryId);
       loadTimeEntries();
     }
+  };
+
+  const handleUserClick = (userId: string) => {
+    setSelectedUser(userId === selectedUser ? null : userId);
+  };
+
+  const UserRecordCard = ({ userId }: { userId: string }) => {
+    const userEntries = timeEntries.filter(entry => entry.userId === userId);
+    const user = users.find(u => u.id === userId);
+    
+    const totalBillableHours = userEntries.reduce((sum, entry) => sum + entry.billableHours, 0);
+    const totalActualHours = userEntries.reduce((sum, entry) => sum + entry.actualHours, 0);
+    
+    return (
+      <Card className="mb-4 p-4">
+        <CardHeader>
+          <CardTitle>{user?.name}'s Time Records</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            <div>
+              <h4 className="font-semibold">Total Billable Hours: {totalBillableHours}</h4>
+              <h4 className="font-semibold">Total Actual Hours: {totalActualHours}</h4>
+            </div>
+            <div className="space-y-2">
+              {userEntries.map(entry => (
+                <div key={entry.id} className="border p-2 rounded">
+                  <p><span className="font-medium">Project:</span> {entry.projectDetails.name}</p>
+                  <p><span className="font-medium">Task:</span> {entry.task}</p>
+                  <p><span className="font-medium">Date:</span> {entry.date}</p>
+                  <p><span className="font-medium">Status:</span> {entry.status}</p>
+                  <p><span className="font-medium">Billable Hours:</span> {entry.billableHours}</p>
+                  <p><span className="font-medium">Actual Hours:</span> {entry.actualHours}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
 
@@ -235,7 +276,7 @@ export default function Timesheet() {
   };
 
   const handleAddEntry = () => {
-    navigate('/time-tracker');
+    navigate('/tracker');
   };
 
   const handleExport = () => {
@@ -502,12 +543,20 @@ export default function Timesheet() {
                   <TableRow key={entry.id}>
                     {permissions.canViewAllTimesheets && (
                       <TableCell>
-                        <div className="flex items-center space-x-2">
+                        <div 
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+                          onClick={() => handleUserClick(entry.userId)}
+                        >
                           <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
                             {entry.userName.split(' ').map(n => n[0]).join('').toUpperCase()}
                           </div>
                           <span className="font-medium">{entry.userName}</span>
                         </div>
+                        {selectedUser === entry.userId && (
+                          <div className="absolute left-0 mt-2 w-full z-10">
+                            <UserRecordCard userId={entry.userId} />
+                          </div>
+                        )}
                       </TableCell>
                     )}
                     <TableCell>
