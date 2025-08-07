@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DatePickerProps {
   date?: Date;
@@ -91,6 +92,58 @@ export function DateRangePicker({
     return placeholder;
   };
 
+  // Quick filter options
+  const quickFilters = [
+    { label: "Today", action: () => {
+      const today = new Date();
+      onDateRangeChange?.({ from: today, to: today });
+      setIsOpen(false);
+    }},
+    { label: "Yesterday", action: () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      onDateRangeChange?.({ from: yesterday, to: yesterday });
+      setIsOpen(false);
+    }},
+    { label: "Last 7 days", action: () => {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - 6);
+      onDateRangeChange?.({ from: start, to: end });
+      setIsOpen(false);
+    }},
+    { label: "Last week", action: () => {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const lastWeekEnd = new Date(today);
+      lastWeekEnd.setDate(today.getDate() - dayOfWeek - 1);
+      const lastWeekStart = new Date(lastWeekEnd);
+      lastWeekStart.setDate(lastWeekEnd.getDate() - 6);
+      onDateRangeChange?.({ from: lastWeekStart, to: lastWeekEnd });
+      setIsOpen(false);
+    }},
+    { label: "Last 2 weeks", action: () => {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - 13);
+      onDateRangeChange?.({ from: start, to: end });
+      setIsOpen(false);
+    }},
+    { label: "This month", action: () => {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      onDateRangeChange?.({ from: start, to: today });
+      setIsOpen(false);
+    }},
+    { label: "Last month", action: () => {
+      const today = new Date();
+      const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+      const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      onDateRangeChange?.({ from: lastMonthStart, to: lastMonthEnd });
+      setIsOpen(false);
+    }},
+  ];
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
@@ -116,33 +169,54 @@ export function DateRangePicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="range"
-          defaultMonth={dateRange?.from}
-          selected={dateRange}
-          onSelect={(range) => {
-            onDateRangeChange?.(range);
-            // Close popover when both dates are selected
-            if (range?.from && range?.to) {
-              setIsOpen(false);
-            }
-          }}
-          disabled={{ after: today }}
-          initialFocus
-        />
-        <div className="p-3 border-t">
-          <div className="flex justify-between items-center text-sm text-muted-foreground">
-            <span>Select start and end dates</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onDateRangeChange?.(undefined);
-                setIsOpen(false);
+        <div className="flex">
+          <div>
+            <Calendar
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={(range) => {
+                onDateRangeChange?.(range);
+                // Close popover when both dates are selected
+                if (range?.from && range?.to) {
+                  setIsOpen(false);
+                }
               }}
-            >
-              Clear
-            </Button>
+              disabled={{ after: today }}
+              initialFocus
+              numberOfMonths={2}
+            />
+            <div className="p-3 border-t">
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>Select start and end dates</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    onDateRangeChange?.(undefined);
+                    setIsOpen(false);
+                  }}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div className="border-l w-[160px]">
+            <ScrollArea className="h-full max-h-[350px]">
+              <div className="p-2">
+                {quickFilters.map((filter, index) => (
+                  <Button
+                    key={index}
+                    variant="ghost"
+                    className="w-full justify-start text-left mb-1 h-9"
+                    onClick={filter.action}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         </div>
       </PopoverContent>

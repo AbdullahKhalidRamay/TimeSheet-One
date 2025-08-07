@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Save, Check, Clock, AlertCircle } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Save, Check, Clock, AlertCircle, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isFuture, isToday, differenceInDays } from "date-fns";
 import { DateRange } from "react-day-picker";
@@ -575,20 +575,39 @@ export default function WeeklyTimeTracker() {
               {projects.map(project => (
                 <tr key={project.id} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
                   <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
-                    <div className="flex items-center justify-between">
-                      <span>{project.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setIsQuickTaskDialogOpen(true);
-                        }}
-                        className="h-7 w-7 p-0"
-                        title="Quick add task"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="font-semibold">{project.name}</span>
+                          {project.department && (
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              Department: {project.department}
+                            </span>
+                          )}
+                          {project.associatedProducts && project.associatedProducts.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {project.associatedProducts.map((product, index) => (
+                                <span key={index} className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                  {product}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProject(project);
+                            setIsQuickTaskDialogOpen(true);
+                          }}
+                          className="h-7 w-7 p-0"
+                          title="Quick add task"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+
                     </div>
                   </td>
                   {weekDays.map(day => {

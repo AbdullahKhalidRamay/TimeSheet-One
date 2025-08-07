@@ -71,6 +71,8 @@ export interface Project {
   name: string;
   levels: ProjectLevel[];
   isBillable: boolean;
+  department?: string;
+  associatedProducts?: string[];
   createdBy: string;
   createdAt: string;
 }
