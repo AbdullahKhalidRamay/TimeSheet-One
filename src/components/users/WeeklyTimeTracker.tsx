@@ -12,11 +12,12 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isFuture, 
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import DailyTrackerForm from "./DailyTrackerForm";
 import QuickTaskForm from "./QuickTaskForm";
 import { getCurrentUser } from "@/lib/auth";
-import { getTimeEntryStatusForDate, getUserAssociatedProjects, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
-import { Project, TimeEntry, ProjectDetail } from "@/validation/index";
+import { getTimeEntryStatusForDate, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
+import { Project, Product, Department, TimeEntry, ProjectDetail } from "@/validation/index";
 
 interface WeeklyHours {
   billable: number;
@@ -31,6 +32,11 @@ interface ProjectWeekData {
 
 interface DailyAvailableHours {
   [dayKey: string]: number;
+}
+
+// Add description interface
+interface DailyDescription {
+  [dayKey: string]: string;
 }
 
 // Monthly view interfaces
@@ -61,11 +67,15 @@ export default function WeeklyTimeTracker() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [weeklyData, setWeeklyData] = useState<ProjectWeekData>({});
   const [dailyAvailableHours, setDailyAvailableHours] = useState<DailyAvailableHours>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
   const [selectedProjects, setSelectedProjects] = useState<SelectedProjects>({});
+  // Add description state
+  const [dailyDescriptions, setDailyDescriptions] = useState<DailyDescription>({});
 
   // Determine the view mode based on the selected date range
   const getViewMode = () => {
@@ -78,13 +88,68 @@ export default function WeeklyTimeTracker() {
     return 'weekly'; // Default to weekly view
   };
 
-  // Load user projects only once
+  // Load user projects, products, and departments only once
   useEffect(() => {
     if (currentUser) {
       const userProjects = getUserAssociatedProjects(currentUser.id);
+      const userProducts = getUserAssociatedProducts(currentUser.id);
+      const userDepartments = getUserAssociatedDepartments(currentUser.id);
       setProjects(userProjects);
+      setProducts(userProducts);
+      setDepartments(userDepartments);
     }
   }, [currentUser]);
+
+  // Load existing time entries for the current week
+  const loadExistingEntries = useCallback(() => {
+    if (!currentUser) return;
+    
+    const allEntries = getTimeEntries();
+    const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
+    
+    const newWeeklyData: ProjectWeekData = {};
+    const newDailyDescriptions: DailyDescription = {};
+    
+    // Initialize with existing data to preserve any unsaved changes
+    Object.assign(newWeeklyData, weeklyData);
+    
+    allEntries.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
+        const dayKey = format(entryDate, 'yyyy-MM-dd');
+        
+        // Load hours data
+        if (entry.projectDetails?.category === 'project') {
+          const projectId = projects.find(p => p.name === entry.projectDetails.name)?.id;
+          if (projectId) {
+            if (!newWeeklyData[projectId]) {
+              newWeeklyData[projectId] = {};
+            }
+            newWeeklyData[projectId][dayKey] = {
+              billable: entry.billableHours,
+              actual: entry.actualHours
+            };
+          }
+        }
+        
+        // Load description data
+        if (entry.projectDetails?.description && entry.projectDetails.description !== `Weekly time entry for ${entry.projectDetails?.name || 'Unknown'}`) {
+          newDailyDescriptions[dayKey] = entry.projectDetails.description;
+        }
+      }
+    });
+    
+    setWeeklyData(newWeeklyData);
+    setDailyDescriptions(newDailyDescriptions);
+  }, [currentUser, selectedWeek, projects, weeklyData]);
+
+  // Load existing entries when week changes or projects are loaded
+  useEffect(() => {
+    if (projects.length > 0) {
+      loadExistingEntries();
+    }
+  }, [projects, selectedWeek, loadExistingEntries]);
 
   // Initialize weekly data when projects or week changes, but preserve existing data
   useEffect(() => {
@@ -158,6 +223,52 @@ export default function WeeklyTimeTracker() {
     });
   };
 
+  // Add function to handle date selection for descriptions
+  const handleDateSelection = (date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    
+    if (selectedDates.length === 0) {
+      // First date selected
+      setSelectedDates([date]);
+    } else if (selectedDates.length === 1) {
+      // Second date selected - set as range
+      const firstDate = selectedDates[0];
+      if (date.getTime() === firstDate.getTime()) {
+        // Same date clicked - deselect
+        setSelectedDates([]);
+      } else {
+        // Different date - set as range
+        setSelectedDates([firstDate, date].sort((a, b) => a.getTime() - b.getTime()));
+      }
+    } else {
+      // Third date selected - reset to new first date
+      setSelectedDates([date]);
+    }
+  };
+
+  // Add function to update description
+  const updateDescription = (dayKey: string, description: string) => {
+    setDailyDescriptions(prev => ({
+      ...prev,
+      [dayKey]: description
+    }));
+  };
+
+  // Check if a date is selected
+  const isDateSelected = (date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return selectedDates.some(d => format(d, 'yyyy-MM-dd') === dateKey);
+  };
+
+  // Check if a date is in the selected range
+  const isDateInRange = (date: Date) => {
+    if (selectedDates.length !== 2) return false;
+    const dateKey = format(date, 'yyyy-MM-dd');
+    const startKey = format(selectedDates[0], 'yyyy-MM-dd');
+    const endKey = format(selectedDates[1], 'yyyy-MM-dd');
+    return dateKey >= startKey && dateKey <= endKey;
+  };
+
   const saveWeeklyData = () => {
     if (!currentUser) return;
     
@@ -176,14 +287,14 @@ export default function WeeklyTimeTracker() {
             billableHours: hours.billable,
             totalHours: hours.actual + hours.billable,
             availableHours: dailyAvailableHours[dayKey] || 0,
-            task: `Weekly entry for ${project.name}`,
+            task: dailyDescriptions[dayKey] || `Weekly entry for ${project.name}`,
             projectDetails: {
               category: 'project',
               name: project.name,
               level: '',
               task: '',
               subtask: '',
-              description: `Weekly time entry for ${project.name}`
+              description: dailyDescriptions[dayKey] || `Weekly time entry for ${project.name}`
             } as ProjectDetail,
             isBillable: hours.billable > 0,
             status: 'pending',
@@ -554,17 +665,46 @@ export default function WeeklyTimeTracker() {
                 {weekDays.map(day => {
                   const statusIndicator = getStatusIndicator(day);
                   return (
-                    <th key={day.toString()} className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">
-                      <div className="flex items-center justify-center space-x-2">
-                        <span>{format(day, 'E, MMM d')}</span>
-                        {statusIndicator && (
-                          <div 
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${statusIndicator.bgColor}`}
-                            title={statusIndicator.tooltip}
-                          >
-                            <statusIndicator.icon className={`w-3 h-3 ${statusIndicator.color}`} />
-                          </div>
-                        )}
+                    <th 
+                      key={day.toString()} 
+                      className={`py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${(isDateSelected(day) || isDateInRange(day)) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                      onClick={() => handleDateSelection(day)}
+                    >
+                      <div className="flex flex-col items-center space-y-1">
+                        <div className="flex items-center justify-center space-x-2">
+                          <span>{format(day, 'E, MMM d')}</span>
+                          {statusIndicator && (
+                            <div 
+                              className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${statusIndicator.bgColor}`}
+                              title={statusIndicator.tooltip}
+                            >
+                              <statusIndicator.icon className={`w-3 h-3 ${statusIndicator.color}`} />
+                            </div>
+                          )}
+                        </div>
+                        {/* B/A Labels Row */}
+                        <div className="flex justify-around items-center gap-1 text-xs">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-16 h-6 flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded cursor-help font-medium">
+                                B
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Billable Hours</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-16 h-6 flex items-center justify-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded cursor-help font-medium">
+                                A
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Actual Hours</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
                     </th>
                   );
@@ -614,6 +754,8 @@ export default function WeeklyTimeTracker() {
                     const dayKey = format(day, 'yyyy-MM-dd');
                     const hours = weeklyData[project.id]?.[dayKey] || { billable: 0, actual: 0 };
                     const isFutureDay = day.getTime() > new Date().getTime();
+                    const isSelected = isDateSelected(day);
+                    const isInRange = isDateInRange(day);
                     return (
                       <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700">
                         <div className="flex justify-around items-center gap-1">
@@ -642,6 +784,18 @@ export default function WeeklyTimeTracker() {
                             placeholder="0"
                           />
                         </div>
+                        {/* Description row for selected dates */}
+                        {(isSelected || isInRange) && (
+                          <div className="mt-2">
+                            <Textarea
+                              value={dailyDescriptions[dayKey] || ''}
+                              onChange={(e) => updateDescription(dayKey, e.target.value)}
+                              placeholder="Add description..."
+                              className="w-full text-xs h-16 resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                              disabled={isFutureDay}
+                            />
+                          </div>
+                        )}
                       </td>
                     );
                   })}
@@ -881,7 +1035,7 @@ export default function WeeklyTimeTracker() {
                           onChange={(e) => updateProjectData(dateKey, projectId, 'availableHours', parseFloat(e.target.value) || 0)}
                           placeholder="0"
                           disabled={isFutureDate}
-                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
                         />
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
@@ -894,7 +1048,7 @@ export default function WeeklyTimeTracker() {
                           onChange={(e) => updateProjectData(dateKey, projectId, 'actualHours', parseFloat(e.target.value) || 0)}
                           placeholder="0"
                           disabled={isFutureDate}
-                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
                         />
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
@@ -907,7 +1061,7 @@ export default function WeeklyTimeTracker() {
                           onChange={(e) => updateProjectData(dateKey, projectId, 'billableHours', parseFloat(e.target.value) || 0)}
                           placeholder="0"
                           disabled={!project.isBillable || isFutureDate}
-                          className={`w-20 text-xs h-8 ${!project.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                          className={`w-20 text-xs h-8 ${!project.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
                         />
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">

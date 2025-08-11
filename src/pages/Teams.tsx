@@ -10,7 +10,7 @@ import Header from "@/components/dashboard/Header";
 import { getAllUsers, getCurrentUser } from "@/lib/auth";
 import { User } from "@/validation/index";
 import { rolePermissions, Team } from "@/validation/index";
-import { getTeams, getProjects, deleteTeam, addMemberToTeam } from "@/services/storage";
+import { getTeams, getProjects, getProducts, getDepartments, deleteTeam, addMemberToTeam } from "@/services/storage";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import CreateTeamForm from "@/components/users/CreateTeamForm";
 
@@ -197,6 +197,144 @@ export default function Teams() {
           </div>
         </div>
 
+        {/* Teams Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Teams Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Team Name</TableHead>
+                  <TableHead>Associated Projects</TableHead>
+                  <TableHead>Associated Products</TableHead>
+                  <TableHead>Associated Departments</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Created By</TableHead>
+                  <TableHead>Created At</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {teams.map(team => (
+                  <TableRow key={team.id}>
+                    <TableCell>
+                      <div className="font-medium">{team.name}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {team.associatedProjects.length > 0 ? (
+                          team.associatedProjects.map(projectId => {
+                            const project = getProjects().find(p => p.id === projectId);
+                            return project ? (
+                              <Badge key={project.id} variant="secondary" className="mr-1">{project.name}</Badge>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-muted-foreground text-sm">No projects assigned</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {team.associatedProducts && team.associatedProducts.length > 0 ? (
+                          team.associatedProducts.map(productId => {
+                            const product = getProducts().find(p => p.id === productId);
+                            return product ? (
+                              <Badge key={product.id} variant="outline" className="mr-1 bg-purple-50 text-purple-700 border-purple-200">{product.name}</Badge>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-muted-foreground text-sm">No products assigned</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {team.associatedDepartments && team.associatedDepartments.length > 0 ? (
+                          team.associatedDepartments.map(departmentId => {
+                            const department = getDepartments().find(d => d.id === departmentId);
+                            return department ? (
+                              <Badge key={department.id} variant="outline" className="mr-1 bg-orange-50 text-orange-700 border-orange-200">{department.name}</Badge>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-muted-foreground text-sm">No departments assigned</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {team.memberIds.length > 0 ? (
+                          team.memberIds.map(memberId => {
+                            const member = users.find(u => u.id === memberId);
+                            return member ? (
+                              <div key={member.id} className="flex items-center space-x-2">
+                                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                                  {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                </div>
+                                <span className="text-sm">{member.name}</span>
+                              </div>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-muted-foreground text-sm">No members assigned</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {users.find(u => u.id === team.createdBy)?.name || 'Unknown'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(team.createdAt).toLocaleDateString()}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {permissions.canManageTeams && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingTeam(team);
+                              setCreateTeamOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {currentUser?.role === 'owner' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteTeam(team.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {teams.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        No teams created yet. Click "Create Team" to get started.
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
         {/* Members Table */}
         <Card>
           <CardHeader>
@@ -208,7 +346,7 @@ export default function Teams() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-<TableHead>Role</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -271,114 +409,6 @@ export default function Teams() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Teams Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Teams Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Team Name</TableHead>
-                <TableHead>Associated Projects</TableHead>
-                <TableHead>Members</TableHead>
-                <TableHead>Created By</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {teams.map(team => (
-                <TableRow key={team.id}>
-                  <TableCell>
-                    <div className="font-medium">{team.name}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {team.associatedProjects.length > 0 ? (
-                        team.associatedProjects.map(projectId => {
-                          const project = getProjects().find(p => p.id === projectId);
-                          return project ? (
-                            <Badge key={project.id} variant="secondary" className="mr-1">{project.name}</Badge>
-                          ) : null;
-                        })
-                      ) : (
-                        <span className="text-muted-foreground text-sm">No projects assigned</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {team.memberIds.length > 0 ? (
-                        team.memberIds.map(memberId => {
-                          const member = users.find(u => u.id === memberId);
-                          return member ? (
-                            <div key={member.id} className="flex items-center space-x-2">
-                              <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                                {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                              </div>
-                              <span className="text-sm">{member.name}</span>
-                            </div>
-                          ) : null;
-                        })
-                      ) : (
-                        <span className="text-muted-foreground text-sm">No members assigned</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {users.find(u => u.id === team.createdBy)?.name || 'Unknown'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-muted-foreground">
-                      {new Date(team.createdAt).toLocaleDateString()}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      {permissions.canManageTeams && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingTeam(team);
-                            setCreateTeamOpen(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {currentUser?.role === 'owner' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteTeam(team.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {teams.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      No teams created yet. Click "Create Team" to get started.
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
 
       <CreateTeamForm 
         isOpen={isCreateTeamOpen} 
