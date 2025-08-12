@@ -4,22 +4,29 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  getUnreadReminders, 
-  markReminderAsRead, 
-  type Reminder 
-} from '@/services/reminderService';
+import { remindersAPI } from '@/services/api';
 import { getCurrentUser } from '@/lib/auth';
+import { Reminder } from '@/services/reminderService';
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [loading, setLoading] = useState(false);
   const currentUser = getCurrentUser();
 
-  const loadReminders = () => {
-    if (currentUser) {
-      const unreadReminders = getUnreadReminders(currentUser.id);
+  const loadReminders = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setLoading(true);
+      const unreadReminders = await remindersAPI.getUnread(currentUser.id);
       setReminders(unreadReminders);
+    } catch (error) {
+      console.error('Error loading reminders:', error);
+      // Fallback to empty array if API fails
+      setReminders([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -30,16 +37,22 @@ export default function NotificationBell() {
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  const handleMarkAsRead = (reminderId: string) => {
-    markReminderAsRead(reminderId);
-    loadReminders();
+  const handleMarkAsRead = async (reminderId: string) => {
+    try {
+      await remindersAPI.markAsRead(reminderId);
+      await loadReminders();
+    } catch (error) {
+      console.error('Error marking reminder as read:', error);
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    reminders.forEach(reminder => {
-      markReminderAsRead(reminder.id);
-    });
-    loadReminders();
+  const handleMarkAllAsRead = async () => {
+    try {
+      await remindersAPI.markAllAsRead(currentUser?.id);
+      await loadReminders();
+    } catch (error) {
+      console.error('Error marking all reminders as read:', error);
+    }
   };
 
   const getReminderIcon = (type: string) => {
@@ -133,7 +146,11 @@ export default function NotificationBell() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {reminders.length === 0 ? (
+              {loading ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  <p className="text-sm">Loading notifications...</p>
+                </div>
+              ) : reminders.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
                   <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No new notifications</p>

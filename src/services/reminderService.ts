@@ -1,4 +1,4 @@
-import { getTimeEntries } from './storage';
+import { timeEntriesAPI } from './api';
 import { getAllUsers } from '@/lib/auth';
 
 export interface Reminder {
@@ -84,36 +84,51 @@ export const deleteOldReminders = (): void => {
   saveReminders(filteredReminders);
 };
 
-export const hasTimeEntryForDate = (userId: string, date: string): boolean => {
-  const timeEntries = getTimeEntries();
-  return timeEntries.some(entry => 
-    entry.userId === userId && entry.date === date
-  );
+export const hasTimeEntryForDate = async (userId: string, date: string): Promise<boolean> => {
+  try {
+    const timeEntries = await timeEntriesAPI.getAll();
+    return timeEntries.some(entry => 
+      entry.userId === userId && entry.date === date
+    );
+  } catch (error) {
+    console.error('Error checking time entries for date:', error);
+    return false;
+  }
 };
 
-export const hasTimeEntriesForWeek = (userId: string, year: number, week: number): boolean => {
-  const timeEntries = getTimeEntries();
-  
-  // Get start of week (Monday)
-  const startOfWeek = getStartOfWeek(year, week);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  
-  return timeEntries.some(entry => {
-    if (entry.userId !== userId) return false;
-    const entryDate = new Date(entry.date);
-    return entryDate >= startOfWeek && entryDate <= endOfWeek;
-  });
+export const hasTimeEntriesForWeek = async (userId: string, year: number, week: number): Promise<boolean> => {
+  try {
+    const timeEntries = await timeEntriesAPI.getAll();
+    
+    // Get start of week (Monday)
+    const startOfWeek = getStartOfWeek(year, week);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    return timeEntries.some(entry => {
+      if (entry.userId !== userId) return false;
+      const entryDate = new Date(entry.date);
+      return entryDate >= startOfWeek && entryDate <= endOfWeek;
+    });
+  } catch (error) {
+    console.error('Error checking time entries for week:', error);
+    return false;
+  }
 };
 
-export const hasTimeEntriesForMonth = (userId: string, year: number, month: number): boolean => {
-  const timeEntries = getTimeEntries();
-  
-  return timeEntries.some(entry => {
-    if (entry.userId !== userId) return false;
-    const entryDate = new Date(entry.date);
-    return entryDate.getFullYear() === year && entryDate.getMonth() === month;
-  });
+export const hasTimeEntriesForMonth = async (userId: string, year: number, month: number): Promise<boolean> => {
+  try {
+    const timeEntries = await timeEntriesAPI.getAll();
+    
+    return timeEntries.some(entry => {
+      if (entry.userId !== userId) return false;
+      const entryDate = new Date(entry.date);
+      return entryDate.getFullYear() === year && entryDate.getMonth() === month;
+    });
+  } catch (error) {
+    console.error('Error checking time entries for month:', error);
+    return false;
+  }
 };
 
 const getStartOfWeek = (year: number, week: number): Date => {
@@ -147,7 +162,7 @@ const createReminder = (userId: string, type: 'daily' | 'weekly' | 'monthly', me
   };
 };
 
-export const checkAndCreateReminders = (): void => {
+export const checkAndCreateReminders = async (): Promise<void> => {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
@@ -167,13 +182,13 @@ export const checkAndCreateReminders = (): void => {
   const existingReminders = getReminders();
   const newReminders: Reminder[] = [];
   
-  users.forEach(user => {
-  // Daily reminders - send reminder if no entry before 6 PM
+  for (const user of users) {
+    // Daily reminders - send reminder if no entry before 6 PM
     if (settings.dailyEnabled) {
       const isAfter6PM = currentTime >= "18:00";
 
       // Check for today's entries and send reminder
-      if (isAfter6PM && !hasTimeEntryForDate(user.id, today)) {
+      if (isAfter6PM && !(await hasTimeEntryForDate(user.id, today))) {
         const existingTodayDaily = existingReminders.find(r => 
           r.userId === user.id && 
           r.type === 'daily' && 
@@ -197,7 +212,7 @@ export const checkAndCreateReminders = (): void => {
       const lastWeekYear = lastWeek < 1 ? year - 1 : year;
       const adjustedWeek = lastWeek < 1 ? 52 : lastWeek;
       
-      if (!hasTimeEntriesForWeek(user.id, lastWeekYear, adjustedWeek)) {
+      if (!(await hasTimeEntriesForWeek(user.id, lastWeekYear, adjustedWeek))) {
         // Check if we already sent a weekly reminder for this week
         const weekKey = `${lastWeekYear}-W${adjustedWeek}`;
         const existingWeekly = existingReminders.find(r => 
@@ -222,7 +237,7 @@ export const checkAndCreateReminders = (): void => {
       const lastMonthYear = lastMonth < 0 ? now.getFullYear() - 1 : now.getFullYear();
       const adjustedMonth = lastMonth < 0 ? 11 : lastMonth;
       
-      if (!hasTimeEntriesForMonth(user.id, lastMonthYear, adjustedMonth)) {
+      if (!(await hasTimeEntriesForMonth(user.id, lastMonthYear, adjustedMonth))) {
         // Check if we already sent a monthly reminder for this month
         const monthKey = `${lastMonthYear}-${adjustedMonth}`;
         const existingMonthly = existingReminders.find(r => 
@@ -241,7 +256,7 @@ export const checkAndCreateReminders = (): void => {
         }
       }
     }
-  });
+  }
   
   if (newReminders.length > 0) {
     const allReminders = [...existingReminders, ...newReminders];
@@ -255,8 +270,14 @@ export const checkAndCreateReminders = (): void => {
 // Initialize reminder checking when service is imported
 export const startReminderService = (): void => {
   // Check reminders immediately
-  checkAndCreateReminders();
+  checkAndCreateReminders().catch(error => {
+    console.error('Error in initial reminder check:', error);
+  });
   
   // Set up interval to check every hour
-  setInterval(checkAndCreateReminders, 60 * 60 * 1000);
+  setInterval(() => {
+    checkAndCreateReminders().catch(error => {
+      console.error('Error in reminder check:', error);
+    });
+  }, 60 * 60 * 1000);
 };

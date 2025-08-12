@@ -16,8 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import DailyTrackerForm from "./DailyTrackerForm";
 import QuickTaskForm from "./QuickTaskForm";
 import { getCurrentUser } from "@/lib/auth";
-import { getTimeEntryStatusForDate, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
+import { timeEntriesAPI, projectsAPI, productsAPI, departmentsAPI } from "@/services/api";
 import { Project, Product, Department, TimeEntry, ProjectDetail } from "@/validation/index";
+
+// Utility function to generate IDs
+const generateId = () => Math.random().toString(36).substr(2, 9);
 
 interface WeeklyHours {
   billable: number;
@@ -90,38 +93,47 @@ export default function WeeklyTimeTracker() {
 
   // Load user projects, products, and departments only once
   useEffect(() => {
-    if (currentUser) {
-      const userProjects = getUserAssociatedProjects(currentUser.id);
-      const userProducts = getUserAssociatedProducts(currentUser.id);
-      const userDepartments = getUserAssociatedDepartments(currentUser.id);
-      setProjects(userProjects);
-      setProducts(userProducts);
-      setDepartments(userDepartments);
-    }
+    const loadUserData = async () => {
+      if (currentUser) {
+        try {
+          const [userProjects, userProducts, userDepartments] = await Promise.all([
+            projectsAPI.getAll(),
+            productsAPI.getAll(),
+            departmentsAPI.getAll()
+          ]);
+          setProjects(userProjects);
+          setProducts(userProducts);
+          setDepartments(userDepartments);
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        }
+      }
+    };
+    loadUserData();
   }, [currentUser]);
 
   // Load existing time entries for the current week
-  const loadExistingEntries = useCallback(() => {
+  const loadExistingEntries = useCallback(async () => {
     if (!currentUser) return;
     
-    const allEntries = getTimeEntries();
-    const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
-    
-    const newWeeklyData: ProjectWeekData = {};
-    const newDailyDescriptions: DailyDescription = {};
-    
-    // Initialize with existing data to preserve any unsaved changes
-    Object.assign(newWeeklyData, weeklyData);
-    
-    allEntries.forEach(entry => {
-      const entryDate = new Date(entry.date);
-      if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
-        const dayKey = format(entryDate, 'yyyy-MM-dd');
-        
-        // Load hours data
-        if (entry.projectDetails?.category === 'project') {
-          const projectId = projects.find(p => p.name === entry.projectDetails.name)?.id;
+    try {
+      const allEntries = await timeEntriesAPI.getAll();
+      const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
+      
+      const newWeeklyData: ProjectWeekData = {};
+      const newDailyDescriptions: DailyDescription = {};
+      
+      // Initialize with existing data to preserve any unsaved changes
+      Object.assign(newWeeklyData, weeklyData);
+      
+      allEntries.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
+          const dayKey = format(entryDate, 'yyyy-MM-dd');
+          
+          // Load hours data - check if this entry is for a project
+          const projectId = projects.find(p => entry.task.includes(p.name))?.id;
           if (projectId) {
             if (!newWeeklyData[projectId]) {
               newWeeklyData[projectId] = {};
@@ -131,17 +143,19 @@ export default function WeeklyTimeTracker() {
               actual: entry.actualHours
             };
           }
+          
+          // Load description data
+          if (entry.description && entry.description !== `Weekly time entry for ${entry.task}`) {
+            newDailyDescriptions[dayKey] = entry.description;
+          }
         }
-        
-        // Load description data
-        if (entry.projectDetails?.description && entry.projectDetails.description !== `Weekly time entry for ${entry.projectDetails?.name || 'Unknown'}`) {
-          newDailyDescriptions[dayKey] = entry.projectDetails.description;
-        }
-      }
-    });
-    
-    setWeeklyData(newWeeklyData);
-    setDailyDescriptions(newDailyDescriptions);
+      });
+      
+      setWeeklyData(newWeeklyData);
+      setDailyDescriptions(newDailyDescriptions);
+    } catch (error) {
+      console.error('Error loading existing entries:', error);
+    }
   }, [currentUser, selectedWeek, projects, weeklyData]);
 
   // Load existing entries when week changes or projects are loaded
@@ -269,60 +283,94 @@ export default function WeeklyTimeTracker() {
     return dateKey >= startKey && dateKey <= endKey;
   };
 
-  const saveWeeklyData = () => {
+  const saveWeeklyData = async () => {
     if (!currentUser) return;
     
-    Object.entries(weeklyData).forEach(([projectId, projectData]) => {
-      const project = projects.find(p => p.id === projectId);
-      if (!project) return;
+    try {
+      const savePromises: Promise<TimeEntry>[] = [];
       
-      Object.entries(projectData).forEach(([dayKey, hours]) => {
-        if (hours.actual > 0 || hours.billable > 0) {
-          const timeEntry: TimeEntry = {
-            id: generateId(),
-            userId: currentUser.id,
-            userName: currentUser.name,
-            date: dayKey,
-            actualHours: hours.actual,
-            billableHours: hours.billable,
-            totalHours: hours.actual + hours.billable,
-            availableHours: dailyAvailableHours[dayKey] || 0,
-            task: dailyDescriptions[dayKey] || `Weekly entry for ${project.name}`,
-            projectDetails: {
-              category: 'project',
-              name: project.name,
-              level: '',
-              task: '',
-              subtask: '',
-              description: dailyDescriptions[dayKey] || `Weekly time entry for ${project.name}`
-            } as ProjectDetail,
-            isBillable: hours.billable > 0,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          saveTimeEntry(timeEntry);
-        }
+      Object.entries(weeklyData).forEach(([projectId, projectData]) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+        
+        Object.entries(projectData).forEach(([dayKey, hours]) => {
+          if (hours.actual > 0 || hours.billable > 0) {
+            const timeEntry: Omit<TimeEntry, 'id'> = {
+              userId: currentUser.id,
+              userName: currentUser.name,
+              date: dayKey,
+              actualHours: hours.actual,
+              billableHours: hours.billable,
+              totalHours: hours.actual + hours.billable,
+              availableHours: dailyAvailableHours[dayKey] || 0,
+              task: dailyDescriptions[dayKey] || `Weekly entry for ${project.name}`,
+              projectDetails: {
+                category: 'project',
+                name: project.name,
+                level: '',
+                task: '',
+                subtask: '',
+                description: dailyDescriptions[dayKey] || `Weekly time entry for ${project.name}`
+              } as ProjectDetail,
+              isBillable: hours.billable > 0,
+              status: 'pending',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            savePromises.push(timeEntriesAPI.create(timeEntry));
+          }
+        });
       });
-    });
-    
-    alert('Weekly time entries saved successfully!');
-    setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
+      
+      await Promise.all(savePromises);
+      alert('Weekly time entries saved successfully!');
+      setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
+    } catch (error) {
+      console.error('Error saving weekly data:', error);
+      alert('Error saving time entries. Please try again.');
+    }
   };
 
   // Helper function to check if entries exist for a specific date
   const hasEntriesForDate = (date: Date): boolean => {
     if (!currentUser) return false;
     const dateStr = format(date, 'yyyy-MM-dd');
-    const allEntries = getTimeEntries();
-    return allEntries.some(entry => entry.date === dateStr && entry.userId === currentUser.id);
+    // Check if there are any entries for this date in the weekly data
+    return Object.values(weeklyData).some(projectData => 
+      projectData[dateStr] && (projectData[dateStr].actual > 0 || projectData[dateStr].billable > 0)
+    );
   };
 
   // Get status information for a specific date
   const getDateStatus = (date: Date) => {
     if (!currentUser) return null;
     const dateStr = format(date, 'yyyy-MM-dd');
-    return getTimeEntryStatusForDate(dateStr, currentUser.id);
+    
+    // Check if there are entries for this date
+    const hasEntries = hasEntriesForDate(date);
+    if (!hasEntries) return null;
+
+    // Calculate total hours for this date
+    let totalHours = 0;
+    let entriesCount = 0;
+    
+    Object.values(weeklyData).forEach(projectData => {
+      const dayData = projectData[dateStr];
+      if (dayData) {
+        totalHours += dayData.actual + dayData.billable;
+        entriesCount++;
+      }
+    });
+
+    // For now, return a basic status structure
+    // In a real implementation, this would come from the API
+    return {
+      hasEntries: true,
+      entriesCount,
+      totalHours,
+      statuses: ['pending'], // Default to pending for new entries
+      date: dateStr
+    };
   };
 
   // Get status icon and color based on entry status
@@ -448,73 +496,23 @@ export default function WeeklyTimeTracker() {
   };
 
   // Save entry for a specific date in monthly view
-  const saveEntryForDate = (date: Date) => {
+  const saveEntryForDate = async (date: Date) => {
     if (!currentUser) return;
     
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const selectedProjectIds = selectedProjects[dateKey] || [];
-    
-    let savedEntries = 0;
-    
-    selectedProjectIds.forEach(projectId => {
-      const project = projects.find(p => p.id === projectId);
-      const projectData = monthlyData[dateKey]?.[projectId];
-      
-      if (project && projectData && (projectData.actualHours > 0 || projectData.billableHours > 0)) {
-        const timeEntry: TimeEntry = {
-          id: generateId(),
-          userId: currentUser.id,
-          userName: currentUser.name,
-          date: dateKey,
-          actualHours: projectData.actualHours,
-          billableHours: projectData.billableHours,
-          totalHours: projectData.actualHours + projectData.billableHours,
-          availableHours: projectData.availableHours,
-          task: projectData.task || `Entry for ${project.name}`,
-          projectDetails: {
-            category: 'project',
-            name: project.name,
-            level: '',
-            task: projectData.task || '',
-            subtask: '',
-            description: projectData.task || `Monthly time entry for ${project.name}`
-          } as ProjectDetail,
-          isBillable: project.isBillable && projectData.billableHours > 0,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        saveTimeEntry(timeEntry);
-        savedEntries++;
-      }
-    });
-    
-    if (savedEntries > 0) {
-      alert(`Successfully saved ${savedEntries} time entries for ${format(date, 'MMM dd, yyyy')}!`);
-      setRefreshKey(prev => prev + 1);
-    } else {
-      alert('No entries to save. Please enter hours for at least one project.');
-    }
-  };
-
-  // Save entries for entire selected range
-  const saveEntireRange = () => {
-    if (!currentUser) return;
-    
-    let totalSavedEntries = 0;
-    const monthlyDates = getMonthlyDates();
-    
-    monthlyDates.forEach(date => {
+    try {
       const dateKey = format(date, 'yyyy-MM-dd');
       const selectedProjectIds = selectedProjects[dateKey] || [];
+      
+      let savedEntries = 0;
+      
+      const savePromises: Promise<TimeEntry>[] = [];
       
       selectedProjectIds.forEach(projectId => {
         const project = projects.find(p => p.id === projectId);
         const projectData = monthlyData[dateKey]?.[projectId];
         
         if (project && projectData && (projectData.actualHours > 0 || projectData.billableHours > 0)) {
-          const timeEntry: TimeEntry = {
-            id: generateId(),
+          const timeEntry: Omit<TimeEntry, 'id'> = {
             userId: currentUser.id,
             userName: currentUser.name,
             date: dateKey,
@@ -536,18 +534,84 @@ export default function WeeklyTimeTracker() {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
-          saveTimeEntry(timeEntry);
-          totalSavedEntries++;
+          savePromises.push(timeEntriesAPI.create(timeEntry));
+          savedEntries++;
         }
       });
-    });
+      
+      await Promise.all(savePromises);
+      
+      if (savedEntries > 0) {
+        alert(`Successfully saved ${savedEntries} time entries for ${format(date, 'MMM dd, yyyy')}!`);
+        setRefreshKey(prev => prev + 1);
+      } else {
+        alert('No entries to save. Please enter hours for at least one project.');
+      }
+    } catch (error) {
+      console.error('Error saving entries for date:', error);
+      alert('Error saving time entries. Please try again.');
+    }
+  };
+
+  // Save entries for entire selected range
+  const saveEntireRange = async () => {
+    if (!currentUser) return;
     
-    if (totalSavedEntries > 0) {
-      const rangeText = `${format(dateRange?.from || new Date(), 'MMM dd')} - ${format(dateRange?.to || new Date(), 'MMM dd, yyyy')}`;
-      alert(`Successfully saved ${totalSavedEntries} time entries for ${rangeText}!`);
-      setRefreshKey(prev => prev + 1);
-    } else {
-      alert('No entries to save. Please enter hours for at least one project.');
+    try {
+      let totalSavedEntries = 0;
+      const monthlyDates = getMonthlyDates();
+      
+      const savePromises: Promise<TimeEntry>[] = [];
+      
+      monthlyDates.forEach(date => {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        const selectedProjectIds = selectedProjects[dateKey] || [];
+        
+        selectedProjectIds.forEach(projectId => {
+          const project = projects.find(p => p.id === projectId);
+          const projectData = monthlyData[dateKey]?.[projectId];
+          
+          if (project && projectData && (projectData.actualHours > 0 || projectData.billableHours > 0)) {
+            const timeEntry: Omit<TimeEntry, 'id'> = {
+              userId: currentUser.id,
+              userName: currentUser.name,
+              date: dateKey,
+              actualHours: projectData.actualHours,
+              billableHours: projectData.billableHours,
+              totalHours: projectData.actualHours + projectData.billableHours,
+              availableHours: projectData.availableHours,
+              task: projectData.task || `Entry for ${project.name}`,
+              projectDetails: {
+                category: 'project',
+                name: project.name,
+                level: '',
+                task: projectData.task || '',
+                subtask: '',
+                description: projectData.task || `Monthly time entry for ${project.name}`
+              } as ProjectDetail,
+              isBillable: project.isBillable && projectData.billableHours > 0,
+              status: 'pending',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            savePromises.push(timeEntriesAPI.create(timeEntry));
+            totalSavedEntries++;
+          }
+        });
+      });
+      
+      await Promise.all(savePromises);
+      
+      if (totalSavedEntries > 0) {
+        const rangeText = `${format(dateRange?.from || new Date(), 'MMM dd')} - ${format(dateRange?.to || new Date(), 'MMM dd, yyyy')}`;
+        alert(`Successfully saved ${totalSavedEntries} time entries for ${rangeText}!`);
+        setRefreshKey(prev => prev + 1);
+      } else {
+        alert('No entries to save. Please enter hours for at least one project.');
+      }
+    } catch (error) {
+      console.error('Error saving entire range:', error);
+      alert('Error saving time entries. Please try again.');
     }
   };
 
@@ -859,7 +923,7 @@ export default function WeeklyTimeTracker() {
                 const formattedDate = format(currentDate, 'dd/MM/yyyy');
                 const day = format(currentDate, "EEEE");
                 const currentUser = getCurrentUser();
-                const statusData = currentUser ? getTimeEntryStatusForDate(format(currentDate, 'yyyy-MM-dd'), currentUser.id) : null;
+                const statusData = getDateStatus(currentDate);
                 const isFutureDate = isFuture(currentDate) && !isToday(currentDate);
                 const dateKey = format(currentDate, 'yyyy-MM-dd');
                 const selectedProjectIds = selectedProjects[dateKey] || [];
@@ -1112,7 +1176,7 @@ export default function WeeklyTimeTracker() {
               {getMonthlyDates().flatMap(currentDate => {
                 const formattedDate = format(currentDate, 'dd/MM/yyyy');
                 const day = format(currentDate, "EEEE");
-                const statusData = currentUser ? getTimeEntryStatusForDate(format(currentDate, 'yyyy-MM-dd'), currentUser.id) : null;
+                const statusData = getDateStatus(currentDate);
                 const isFutureDate = isFuture(currentDate) && !isToday(currentDate);
                 const dateKey = format(currentDate, 'yyyy-MM-dd');
                 const selectedProjectIds = selectedProjects[dateKey] || [];

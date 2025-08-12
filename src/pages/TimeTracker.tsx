@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
-import { saveTimeEntry, generateId, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
+import { timeEntriesAPI, projectsAPI, productsAPI, departmentsAPI } from "@/services/api";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
 
 interface Level {
@@ -74,11 +74,22 @@ export default function Tracker() {
   const currentUser = getCurrentUser();
 
   // Define callback functions first before using them in useEffect
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     if (currentUser) {
-      setProjects(getUserAssociatedProjects(currentUser.id));
-      setProducts(getUserAssociatedProducts(currentUser.id));
-      setDepartments(getUserAssociatedDepartments(currentUser.id));
+      try {
+        const [projectsData, productsData, departmentsData] = await Promise.all([
+          projectsAPI.getAll(),
+          productsAPI.getAll(),
+          departmentsAPI.getAll()
+        ]);
+        setProjects(projectsData);
+        setProducts(productsData);
+        setDepartments(departmentsData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        // Fallback to local storage if API fails
+        // You can implement fallback logic here
+      }
     }
   }, [currentUser]);
 
@@ -178,7 +189,7 @@ export default function Tracker() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!currentUser) return;
 
     // Validation
@@ -208,8 +219,7 @@ export default function Tracker() {
 
     const availableHours = currentUser.availableHours;
 
-    const timeEntry: TimeEntry = {
-      id: generateId(),
+    const timeEntry: Partial<TimeEntry> = {
       userId: currentUser.id,
       userName: currentUser.name,
       date: formData.date,
@@ -220,28 +230,30 @@ export default function Tracker() {
       projectDetails,
       isBillable: formData.isBillable,
       status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    saveTimeEntry(timeEntry);
-    
-    alert('Time entry saved successfully!');
-    
-    // Reset form
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      category: '',
-      projectName: '',
-      level: '',
-      task: '',
-      subtask: '',
-      description: '',
-      actualHours: 0,
-      billableHours: 0,
-      isBillable: false,
-    });
-    setIsBillableDisabled(false);
+    try {
+      await timeEntriesAPI.create(timeEntry);
+      alert('Time entry saved successfully!');
+      
+      // Reset form
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        category: '',
+        projectName: '',
+        level: '',
+        task: '',
+        subtask: '',
+        description: '',
+        actualHours: 0,
+        billableHours: 0,
+        isBillable: false,
+      });
+      setIsBillableDisabled(false);
+    } catch (error) {
+      console.error('Error saving time entry:', error);
+      alert('Failed to save time entry. Please try again.');
+    }
   };
 
   const getProjectOptions = () => {

@@ -111,7 +111,7 @@ export default function DailyTrackerForm({ initialDate, editingEntries, onClose 
         loadEditingEntries(userProjects, userProducts, userDepartments);
       }
     }
-  }, [currentUser, editingEntries]);
+  }, [currentUser, editingEntries, loadEditingEntries]);
 
   useEffect(() => {
     loadData();
@@ -126,7 +126,7 @@ export default function DailyTrackerForm({ initialDate, editingEntries, onClose 
 
     editingEntries.forEach(entry => {
       let projectItem: Project | Product | Department | null = null;
-      let category: 'project' | 'product' | 'department' = entry.projectDetails.category;
+      const category: 'project' | 'product' | 'department' = entry.projectDetails.category;
 
       // Find the project/product/department item
       switch (category) {
@@ -184,12 +184,12 @@ export default function DailyTrackerForm({ initialDate, editingEntries, onClose 
     projectItem: Project | Product | Department, 
     category: 'project' | 'product' | 'department',
     type: 'levels' | 'tasks' | 'subtasks',
-    parentItems?: any[]
-  ): any[] => {
+    parentItems?: Level[] | Task[]
+  ): Level[] | Task[] | Subtask[] => {
     if (!selectionStr) return [];
     
     const names = selectionStr.split(', ').filter(name => name.trim());
-    const results: any[] = [];
+    const results: (Level | Task | Subtask)[] = [];
 
     names.forEach(name => {
       if (type === 'levels') {
@@ -197,13 +197,13 @@ export default function DailyTrackerForm({ initialDate, editingEntries, onClose 
         const level = levels.find(l => l.name === name);
         if (level) results.push(level);
       } else if (type === 'tasks' && parentItems) {
-        parentItems.forEach(level => {
+        (parentItems as Level[]).forEach(level => {
           const tasks = getTasksForLevel(level, category);
           const task = tasks.find(t => t.name === name);
           if (task) results.push({ ...task, levelId: level.id });
         });
       } else if (type === 'subtasks' && parentItems) {
-        parentItems.forEach(task => {
+        (parentItems as Task[]).forEach(task => {
           const subtasks = getSubtasksForTask(task, category);
           const subtask = subtasks.find(st => st.name === name);
           if (subtask) results.push({ ...subtask, taskId: task.id });

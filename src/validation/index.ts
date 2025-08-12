@@ -48,6 +48,7 @@ export interface TimeEntry {
   totalHours?: number; // Sum of actual + billable hours (deprecated)
   availableHours?: number; // User's available hours from profile
   task: string;
+  description?: string; // Description field for time entry
   projectDetails: ProjectDetail;
   isBillable: boolean;
   status: 'pending' | 'approved' | 'rejected';

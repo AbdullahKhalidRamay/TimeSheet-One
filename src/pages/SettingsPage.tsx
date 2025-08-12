@@ -61,7 +61,7 @@ const SettingsPage: React.FC = () => {
                     <Button
                       key={option.value}
                       variant={theme === option.value ? 'default' : 'outline'}
-                      onClick={() => setTheme(option.value as any)}
+                      onClick={() => setTheme(option.value as 'light' | 'dark' | 'system')}
                       className="flex flex-col items-center gap-2 h-auto py-4"
                     >
                       <Icon className="h-5 w-5" />

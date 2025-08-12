@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getAllUsers } from '@/lib/auth';
-import { getTeams, getTimeEntries, getProjects, getProducts, getDepartments, deleteTeam } from '@/services/storage';
+import { teamsAPI, timeEntriesAPI, projectsAPI, productsAPI, departmentsAPI } from '@/services/api';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Clock, DollarSign, Building, Download, Search, Trash2 } from 'lucide-react';
-import { User, Team } from '@/validation';
+import { User, Team, TimeEntry, Project, Product, Department } from '@/validation';
 import Header from '@/components/dashboard/Header';
 import { DateRange } from 'react-day-picker';
 
@@ -20,14 +20,48 @@ const Reports = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const users = getAllUsers();
-  const teams = getTeams();
-  const timeEntries = getTimeEntries();
-  const projects = getProjects();
-  const products = getProducts();
-  const departments = getDepartments();
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [teamsData, timeEntriesData, projectsData, productsData, departmentsData] = await Promise.all([
+          teamsAPI.getAll(),
+          timeEntriesAPI.getAll(),
+          projectsAPI.getAll(),
+          productsAPI.getAll(),
+          departmentsAPI.getAll()
+        ]);
+        
+        setTeams(teamsData);
+        setTimeEntries(timeEntriesData);
+        setProjects(projectsData);
+        setProducts(productsData);
+        setDepartments(departmentsData);
+      } catch (error) {
+        console.error('Error loading reports data:', error);
+        // Fallback to empty arrays if API fails
+        setTeams([]);
+        setTimeEntries([]);
+        setProjects([]);
+        setProducts([]);
+        setDepartments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -52,20 +86,25 @@ const Reports = () => {
     setSelectedTeamId((prevId) => (prevId === teamId ? null : teamId));
   };
 
-  const handleDeleteTeam = (teamId: string) => {
+  const handleDeleteTeam = async (teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     if (team && confirm(`Are you sure you want to delete the team "${team.name}"? This action cannot be undone.`)) {
-      deleteTeam(teamId);
-      // Close details if this team was expanded
-      if (selectedTeamId === teamId) {
-        setSelectedTeamId(null);
+      try {
+        await teamsAPI.delete(teamId);
+        // Update local state
+        setTeams(prev => prev.filter(t => t.id !== teamId));
+        // Close details if this team was expanded
+        if (selectedTeamId === teamId) {
+          setSelectedTeamId(null);
+        }
+        // Reset team filter if this team was selected
+        if (teamFilter === teamId) {
+          setTeamFilter('all');
+        }
+      } catch (error) {
+        console.error('Error deleting team:', error);
+        alert('Failed to delete team. Please try again.');
       }
-      // Reset team filter if this team was selected
-      if (teamFilter === teamId) {
-        setTeamFilter('all');
-      }
-      // Force a re-render by triggering a state update
-      window.location.reload();
     }
   };
 

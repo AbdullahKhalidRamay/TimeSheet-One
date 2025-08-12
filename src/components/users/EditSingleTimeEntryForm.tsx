@@ -37,7 +37,7 @@ export default function EditSingleTimeEntryForm({ entry, onClose, onSuccess }: E
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

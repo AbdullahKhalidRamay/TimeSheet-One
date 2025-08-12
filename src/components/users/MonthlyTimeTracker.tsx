@@ -115,7 +115,7 @@ export default function MonthlyTimeTracker() {
   }, [selectedDates, projects]);
 
   // Helper functions
-  const updateProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: any) => {
+  const updateProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: string | number) => {
     setMonthlyData(prevData => ({
       ...prevData,
       [dateKey]: {
