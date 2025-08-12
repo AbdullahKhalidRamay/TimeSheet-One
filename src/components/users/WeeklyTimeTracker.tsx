@@ -30,6 +30,18 @@ interface ProjectWeekData {
   };
 }
 
+interface ProductWeekData {
+  [productId: string]: {
+    [dayKey: string]: WeeklyHours;
+  };
+}
+
+interface DepartmentWeekData {
+  [departmentId: string]: {
+    [dayKey: string]: WeeklyHours;
+  };
+}
+
 interface DailyAvailableHours {
   [dayKey: string]: number;
 }
@@ -47,14 +59,36 @@ interface DailyProjectData {
   billableHours: number;
 }
 
+interface DailyProductData {
+  task: string;
+  availableHours: number;
+  actualHours: number;
+  billableHours: number;
+}
+
+interface DailyDepartmentData {
+  task: string;
+  availableHours: number;
+  actualHours: number;
+  billableHours: number;
+}
+
 interface MonthlyData {
   [dateKey: string]: {
-    [projectId: string]: DailyProjectData;
+    [id: string]: DailyProjectData | DailyProductData | DailyDepartmentData;
   };
 }
 
 interface SelectedProjects {
   [dateKey: string]: string[]; // array of projectIds
+}
+
+interface SelectedProducts {
+  [dateKey: string]: string[]; // array of productIds
+}
+
+interface SelectedDepartments {
+  [dateKey: string]: string[]; // array of departmentIds
 }
 
 export default function WeeklyTimeTracker() {
@@ -64,16 +98,21 @@ export default function WeeklyTimeTracker() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isQuickTaskDialogOpen, setIsQuickTaskDialogOpen] = useState(false);
   const [selectedDateForEntry, setSelectedDateForEntry] = useState<Date | null>(null);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | Product | Department | null>(null);
+  const [selectedDateForQuickTask, setSelectedDateForQuickTask] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [weeklyData, setWeeklyData] = useState<ProjectWeekData>({});
+  const [productWeeklyData, setProductWeeklyData] = useState<ProductWeekData>({});
+  const [departmentWeeklyData, setDepartmentWeeklyData] = useState<DepartmentWeekData>({});
   const [dailyAvailableHours, setDailyAvailableHours] = useState<DailyAvailableHours>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
   const [selectedProjects, setSelectedProjects] = useState<SelectedProjects>({});
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProducts>({});
+  const [selectedDepartments, setSelectedDepartments] = useState<SelectedDepartments>({});
   // Add description state
   const [dailyDescriptions, setDailyDescriptions] = useState<DailyDescription>({});
 
@@ -109,17 +148,21 @@ export default function WeeklyTimeTracker() {
     const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
     
     const newWeeklyData: ProjectWeekData = {};
+    const newProductWeeklyData: ProductWeekData = {};
+    const newDepartmentWeeklyData: DepartmentWeekData = {};
     const newDailyDescriptions: DailyDescription = {};
     
     // Initialize with existing data to preserve any unsaved changes
     Object.assign(newWeeklyData, weeklyData);
+    Object.assign(newProductWeeklyData, productWeeklyData);
+    Object.assign(newDepartmentWeeklyData, departmentWeeklyData);
     
     allEntries.forEach(entry => {
       const entryDate = new Date(entry.date);
       if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
         const dayKey = format(entryDate, 'yyyy-MM-dd');
         
-        // Load hours data
+        // Load hours data based on category
         if (entry.projectDetails?.category === 'project') {
           const projectId = projects.find(p => p.name === entry.projectDetails.name)?.id;
           if (projectId) {
@@ -127,6 +170,28 @@ export default function WeeklyTimeTracker() {
               newWeeklyData[projectId] = {};
             }
             newWeeklyData[projectId][dayKey] = {
+              billable: entry.billableHours,
+              actual: entry.actualHours
+            };
+          }
+        } else if (entry.projectDetails?.category === 'product') {
+          const productId = products.find(p => p.name === entry.projectDetails.name)?.id;
+          if (productId) {
+            if (!newProductWeeklyData[productId]) {
+              newProductWeeklyData[productId] = {};
+            }
+            newProductWeeklyData[productId][dayKey] = {
+              billable: entry.billableHours,
+              actual: entry.actualHours
+            };
+          }
+        } else if (entry.projectDetails?.category === 'department') {
+          const departmentId = departments.find(d => d.name === entry.projectDetails.name)?.id;
+          if (departmentId) {
+            if (!newDepartmentWeeklyData[departmentId]) {
+              newDepartmentWeeklyData[departmentId] = {};
+            }
+            newDepartmentWeeklyData[departmentId][dayKey] = {
               billable: entry.billableHours,
               actual: entry.actualHours
             };
@@ -141,17 +206,19 @@ export default function WeeklyTimeTracker() {
     });
     
     setWeeklyData(newWeeklyData);
+    setProductWeeklyData(newProductWeeklyData);
+    setDepartmentWeeklyData(newDepartmentWeeklyData);
     setDailyDescriptions(newDailyDescriptions);
-  }, [currentUser, selectedWeek, projects, weeklyData]);
+  }, [currentUser, selectedWeek, projects, products, departments, weeklyData, productWeeklyData, departmentWeeklyData]);
 
-  // Load existing entries when week changes or projects are loaded
+  // Load existing entries when week changes or projects/products/departments are loaded
   useEffect(() => {
-    if (projects.length > 0) {
+    if (projects.length > 0 && products.length > 0 && departments.length > 0) {
       loadExistingEntries();
     }
-  }, [projects, selectedWeek, loadExistingEntries]);
+  }, [projects, products, departments, selectedWeek, loadExistingEntries]);
 
-  // Initialize weekly data when projects or week changes, but preserve existing data
+  // Initialize weekly data when projects/products/departments or week changes, but preserve existing data
   useEffect(() => {
     if (projects.length > 0) {
       setWeeklyData(prevData => {
@@ -176,7 +243,55 @@ export default function WeeklyTimeTracker() {
         return newData;
       });
     }
-  }, [projects, selectedWeek]);
+
+    if (products.length > 0) {
+      setProductWeeklyData(prevData => {
+        const newData: ProductWeekData = { ...prevData };
+        
+        products.forEach(product => {
+          if (!newData[product.id]) {
+            newData[product.id] = {};
+          }
+          
+          for (let i = 0; i < 7; i++) {
+            const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
+            if (!newData[product.id][dayKey]) {
+              newData[product.id][dayKey] = {
+                billable: 0,
+                actual: 0
+              };
+            }
+          }
+        });
+        
+        return newData;
+      });
+    }
+
+    if (departments.length > 0) {
+      setDepartmentWeeklyData(prevData => {
+        const newData: DepartmentWeekData = { ...prevData };
+        
+        departments.forEach(department => {
+          if (!newData[department.id]) {
+            newData[department.id] = {};
+          }
+          
+          for (let i = 0; i < 7; i++) {
+            const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
+            if (!newData[department.id][dayKey]) {
+              newData[department.id][dayKey] = {
+                billable: 0,
+                actual: 0
+              };
+            }
+          }
+        });
+        
+        return newData;
+      });
+    }
+  }, [projects, products, departments, selectedWeek]);
 
   const handlePreviousWeek = () => {
     setSelectedWeek(prev => subWeeks(prev, 1));
@@ -216,6 +331,56 @@ export default function WeeklyTimeTracker() {
           ...prev[projectId],
           [dayKey]: {
             ...prev[projectId][dayKey],
+            [type]: value
+          }
+        }
+      };
+    });
+  };
+
+  const updateProductHours = (productId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    setProductWeeklyData(prev => {
+      // Ensure the product exists in the data
+      if (!prev[productId]) {
+        prev[productId] = {};
+      }
+      
+      // Ensure the day exists for this product
+      if (!prev[productId][dayKey]) {
+        prev[productId][dayKey] = { billable: 0, actual: 0 };
+      }
+      
+      return {
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          [dayKey]: {
+            ...prev[productId][dayKey],
+            [type]: value
+          }
+        }
+      };
+    });
+  };
+
+  const updateDepartmentHours = (departmentId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    setDepartmentWeeklyData(prev => {
+      // Ensure the department exists in the data
+      if (!prev[departmentId]) {
+        prev[departmentId] = {};
+      }
+      
+      // Ensure the day exists for this department
+      if (!prev[departmentId][dayKey]) {
+        prev[departmentId][dayKey] = { billable: 0, actual: 0 };
+      }
+      
+      return {
+        ...prev,
+        [departmentId]: {
+          ...prev[departmentId],
+          [dayKey]: {
+            ...prev[departmentId][dayKey],
             [type]: value
           }
         }
@@ -272,12 +437,85 @@ export default function WeeklyTimeTracker() {
   const saveWeeklyData = () => {
     if (!currentUser) return;
     
+    // Collect all days that have entries to save, organized by day and entry type
+    const daysToSave = new Map<string, Set<string>>(); // dayKey -> Set of entry types to save
+    
+    // Check project entries
+    Object.entries(weeklyData).forEach(([projectId, projectData]) => {
+      Object.entries(projectData).forEach(([dayKey, hours]) => {
+        if (hours.actual > 0 || hours.billable > 0) {
+          if (!daysToSave.has(dayKey)) {
+            daysToSave.set(dayKey, new Set());
+          }
+          daysToSave.get(dayKey)!.add('project');
+        }
+      });
+    });
+    
+    // Check product entries
+    Object.entries(productWeeklyData).forEach(([productId, productData]) => {
+      Object.entries(productData).forEach(([dayKey, hours]) => {
+        if (hours.actual > 0 || hours.billable > 0) {
+          if (!daysToSave.has(dayKey)) {
+            daysToSave.set(dayKey, new Set());
+          }
+          daysToSave.get(dayKey)!.add('product');
+        }
+      });
+    });
+    
+    // Check department entries
+    Object.entries(departmentWeeklyData).forEach(([departmentId, departmentData]) => {
+      Object.entries(departmentData).forEach(([dayKey, hours]) => {
+        if (hours.actual > 0 || hours.billable > 0) {
+          if (!daysToSave.has(dayKey)) {
+            daysToSave.set(dayKey, new Set());
+          }
+          daysToSave.get(dayKey)!.add('department');
+        }
+      });
+    });
+    
+    if (daysToSave.size === 0) {
+      alert('No entries to save. Please enter hours for at least one project, product, or department.');
+      return;
+    }
+    
+    // Check for existing entries and collect days that need confirmation
+    const daysWithExistingEntries: string[] = [];
+    const allEntries = getTimeEntries();
+    
+    daysToSave.forEach((entryTypes, dayKey) => {
+      const existingEntries = allEntries.filter(entry => 
+        entry.date === dayKey && entry.userId === currentUser.id
+      );
+      if (existingEntries.length > 0) {
+        daysWithExistingEntries.push(dayKey);
+      }
+    });
+    
+    // If there are existing entries, ask for confirmation with more granular options
+    if (daysWithExistingEntries.length > 0) {
+      const dayList = daysWithExistingEntries.map(day => format(new Date(day), 'MMM dd, yyyy')).join(', ');
+      const confirmMessage = `Entries already exist for the following days: ${dayList}\n\nDo you want to overwrite all entries for these days, or save only the new entries without overwriting existing ones?\n\nClick 'OK' to overwrite all entries, or 'Cancel' to save only new entries.`;
+      
+      const shouldOverwrite = confirm(confirmMessage);
+      
+      if (!shouldOverwrite) {
+        // User chose to save only new entries - remove days with existing entries
+        daysWithExistingEntries.forEach(dayKey => {
+          daysToSave.delete(dayKey);
+        });
+      }
+    }
+    
+    // Save project entries
     Object.entries(weeklyData).forEach(([projectId, projectData]) => {
       const project = projects.find(p => p.id === projectId);
       if (!project) return;
       
       Object.entries(projectData).forEach(([dayKey, hours]) => {
-        if (hours.actual > 0 || hours.billable > 0) {
+        if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('project')) {
           const timeEntry: TimeEntry = {
             id: generateId(),
             userId: currentUser.id,
@@ -305,8 +543,86 @@ export default function WeeklyTimeTracker() {
         }
       });
     });
+
+    // Save product entries
+    Object.entries(productWeeklyData).forEach(([productId, productData]) => {
+      const product = products.find(p => p.id === productId);
+      if (!product) return;
+      
+      Object.entries(productData).forEach(([dayKey, hours]) => {
+        if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('product')) {
+          const timeEntry: TimeEntry = {
+            id: generateId(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            date: dayKey,
+            actualHours: hours.actual,
+            billableHours: hours.billable,
+            totalHours: hours.actual + hours.billable,
+            availableHours: dailyAvailableHours[dayKey] || 0,
+            task: dailyDescriptions[dayKey] || `Weekly entry for ${product.name}`,
+            projectDetails: {
+              category: 'product',
+              name: product.name,
+              stage: '',
+              task: '',
+              subtask: '',
+              description: dailyDescriptions[dayKey] || `Weekly time entry for ${product.name}`
+            } as ProjectDetail,
+            isBillable: hours.billable > 0,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          saveTimeEntry(timeEntry);
+        }
+      });
+    });
+
+    // Save department entries
+    Object.entries(departmentWeeklyData).forEach(([departmentId, departmentData]) => {
+      const department = departments.find(d => d.id === departmentId);
+      if (!department) return;
+      
+      Object.entries(departmentData).forEach(([dayKey, hours]) => {
+        if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('department')) {
+          const timeEntry: TimeEntry = {
+            id: generateId(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            date: dayKey,
+            actualHours: hours.actual,
+            billableHours: hours.billable,
+            totalHours: hours.actual + hours.billable,
+            availableHours: dailyAvailableHours[dayKey] || 0,
+            task: dailyDescriptions[dayKey] || `Weekly entry for ${department.name}`,
+            projectDetails: {
+              category: 'department',
+              name: department.name,
+              function: '',
+              task: '',
+              subtask: '',
+              description: dailyDescriptions[dayKey] || `Weekly time entry for ${department.name}`
+            } as ProjectDetail,
+            isBillable: hours.billable > 0,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          saveTimeEntry(timeEntry);
+        }
+      });
+    });
     
-    alert('Weekly time entries saved successfully!');
+    const savedDaysCount = daysToSave.size;
+    const skippedDaysCount = daysWithExistingEntries.length - savedDaysCount;
+    
+    let message = `Weekly time entries saved successfully!`;
+    if (skippedDaysCount > 0) {
+      message += `\n${skippedDaysCount} days were skipped due to existing entries.`;
+    }
+    
+    alert(message);
     setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
   };
 
@@ -386,7 +702,7 @@ export default function WeeklyTimeTracker() {
 
   // Initialize monthly data for selected date range
   useEffect(() => {
-    if (currentViewMode === 'monthly' && projects.length > 0) {
+    if (currentViewMode === 'monthly' && (projects.length > 0 || products.length > 0 || departments.length > 0)) {
       const monthlyDates = getMonthlyDates();
       setMonthlyData((prevData) => {
         const updatedData = { ...prevData };
@@ -397,9 +713,34 @@ export default function WeeklyTimeTracker() {
             updatedData[dateKey] = {};
           }
 
+          // Initialize projects
           projects.forEach((project) => {
             if (!updatedData[dateKey][project.id]) {
               updatedData[dateKey][project.id] = {
+                task: '',
+                availableHours: 0,
+                actualHours: 0,
+                billableHours: 0,
+              };
+            }
+          });
+
+          // Initialize products
+          products.forEach((product) => {
+            if (!updatedData[dateKey][product.id]) {
+              updatedData[dateKey][product.id] = {
+                task: '',
+                availableHours: 0,
+                actualHours: 0,
+                billableHours: 0,
+              };
+            }
+          });
+
+          // Initialize departments
+          departments.forEach((department) => {
+            if (!updatedData[dateKey][department.id]) {
+              updatedData[dateKey][department.id] = {
                 task: '',
                 availableHours: 0,
                 actualHours: 0,
@@ -411,7 +752,7 @@ export default function WeeklyTimeTracker() {
         return updatedData;
       });
     }
-  }, [currentViewMode, projects, dateRange, getMonthlyDates]);
+  }, [currentViewMode, projects, products, departments, dateRange, getMonthlyDates]);
 
   // Monthly view helper functions
   const updateProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: string | number) => {
@@ -433,6 +774,44 @@ export default function WeeklyTimeTracker() {
     }));
   };
 
+  const updateProductData = (dateKey: string, productId: string, field: keyof DailyProductData, value: string | number) => {
+    setMonthlyData(prevData => ({
+      ...prevData,
+      [dateKey]: {
+        ...prevData[dateKey],
+        [productId]: {
+          ...prevData[dateKey][productId],
+          [field]: value,
+          // Auto-calculate billable hours when actual hours or available hours change
+          billableHours: field === 'actualHours' ? 
+            Math.min(Number(value), prevData[dateKey][productId]?.availableHours || 0) :
+            field === 'availableHours' ?
+            Math.min(prevData[dateKey][productId]?.actualHours || 0, Number(value)) :
+            prevData[dateKey][productId]?.billableHours || 0
+        }
+      }
+    }));
+  };
+
+  const updateDepartmentData = (dateKey: string, departmentId: string, field: keyof DailyDepartmentData, value: string | number) => {
+    setMonthlyData(prevData => ({
+      ...prevData,
+      [dateKey]: {
+        ...prevData[dateKey],
+        [departmentId]: {
+          ...prevData[dateKey][departmentId],
+          [field]: value,
+          // Auto-calculate billable hours when actual hours or available hours change
+          billableHours: field === 'actualHours' ? 
+            Math.min(Number(value), prevData[dateKey][departmentId]?.availableHours || 0) :
+            field === 'availableHours' ?
+            Math.min(prevData[dateKey][departmentId]?.actualHours || 0, Number(value)) :
+            prevData[dateKey][departmentId]?.billableHours || 0
+        }
+      }
+    }));
+  };
+
   const addProjectToDate = (dateKey: string, projectId: string) => {
     setSelectedProjects(prev => ({
       ...prev,
@@ -447,20 +826,45 @@ export default function WeeklyTimeTracker() {
     }));
   };
 
+  const addProductToDate = (dateKey: string, productId: string) => {
+    setSelectedProducts(prev => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), productId]
+    }));
+  };
+
+  const removeProductFromDate = (dateKey: string, productId: string) => {
+    setSelectedProducts(prev => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).filter(id => id !== productId)
+    }));
+  };
+
+  const addDepartmentToDate = (dateKey: string, departmentId: string) => {
+    setSelectedDepartments(prev => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), departmentId]
+    }));
+  };
+
+  const removeDepartmentFromDate = (dateKey: string, departmentId: string) => {
+    setSelectedDepartments(prev => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).filter(id => id !== departmentId)
+    }));
+  };
+
   // Save entry for a specific date in monthly view
   const saveEntryForDate = (date: Date) => {
     if (!currentUser) return;
     
     const dateKey = format(date, 'yyyy-MM-dd');
-    const selectedProjectIds = selectedProjects[dateKey] || [];
-    
     let savedEntries = 0;
     
-    selectedProjectIds.forEach(projectId => {
-      const project = projects.find(p => p.id === projectId);
-      const projectData = monthlyData[dateKey]?.[projectId];
-      
-      if (project && projectData && (projectData.actualHours > 0 || projectData.billableHours > 0)) {
+    // Save project entries that have data
+    projects.forEach(project => {
+      const projectData = monthlyData[dateKey]?.[project.id];
+      if (projectData && (projectData.actualHours > 0 || projectData.billableHours > 0 || projectData.task.trim())) {
         const timeEntry: TimeEntry = {
           id: generateId(),
           userId: currentUser.id,
@@ -488,12 +892,76 @@ export default function WeeklyTimeTracker() {
         savedEntries++;
       }
     });
+
+    // Save product entries that have data
+    products.forEach(product => {
+      const productData = monthlyData[dateKey]?.[product.id];
+      if (productData && (productData.actualHours > 0 || productData.billableHours > 0 || productData.task.trim())) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dateKey,
+          actualHours: productData.actualHours,
+          billableHours: productData.billableHours,
+          totalHours: productData.actualHours + productData.billableHours,
+          availableHours: productData.availableHours,
+          task: productData.task || `Entry for ${product.name}`,
+          projectDetails: {
+            category: 'product',
+            name: product.name,
+            stage: '',
+            task: productData.task || '',
+            subtask: '',
+            description: productData.task || `Monthly time entry for ${product.name}`
+          } as ProjectDetail,
+          isBillable: product.isBillable && productData.billableHours > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+        savedEntries++;
+      }
+    });
+
+    // Save department entries that have data
+    departments.forEach(department => {
+      const departmentData = monthlyData[dateKey]?.[department.id];
+      if (departmentData && (departmentData.actualHours > 0 || departmentData.billableHours > 0 || departmentData.task.trim())) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dateKey,
+          actualHours: departmentData.actualHours,
+          billableHours: departmentData.billableHours,
+          totalHours: departmentData.actualHours + departmentData.billableHours,
+          availableHours: departmentData.availableHours,
+          task: departmentData.task || `Entry for ${department.name}`,
+          projectDetails: {
+            category: 'department',
+            name: department.name,
+            function: '',
+            task: departmentData.task || '',
+            subtask: '',
+            description: departmentData.task || `Monthly time entry for ${department.name}`
+          } as ProjectDetail,
+          isBillable: department.isBillable && departmentData.billableHours > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+        savedEntries++;
+      }
+    });
     
     if (savedEntries > 0) {
       alert(`Successfully saved ${savedEntries} time entries for ${format(date, 'MMM dd, yyyy')}!`);
       setRefreshKey(prev => prev + 1);
     } else {
-      alert('No entries to save. Please enter hours for at least one project.');
+      alert('No entries to save. Please enter hours or task description for at least one project, product, or department.');
     }
   };
 
@@ -507,12 +975,14 @@ export default function WeeklyTimeTracker() {
     monthlyDates.forEach(date => {
       const dateKey = format(date, 'yyyy-MM-dd');
       const selectedProjectIds = selectedProjects[dateKey] || [];
+      const selectedProductIds = selectedProducts[dateKey] || [];
+      const selectedDepartmentIds = selectedDepartments[dateKey] || [];
       
-      selectedProjectIds.forEach(projectId => {
-        const project = projects.find(p => p.id === projectId);
-        const projectData = monthlyData[dateKey]?.[projectId];
-        
-        if (project && projectData && (projectData.actualHours > 0 || projectData.billableHours > 0)) {
+      // Save project entries
+      // Save project entries that have data
+      projects.forEach(project => {
+        const projectData = monthlyData[dateKey]?.[project.id];
+        if (projectData && (projectData.actualHours > 0 || projectData.billableHours > 0 || projectData.task.trim())) {
           const timeEntry: TimeEntry = {
             id: generateId(),
             userId: currentUser.id,
@@ -540,6 +1010,70 @@ export default function WeeklyTimeTracker() {
           totalSavedEntries++;
         }
       });
+
+      // Save product entries that have data
+      products.forEach(product => {
+        const productData = monthlyData[dateKey]?.[product.id];
+        if (productData && (productData.actualHours > 0 || productData.billableHours > 0 || productData.task.trim())) {
+          const timeEntry: TimeEntry = {
+            id: generateId(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            date: dateKey,
+            actualHours: productData.actualHours,
+            billableHours: productData.billableHours,
+            totalHours: productData.actualHours + productData.billableHours,
+            availableHours: productData.availableHours,
+            task: productData.task || `Entry for ${product.name}`,
+            projectDetails: {
+              category: 'product',
+              name: product.name,
+              stage: '',
+              task: productData.task || '',
+              subtask: '',
+              description: productData.task || `Monthly time entry for ${product.name}`
+            } as ProjectDetail,
+            isBillable: product.isBillable && productData.billableHours > 0,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          saveTimeEntry(timeEntry);
+          totalSavedEntries++;
+        }
+      });
+
+      // Save department entries that have data
+      departments.forEach(department => {
+        const departmentData = monthlyData[dateKey]?.[department.id];
+        if (departmentData && (departmentData.actualHours > 0 || departmentData.billableHours > 0 || departmentData.task.trim())) {
+          const timeEntry: TimeEntry = {
+            id: generateId(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            date: dateKey,
+            actualHours: departmentData.actualHours,
+            billableHours: departmentData.billableHours,
+            totalHours: departmentData.actualHours + departmentData.billableHours,
+            availableHours: departmentData.availableHours,
+            task: departmentData.task || `Entry for ${department.name}`,
+            projectDetails: {
+              category: 'department',
+              name: department.name,
+              function: '',
+              task: departmentData.task || '',
+              subtask: '',
+              description: departmentData.task || `Monthly time entry for ${department.name}`
+            } as ProjectDetail,
+            isBillable: department.isBillable && departmentData.billableHours > 0,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          saveTimeEntry(timeEntry);
+          totalSavedEntries++;
+        }
+      });
     });
     
     if (totalSavedEntries > 0) {
@@ -547,22 +1081,29 @@ export default function WeeklyTimeTracker() {
       alert(`Successfully saved ${totalSavedEntries} time entries for ${rangeText}!`);
       setRefreshKey(prev => prev + 1);
     } else {
-      alert('No entries to save. Please enter hours for at least one project.');
+      alert('No entries to save. Please enter hours for at least one project, product, or department.');
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Quick Task Form */}
-      {selectedProject && (
+      {selectedProject && selectedDateForQuickTask && (
         <QuickTaskForm 
           isOpen={isQuickTaskDialogOpen}
           onClose={() => {
             setIsQuickTaskDialogOpen(false);
             setSelectedProject(null);
+            setSelectedDateForQuickTask(null);
           }}
           project={selectedProject}
-          onSuccess={() => {
+          selectedDate={selectedDateForQuickTask}
+          onSuccess={(taskDescription: string) => {
+            const dayKey = format(selectedDateForQuickTask, 'yyyy-MM-dd');
+            setDailyDescriptions(prev => ({
+              ...prev,
+              [dayKey]: taskDescription
+            }));
             setRefreshKey(prev => prev + 1);
           }}
         />
@@ -661,7 +1202,7 @@ export default function WeeklyTimeTracker() {
           <table className="w-full text-center border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-800">
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Projects</th>
+                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Projects/Products/Departments</th>
                 {weekDays.map(day => {
                   const statusIndicator = getStatusIndicator(day);
                   return (
@@ -712,13 +1253,17 @@ export default function WeeklyTimeTracker() {
               </tr>
             </thead>
             <tbody>
+              {/* Projects Section */}
               {projects.map(project => (
-                <tr key={project.id} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+                <tr key={`project-${project.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
                   <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <div className="flex flex-col">
-                          <span className="font-semibold">{project.name}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">Project</span>
+                            <span className="font-semibold">{project.name}</span>
+                          </div>
                           {project.department && (
                             <span className="text-xs text-gray-600 dark:text-gray-400">
                               Department: {project.department}
@@ -727,27 +1272,15 @@ export default function WeeklyTimeTracker() {
                           {project.associatedProducts && project.associatedProducts.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {project.associatedProducts.map((product, index) => (
-                                <span key={index} className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+                                <span key={index} className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
                                   {product}
                                 </span>
                               ))}
                             </div>
                           )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedProject(project);
-                            setIsQuickTaskDialogOpen(true);
-                          }}
-                          className="h-7 w-7 p-0"
-                          title="Quick add task"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
 
+                      </div>
                     </div>
                   </td>
                   {weekDays.map(day => {
@@ -783,6 +1316,184 @@ export default function WeeklyTimeTracker() {
                             disabled={isFutureDay}
                             placeholder="0"
                           />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedProject(project);
+                              setSelectedDateForQuickTask(day);
+                              setIsQuickTaskDialogOpen(true);
+                            }}
+                            className="h-6 w-6 p-0"
+                            title="Quick add task"
+                            disabled={isFutureDay}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        {/* Description row for selected dates */}
+                        {(isSelected || isInRange) && (
+                          <div className="mt-2">
+                            <Textarea
+                              value={dailyDescriptions[dayKey] || ''}
+                              onChange={(e) => updateDescription(dayKey, e.target.value)}
+                              placeholder="Add description..."
+                              className="w-full text-xs h-16 resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                              disabled={isFutureDay}
+                            />
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+
+              {/* Products Section */}
+              {products.map(product => (
+                <tr key={`product-${product.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">Product</span>
+                            <span className="font-semibold">{product.name}</span>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </td>
+                  {weekDays.map(day => {
+                    const dayKey = format(day, 'yyyy-MM-dd');
+                    const hours = productWeeklyData[product.id]?.[dayKey] || { billable: 0, actual: 0 };
+                    const isFutureDay = day.getTime() > new Date().getTime();
+                    const isSelected = isDateSelected(day);
+                    const isInRange = isDateInRange(day);
+                    return (
+                      <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-around items-center gap-1">
+                          <Input 
+                            type="number" step="0.5" min="0" max="24"
+                            value={hours.billable === 0 ? '' : hours.billable.toString()}
+                            onChange={(e) => {
+                              const inputValue = e.target.value;
+                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                              updateProductHours(product.id, dayKey, 'billable', value);
+                            }}
+                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                            disabled={!product.isBillable || isFutureDay}
+                            placeholder="0"
+                          />
+                          <Input 
+                            type="number" step="0.5" min="0" max="24"
+                            value={hours.actual === 0 ? '' : hours.actual.toString()}
+                            onChange={(e) => {
+                              const inputValue = e.target.value;
+                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                              updateProductHours(product.id, dayKey, 'actual', value);
+                            }}
+                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                            disabled={isFutureDay}
+                            placeholder="0"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedProject(product);
+                              setSelectedDateForQuickTask(day);
+                              setIsQuickTaskDialogOpen(true);
+                            }}
+                            className="h-6 w-6 p-0"
+                            title="Quick add task"
+                            disabled={isFutureDay}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        {/* Description row for selected dates */}
+                        {(isSelected || isInRange) && (
+                          <div className="mt-2">
+                            <Textarea
+                              value={dailyDescriptions[dayKey] || ''}
+                              onChange={(e) => updateDescription(dayKey, e.target.value)}
+                              placeholder="Add description..."
+                              className="w-full text-xs h-16 resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                              disabled={isFutureDay}
+                            />
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+
+              {/* Departments Section */}
+              {departments.map(department => (
+                <tr key={`department-${department.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">Department</span>
+                            <span className="font-semibold">{department.name}</span>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </td>
+                  {weekDays.map(day => {
+                    const dayKey = format(day, 'yyyy-MM-dd');
+                    const hours = departmentWeeklyData[department.id]?.[dayKey] || { billable: 0, actual: 0 };
+                    const isFutureDay = day.getTime() > new Date().getTime();
+                    const isSelected = isDateSelected(day);
+                    const isInRange = isDateInRange(day);
+                    return (
+                      <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-around items-center gap-1">
+                          <Input 
+                            type="number" step="0.5" min="0" max="24"
+                            value={hours.billable === 0 ? '' : hours.billable.toString()}
+                            onChange={(e) => {
+                              const inputValue = e.target.value;
+                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                              updateDepartmentHours(department.id, dayKey, 'billable', value);
+                            }}
+                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                            disabled={!department.isBillable || isFutureDay}
+                            placeholder="0"
+                          />
+                          <Input 
+                            type="number" step="0.5" min="0" max="24"
+                            value={hours.actual === 0 ? '' : hours.actual.toString()}
+                            onChange={(e) => {
+                              const inputValue = e.target.value;
+                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                              updateDepartmentHours(department.id, dayKey, 'actual', value);
+                            }}
+                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                            disabled={isFutureDay}
+                            placeholder="0"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedProject(department);
+                              setSelectedDateForQuickTask(day);
+                              setIsQuickTaskDialogOpen(true);
+                            }}
+                            className="h-6 w-6 p-0"
+                            title="Quick add task"
+                            disabled={isFutureDay}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
                         </div>
                         {/* Description row for selected dates */}
                         {(isSelected || isInRange) && (
@@ -846,7 +1557,7 @@ export default function WeeklyTimeTracker() {
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-800">
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Date</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Project Details</th>
+                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Entry Details</th>
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Task</th>
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Available Hours</th>
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Actual Hours</th>
@@ -862,7 +1573,6 @@ export default function WeeklyTimeTracker() {
                 const statusData = currentUser ? getTimeEntryStatusForDate(format(currentDate, 'yyyy-MM-dd'), currentUser.id) : null;
                 const isFutureDate = isFuture(currentDate) && !isToday(currentDate);
                 const dateKey = format(currentDate, 'yyyy-MM-dd');
-                const selectedProjectIds = selectedProjects[dateKey] || [];
 
                 // Get status indicator
                 const getStatusIndicator = () => {
@@ -906,8 +1616,65 @@ export default function WeeklyTimeTracker() {
 
                 const statusIndicator = getStatusIndicator();
 
-                // If no projects selected for this date, show a row with project selection
-                if (selectedProjectIds.length === 0) {
+                // Create all entries for this date
+                const allEntries = [];
+
+                // Add all projects
+                projects.forEach((project, index) => {
+                  const projectData = monthlyData[dateKey]?.[project.id] || {
+                    task: '',
+                    availableHours: 0,
+                    actualHours: 0,
+                    billableHours: 0
+                  };
+
+                  allEntries.push({
+                    type: 'project',
+                    id: project.id,
+                    data: project,
+                    entryData: projectData,
+                    index
+                  });
+                });
+
+                // Add all products
+                products.forEach((product, index) => {
+                  const productData = monthlyData[dateKey]?.[product.id] || {
+                    task: '',
+                    availableHours: 0,
+                    actualHours: 0,
+                    billableHours: 0
+                  };
+
+                  allEntries.push({
+                    type: 'product',
+                    id: product.id,
+                    data: product,
+                    entryData: productData,
+                    index
+                  });
+                });
+
+                // Add all departments
+                departments.forEach((department, index) => {
+                  const departmentData = monthlyData[dateKey]?.[department.id] || {
+                    task: '',
+                    availableHours: 0,
+                    actualHours: 0,
+                    billableHours: 0
+                  };
+
+                  allEntries.push({
+                    type: 'department',
+                    id: department.id,
+                    data: department,
+                    entryData: departmentData,
+                    index
+                  });
+                });
+
+                // If no entries exist, show a message
+                if (allEntries.length === 0) {
                   return [
                     <tr key={currentDate.toString()} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
@@ -917,21 +1684,7 @@ export default function WeeklyTimeTracker() {
                         </div>
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <Select
-                          onValueChange={(projectId) => addProjectToDate(dateKey, projectId)}
-                          disabled={isFutureDate}
-                        >
-                          <SelectTrigger className="w-full text-xs h-8">
-                            <SelectValue placeholder="Select project" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {projects.map(project => (
-                              <SelectItem key={project.id} value={project.id}>
-                                {project.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <span className="text-gray-500 dark:text-gray-400">No projects, products, or departments available</span>
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
@@ -959,22 +1712,15 @@ export default function WeeklyTimeTracker() {
                   ];
                 }
 
-                // Show rows for each selected project
-                return selectedProjectIds.map((projectId, index) => {
-                  const project = projects.find(p => p.id === projectId);
-                  const projectData = monthlyData[dateKey]?.[projectId] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  if (!project) return null;
+                // Show rows for each entry
+                return allEntries.map((entry, entryIndex) => {
+                  const { type, id, data, entryData } = entry;
+                  const isFirstEntry = entryIndex === 0;
 
                   return (
-                    <tr key={`${dateKey}-${projectId}`} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
+                    <tr key={`${dateKey}-${type}-${id}`} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
-                        {index === 0 ? (
+                        {isFirstEntry ? (
                           <div className="flex flex-col items-center">
                             <span className="text-sm">{day}</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</span>
@@ -982,44 +1728,23 @@ export default function WeeklyTimeTracker() {
                         ) : null}
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-blue-800 dark:text-blue-200">
-                            {project.name}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeProjectFromDate(dateKey, projectId)}
-                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                          >
-                            ×
-                          </Button>
-                        </div>
-                        {index === selectedProjectIds.length - 1 && (
-                          <Select
-                            onValueChange={(newProjectId) => addProjectToDate(dateKey, newProjectId)}
-                            disabled={isFutureDate}
-                          >
-                            <SelectTrigger className="w-full text-xs h-6 mt-1">
-                              <SelectValue placeholder="+ Add project" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {projects
-                                .filter(p => !selectedProjectIds.includes(p.id))
-                                .map(project => (
-                                  <SelectItem key={project.id} value={project.id}>
-                                    {project.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          type === 'project' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                          type === 'product' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                          'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                        }`}>
+                          {type === 'project' ? 'Project' : type === 'product' ? 'Product' : 'Department'}: {data.name}
+                        </span>
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
                         <Input
                           type="text"
-                          value={projectData.task}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'task', e.target.value)}
+                          value={entryData.task}
+                          onChange={(e) => {
+                            if (type === 'project') updateProjectData(dateKey, id, 'task', e.target.value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'task', e.target.value);
+                            else updateDepartmentData(dateKey, id, 'task', e.target.value);
+                          }}
                           placeholder="Task Description"
                           disabled={isFutureDate}
                           className="w-full text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
@@ -1031,8 +1756,13 @@ export default function WeeklyTimeTracker() {
                           step="0.5"
                           min="0"
                           max="24"
-                          value={projectData.availableHours || ''}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'availableHours', parseFloat(e.target.value) || 0)}
+                          value={entryData.availableHours || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (type === 'project') updateProjectData(dateKey, id, 'availableHours', value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'availableHours', value);
+                            else updateDepartmentData(dateKey, id, 'availableHours', value);
+                          }}
                           placeholder="0"
                           disabled={isFutureDate}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
@@ -1044,8 +1774,13 @@ export default function WeeklyTimeTracker() {
                           step="0.5"
                           min="0"
                           max="24"
-                          value={projectData.actualHours || ''}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'actualHours', parseFloat(e.target.value) || 0)}
+                          value={entryData.actualHours || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (type === 'project') updateProjectData(dateKey, id, 'actualHours', value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'actualHours', value);
+                            else updateDepartmentData(dateKey, id, 'actualHours', value);
+                          }}
                           placeholder="0"
                           disabled={isFutureDate}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
@@ -1057,15 +1792,20 @@ export default function WeeklyTimeTracker() {
                           step="0.5"
                           min="0"
                           max="24"
-                          value={projectData.billableHours || ''}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'billableHours', parseFloat(e.target.value) || 0)}
+                          value={entryData.billableHours || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (type === 'project') updateProjectData(dateKey, id, 'billableHours', value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'billableHours', value);
+                            else updateDepartmentData(dateKey, id, 'billableHours', value);
+                          }}
                           placeholder="0"
-                          disabled={!project.isBillable || isFutureDate}
-                          className={`w-20 text-xs h-8 ${!project.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
+                          disabled={!data.isBillable || isFutureDate}
+                          className={`w-20 text-xs h-8 ${!data.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
                         />
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        {index === 0 ? (
+                        {isFirstEntry ? (
                           <div className="flex flex-col items-center">
                             <span className={`text-xs font-medium ${statusIndicator.color}`}>
                               {statusIndicator.text}
@@ -1100,7 +1840,7 @@ export default function WeeklyTimeTracker() {
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-800">
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Date</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Project Details</th>
+                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Entry Details</th>
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Task</th>
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Available Hours</th>
                 <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Actual Hours</th>
@@ -1115,7 +1855,6 @@ export default function WeeklyTimeTracker() {
                 const statusData = currentUser ? getTimeEntryStatusForDate(format(currentDate, 'yyyy-MM-dd'), currentUser.id) : null;
                 const isFutureDate = isFuture(currentDate) && !isToday(currentDate);
                 const dateKey = format(currentDate, 'yyyy-MM-dd');
-                const selectedProjectIds = selectedProjects[dateKey] || [];
 
                 // Get status indicator
                 const getStatusIndicator = () => {
@@ -1159,8 +1898,65 @@ export default function WeeklyTimeTracker() {
 
                 const statusIndicator = getStatusIndicator();
 
-                // If no projects selected for this date, show a row with project selection
-                if (selectedProjectIds.length === 0) {
+                // Create all entries for this date
+                const allEntries = [];
+
+                // Add all projects
+                projects.forEach((project, index) => {
+                  const projectData = monthlyData[dateKey]?.[project.id] || {
+                    task: '',
+                    availableHours: 0,
+                    actualHours: 0,
+                    billableHours: 0
+                  };
+
+                  allEntries.push({
+                    type: 'project',
+                    id: project.id,
+                    data: project,
+                    entryData: projectData,
+                    index
+                  });
+                });
+
+                // Add all products
+                products.forEach((product, index) => {
+                  const productData = monthlyData[dateKey]?.[product.id] || {
+                    task: '',
+                    availableHours: 0,
+                    actualHours: 0,
+                    billableHours: 0
+                  };
+
+                  allEntries.push({
+                    type: 'product',
+                    id: product.id,
+                    data: product,
+                    entryData: productData,
+                    index
+                  });
+                });
+
+                // Add all departments
+                departments.forEach((department, index) => {
+                  const departmentData = monthlyData[dateKey]?.[department.id] || {
+                    task: '',
+                    availableHours: 0,
+                    actualHours: 0,
+                    billableHours: 0
+                  };
+
+                  allEntries.push({
+                    type: 'department',
+                    id: department.id,
+                    data: department,
+                    entryData: departmentData,
+                    index
+                  });
+                });
+
+                // If no entries exist, show a message
+                if (allEntries.length === 0) {
                   return [
                     <tr key={currentDate.toString()} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
@@ -1170,21 +1966,7 @@ export default function WeeklyTimeTracker() {
                         </div>
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <Select
-                          onValueChange={(projectId) => addProjectToDate(dateKey, projectId)}
-                          disabled={isFutureDate}
-                        >
-                          <SelectTrigger className="w-full text-xs h-8">
-                            <SelectValue placeholder="Select project" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {projects.map(project => (
-                              <SelectItem key={project.id} value={project.id}>
-                                {project.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <span className="text-gray-500 dark:text-gray-400">No projects, products, or departments available</span>
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
@@ -1212,22 +1994,15 @@ export default function WeeklyTimeTracker() {
                   ];
                 }
 
-                // Show rows for each selected project
-                return selectedProjectIds.map((projectId, index) => {
-                  const project = projects.find(p => p.id === projectId);
-                  const projectData = monthlyData[dateKey]?.[projectId] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  if (!project) return null;
+                // Show rows for each entry
+                return allEntries.map((entry, entryIndex) => {
+                  const { type, id, data, entryData } = entry;
+                  const isFirstEntry = entryIndex === 0;
 
                   return (
-                    <tr key={`${dateKey}-${projectId}`} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
+                    <tr key={`${dateKey}-${type}-${id}`} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
-                        {index === 0 ? (
+                        {isFirstEntry ? (
                           <div className="flex flex-col items-center">
                             <span className="text-sm">{day}</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</span>
@@ -1235,44 +2010,23 @@ export default function WeeklyTimeTracker() {
                         ) : null}
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-blue-800 dark:text-blue-200">
-                            {project.name}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeProjectFromDate(dateKey, projectId)}
-                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                          >
-                            ×
-                          </Button>
-                        </div>
-                        {index === selectedProjectIds.length - 1 && (
-                          <Select
-                            onValueChange={(newProjectId) => addProjectToDate(dateKey, newProjectId)}
-                            disabled={isFutureDate}
-                          >
-                            <SelectTrigger className="w-full text-xs h-6 mt-1">
-                              <SelectValue placeholder="+ Add project" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {projects
-                                .filter(p => !selectedProjectIds.includes(p.id))
-                                .map(project => (
-                                  <SelectItem key={project.id} value={project.id}>
-                                    {project.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          type === 'project' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                          type === 'product' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                          'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                        }`}>
+                          {type === 'project' ? 'Project' : type === 'product' ? 'Product' : 'Department'}: {data.name}
+                        </span>
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
                         <Input
                           type="text"
-                          value={projectData.task}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'task', e.target.value)}
+                          value={entryData.task}
+                          onChange={(e) => {
+                            if (type === 'project') updateProjectData(dateKey, id, 'task', e.target.value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'task', e.target.value);
+                            else updateDepartmentData(dateKey, id, 'task', e.target.value);
+                          }}
                           placeholder="Task Description"
                           disabled={isFutureDate}
                           className="w-full text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
@@ -1284,8 +2038,13 @@ export default function WeeklyTimeTracker() {
                           step="0.5"
                           min="0"
                           max="24"
-                          value={projectData.availableHours || ''}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'availableHours', parseFloat(e.target.value) || 0)}
+                          value={entryData.availableHours || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (type === 'project') updateProjectData(dateKey, id, 'availableHours', value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'availableHours', value);
+                            else updateDepartmentData(dateKey, id, 'availableHours', value);
+                          }}
                           placeholder="0"
                           disabled={isFutureDate}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
@@ -1297,8 +2056,13 @@ export default function WeeklyTimeTracker() {
                           step="0.5"
                           min="0"
                           max="24"
-                          value={projectData.actualHours || ''}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'actualHours', parseFloat(e.target.value) || 0)}
+                          value={entryData.actualHours || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (type === 'project') updateProjectData(dateKey, id, 'actualHours', value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'actualHours', value);
+                            else updateDepartmentData(dateKey, id, 'actualHours', value);
+                          }}
                           placeholder="0"
                           disabled={isFutureDate}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
@@ -1310,15 +2074,20 @@ export default function WeeklyTimeTracker() {
                           step="0.5"
                           min="0"
                           max="24"
-                          value={projectData.billableHours || ''}
-                          onChange={(e) => updateProjectData(dateKey, projectId, 'billableHours', parseFloat(e.target.value) || 0)}
+                          value={entryData.billableHours || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            if (type === 'project') updateProjectData(dateKey, id, 'billableHours', value);
+                            else if (type === 'product') updateProductData(dateKey, id, 'billableHours', value);
+                            else updateDepartmentData(dateKey, id, 'billableHours', value);
+                          }}
                           placeholder="0"
-                          disabled={!project.isBillable || isFutureDate}
-                          className={`w-20 text-xs h-8 ${!project.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
+                          disabled={!data.isBillable || isFutureDate}
+                          className={`w-20 text-xs h-8 ${!data.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
                         />
                       </td>
                       <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        {index === 0 ? (
+                        {isFirstEntry ? (
                           <div className="flex flex-col items-center">
                             <span className={`text-xs font-medium ${statusIndicator.color}`}>
                               {statusIndicator.text}

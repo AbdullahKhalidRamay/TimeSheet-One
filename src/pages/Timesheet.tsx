@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon, Search } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser, getAllUsers } from "@/lib/auth";
-import { getTimeEntries, deleteTimeEntry, getProjects } from "@/services/storage";
+import { getTimeEntries, deleteTimeEntry, getProjects, getProducts, getDepartments } from "@/services/storage";
 import { TimeEntry, rolePermissions } from "@/validation/index";
 import { useNavigate } from "react-router-dom";
 import EditSingleTimeEntryForm from "@/components/users/EditSingleTimeEntryForm";
@@ -47,6 +47,8 @@ export default function Timesheet() {
   const navigate = useNavigate();
   const users = getAllUsers();
   const projects = getProjects();
+  const products = getProducts();
+  const departments = getDepartments();
 
   const loadTimeEntries = useCallback(() => {
     const allEntries = getTimeEntries();
@@ -109,7 +111,10 @@ export default function Timesheet() {
     const matchesBillable = billableFilter === 'all' || 
       (billableFilter === 'billable' && entry.isBillable) ||
       (billableFilter === 'non-billable' && !entry.isBillable);
-    const matchesProject = projectFilter === 'all' || entry.projectDetails.name === projects.find(p => p.id === projectFilter)?.name;
+    const matchesProject = projectFilter === 'all' || 
+      (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
+      (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
+      (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
 
     return matchesSearch && matchesStatus && matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
   });
@@ -120,7 +125,10 @@ export default function Timesheet() {
     const matchesBillable = billableFilter === 'all' || 
       (billableFilter === 'billable' && entry.isBillable) ||
       (billableFilter === 'non-billable' && !entry.isBillable);
-    const matchesProject = projectFilter === 'all' || entry.projectDetails.name === projects.find(p => p.id === projectFilter)?.name;
+    const matchesProject = projectFilter === 'all' || 
+      (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
+      (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
+      (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
     
     const entryDate = new Date(entry.date);
     let matchesDateFilter = true;
@@ -499,16 +507,28 @@ export default function Timesheet() {
               </div>
             )}
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Project:</span>
+              <span className="text-sm font-medium">Project/Product/Department:</span>
               <Select value={projectFilter} onValueChange={setProjectFilter}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
-                  {projects.map(project => (
-                    <SelectItem value={project.id} key={project.id}>{project.name}</SelectItem>
-                  ))}
+                  <SelectItem value="all">All Items</SelectItem>
+                  <optgroup label="Projects">
+                    {projects.map(project => (
+                      <SelectItem value={`project-${project.id}`} key={`project-${project.id}`}>{project.name}</SelectItem>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Products">
+                    {products.map(product => (
+                      <SelectItem value={`product-${product.id}`} key={`product-${product.id}`}>{product.name}</SelectItem>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Departments">
+                    {departments.map(department => (
+                      <SelectItem value={`department-${department.id}`} key={`department-${department.id}`}>{department.name}</SelectItem>
+                    ))}
+                  </optgroup>
                 </SelectContent>
               </Select>
             </div>
@@ -563,9 +583,31 @@ export default function Timesheet() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{entry.projectDetails.name}</div>
+                        <div className="flex items-center space-x-2">
+                          <div className="font-medium">{entry.projectDetails.name}</div>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            entry.projectDetails.category === 'project' 
+                              ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                              : entry.projectDetails.category === 'product'
+                              ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                              : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                          }`}>
+                            {entry.projectDetails.category.charAt(0).toUpperCase() + entry.projectDetails.category.slice(1)}
+                          </span>
+                        </div>
                         <div className="text-sm text-muted-foreground">
-                          {entry.projectDetails.category} - {entry.projectDetails.task}
+                          {entry.projectDetails.category === 'project' && entry.projectDetails.level && (
+                            <span>Level: {entry.projectDetails.level}</span>
+                          )}
+                          {entry.projectDetails.category === 'product' && entry.projectDetails.stage && (
+                            <span>Stage: {entry.projectDetails.stage}</span>
+                          )}
+                          {entry.projectDetails.category === 'department' && entry.projectDetails.function && (
+                            <span>Function: {entry.projectDetails.function}</span>
+                          )}
+                          {entry.projectDetails.task && (
+                            <span className="ml-2">• {entry.projectDetails.task}</span>
+                          )}
                         </div>
                       </div>
                     </TableCell>
