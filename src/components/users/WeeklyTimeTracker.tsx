@@ -142,15 +142,15 @@ export default function WeeklyTimeTracker() {
 
   // Ensure data loads when component mounts and data is available
   useEffect(() => {
-    console.log('WeeklyTimeTracker: Checking data availability', {
-      currentUser: currentUser?.id,
-      projectsLength: projects.length,
-      productsLength: products.length,
-      departmentsLength: departments.length
-    });
+    // console.log('WeeklyTimeTracker: Checking data availability', {
+    //   currentUser: currentUser?.id,
+    //   projectsLength: projects.length,
+    //   productsLength: products.length,
+    //   departmentsLength: departments.length
+    // });
     
     if (currentUser && projects.length > 0 && products.length > 0 && departments.length > 0) {
-      console.log('WeeklyTimeTracker: All data available, loading entries');
+      // console.log('WeeklyTimeTracker: All data available, loading entries');
       loadExistingEntries();
     }
   }, [currentUser, projects.length, products.length, departments.length]);
@@ -163,13 +163,13 @@ export default function WeeklyTimeTracker() {
     const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
     
-    console.log('WeeklyTimeTracker: loadExistingEntries called', {
-      currentUser: currentUser.id,
-      allEntriesCount: allEntries.length,
-      weekStart,
-      weekEnd,
-      selectedWeek
-    });
+    // console.log('WeeklyTimeTracker: loadExistingEntries called', {
+    //   currentUser: currentUser.id,
+    //   allEntriesCount: allEntries.length,
+    //   weekStart,
+    //   weekEnd,
+    //   selectedWeek
+    // });
     
     const newWeeklyData: ProjectWeekData = {};
     const newProductWeeklyData: ProductWeekData = {};
@@ -181,15 +181,15 @@ export default function WeeklyTimeTracker() {
       if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
         const dayKey = format(entryDate, 'yyyy-MM-dd');
 
-        console.log('Processing entry:', {
-          date: entry.date,
-          dayKey,
-          category: entry.projectDetails?.category,
-          name: entry.projectDetails?.name,
-          task: entry.task,
-          billableHours: entry.billableHours,
-          actualHours: entry.actualHours
-        });
+        // console.log('Processing entry:', {
+        //   date: entry.date,
+        //   dayKey,
+        //   category: entry.projectDetails?.category,
+        //   name: entry.projectDetails?.name,
+        //   task: entry.task,
+        //   billableHours: entry.billableHours,
+        //   actualHours: entry.actualHours
+        // });
         
         // Load hours data based on category
         if (entry.projectDetails?.category === 'project') {
@@ -204,9 +204,9 @@ export default function WeeklyTimeTracker() {
               actual: entry.actualHours,
               task: entry.projectDetails.task || entry.task || ''
             };
-            console.log('Loaded project data:', { projectId: project.id, projectName: project.name, dayKey, data: newWeeklyData[project.id][dayKey] });
+            // console.log('Loaded project data:', { projectId: project.id, projectName: project.name, dayKey, data: newWeeklyData[project.id][dayKey] });
           } else {
-            console.log('Project not found:', entry.projectDetails.name);
+            // console.log('Project not found:', entry.projectDetails.name);
           }
         } else if (entry.projectDetails?.category === 'product') {
           // Try to find product by name
@@ -220,9 +220,9 @@ export default function WeeklyTimeTracker() {
               actual: entry.actualHours,
               task: entry.projectDetails.task || entry.task || ''
             };
-            console.log('Loaded product data:', { productId: product.id, productName: product.name, dayKey, data: newProductWeeklyData[product.id][dayKey] });
+            // console.log('Loaded product data:', { productId: product.id, productName: product.name, dayKey, data: newProductWeeklyData[product.id][dayKey] });
           } else {
-            console.log('Product not found:', entry.projectDetails.name);
+            // console.log('Product not found:', entry.projectDetails.name);
           }
         } else if (entry.projectDetails?.category === 'department') {
           // Try to find department by name
@@ -236,9 +236,9 @@ export default function WeeklyTimeTracker() {
               actual: entry.actualHours,
               task: entry.projectDetails.task || entry.task || ''
             };
-            console.log('Loaded department data:', { departmentId: department.id, departmentName: department.name, dayKey, data: newDepartmentWeeklyData[department.id][dayKey] });
+            // console.log('Loaded department data:', { departmentId: department.id, departmentName: department.name, dayKey, data: newDepartmentWeeklyData[department.id][dayKey] });
           } else {
-            console.log('Department not found:', entry.projectDetails.name);
+            // console.log('Department not found:', entry.projectDetails.name);
           }
         }
         
@@ -249,12 +249,12 @@ export default function WeeklyTimeTracker() {
       }
     });
     
-    console.log('Final loaded data:', {
-      projects: Object.keys(newWeeklyData).length,
-      products: Object.keys(newProductWeeklyData).length,
-      departments: Object.keys(newDepartmentWeeklyData).length,
-      descriptions: Object.keys(newDailyDescriptions).length
-    });
+    // console.log('Final loaded data:', {
+    //   projects: Object.keys(newWeeklyData).length,
+    //   products: Object.keys(newProductWeeklyData).length,
+    //   departments: Object.keys(newDepartmentWeeklyData).length,
+    //   descriptions: Object.keys(newDailyDescriptions).length
+    // });
     
     setWeeklyData(newWeeklyData);
     setProductWeeklyData(newProductWeeklyData);
@@ -554,7 +554,7 @@ export default function WeeklyTimeTracker() {
     });
     
     if (result) {
-      console.log('hasEntryForProjectAndDate found entry:', { projectId, dayKey, projectType, result });
+      // console.log('hasEntryForProjectAndDate found entry:', { projectId, dayKey, projectType, result });
     }
     
     return result;
@@ -932,7 +932,7 @@ export default function WeeklyTimeTracker() {
       const allEntries = getTimeEntries();
       const monthlyDates = getMonthlyDates();
       
-      console.log('Loading monthly data:', { currentViewMode, monthlyDates: monthlyDates.length, allEntries: allEntries.length });
+      // console.log('Loading monthly data:', { currentViewMode, monthlyDates: monthlyDates.length, allEntries: allEntries.length });
       
       setMonthlyData((prevData) => {
         const updatedData = { ...prevData };
@@ -943,7 +943,7 @@ export default function WeeklyTimeTracker() {
             entry.date === dateKey && entry.userId === currentUser.id
           );
           
-          console.log(`Processing date ${dateKey}:`, { dayEntries: dayEntries.length });
+          // console.log(`Processing date ${dateKey}:`, { dayEntries: dayEntries.length });
           
           dayEntries.forEach(entry => {
             if (entry.projectDetails?.category === 'project') {
@@ -955,7 +955,7 @@ export default function WeeklyTimeTracker() {
                   actualHours: entry.actualHours || 0,
                   billableHours: entry.billableHours || 0,
                 };
-                console.log('Updated monthly project data:', { dateKey, projectId, data: updatedData[dateKey][projectId] });
+                // console.log('Updated monthly project data:', { dateKey, projectId, data: updatedData[dateKey][projectId] });
               }
             } else if (entry.projectDetails?.category === 'product') {
               const productId = products.find(p => p.name === entry.projectDetails.name)?.id;
@@ -966,7 +966,7 @@ export default function WeeklyTimeTracker() {
                   actualHours: entry.actualHours || 0,
                   billableHours: entry.billableHours || 0,
                 };
-                console.log('Updated monthly product data:', { dateKey, productId, data: updatedData[dateKey][productId] });
+                // console.log('Updated monthly product data:', { dateKey, productId, data: updatedData[dateKey][productId] });
               }
             } else if (entry.projectDetails?.category === 'department') {
               const departmentId = departments.find(d => d.name === entry.projectDetails.name)?.id;
@@ -977,13 +977,13 @@ export default function WeeklyTimeTracker() {
                   actualHours: entry.actualHours || 0,
                   billableHours: entry.billableHours || 0,
                 };
-                console.log('Updated monthly department data:', { dateKey, departmentId, data: updatedData[dateKey][departmentId] });
+                // console.log('Updated monthly department data:', { dateKey, departmentId, data: updatedData[dateKey][departmentId] });
               }
             }
           });
         });
         
-        console.log('Final monthly data:', updatedData);
+        // console.log('Final monthly data:', updatedData);
         return updatedData;
       });
     }
@@ -1320,17 +1320,17 @@ export default function WeeklyTimeTracker() {
     }
   };
 
-  // Debug: Monitor data changes
-  useEffect(() => {
-    console.log('WeeklyTimeTracker: Data changed', {
-      weeklyDataKeys: Object.keys(weeklyData),
-      productWeeklyDataKeys: Object.keys(productWeeklyData),
-      departmentWeeklyDataKeys: Object.keys(departmentWeeklyData),
-      weeklyData,
-      productWeeklyData,
-      departmentWeeklyData
-    });
-  }, [weeklyData, productWeeklyData, departmentWeeklyData]);
+  // Debug: Monitor data changes - Commented out to prevent console log loops
+  // useEffect(() => {
+  //   console.log('WeeklyTimeTracker: Data changed', {
+  //     weeklyDataKeys: Object.keys(weeklyData),
+  //     productWeeklyDataKeys: Object.keys(productWeeklyData),
+  //     departmentWeeklyDataKeys: Object.keys(departmentWeeklyData),
+  //     weeklyData,
+  //     productWeeklyData,
+  //     departmentWeeklyData
+  //   });
+  // }, [weeklyData, productWeeklyData, departmentWeeklyData]);
 
   return (
     <div className="space-y-6">
@@ -1629,15 +1629,15 @@ export default function WeeklyTimeTracker() {
                     const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                     
                     // Debug logging for data display
-                    if (hours.billable > 0 || hours.actual > 0) {
-                      console.log('Weekly view - Project data:', { 
-                        projectId: project.id, 
-                        projectName: project.name, 
-                        dayKey, 
-                        hours, 
-                        hasExistingEntry 
-                      });
-                    }
+                    // if (hours.billable > 0 || hours.actual > 0) {
+                    //   console.log('Weekly view - Project data:', { 
+                    //     projectId: project.id, 
+                    //     projectName: project.name, 
+                    //     dayKey, 
+                    //     hours, 
+                    //     hasExistingEntry 
+                    //   });
+                    // }
                     
                     return (
                       <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
