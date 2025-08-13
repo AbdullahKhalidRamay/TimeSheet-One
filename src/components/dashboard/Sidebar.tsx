@@ -12,11 +12,18 @@ import {
   Settings,
   LogOut,
   User,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
+
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
 
 const navigation = [
   {
@@ -63,7 +70,7 @@ const navigation = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
@@ -96,41 +103,59 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 flex flex-col bg-sidebar-background border-r border-sidebar-border animate-fade-in">
+    <aside className={cn(
+      "fixed left-0 top-0 z-40 h-screen flex flex-col bg-sidebar-background border-r border-sidebar-border animate-fade-in transition-all duration-300",
+      collapsed ? "w-16" : "w-64"
+    )}>
       {/* Header */}
-      <div className="p-6">
+      <div className={cn("flex items-center justify-between relative", collapsed ? "p-2" : "p-6")}>
         <div className="flex items-center space-x-2">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-primary text-primary-foreground animate-float">
             <Clock className="h-4 w-4" />
           </div>
-          <span className="text-subheading font-bold bg-gradient-primary bg-clip-text text-transparent">Timeflow</span>
+          {!collapsed && (
+            <span className="text-subheading font-bold bg-gradient-primary bg-clip-text text-transparent">Timeflow</span>
+          )}
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            onToggle?.();
+          }}
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-sidebar-accent/50 z-50 bg-sidebar-background border-2 border-sidebar-border shadow-lg hover:shadow-xl transition-all duration-200"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
       </div>
 
       <Separator />
 
       {/* User Info */}
-      <div className="p-4">
+      <div className={collapsed ? "p-2" : "p-4"}>
         <div className="card-glass rounded-lg p-3 hover-scale">
           <div className="flex items-center space-x-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground">
               <User className="h-5 w-5" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-sidebar-foreground">{currentUser.name}</p>
-              <div className="flex items-center space-x-2">
-                <span 
-                  className={cn(
-                    "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border animate-pulse-glow",
-                    currentUser.role === 'owner' && 'role-owner',
-                    currentUser.role === 'manager' && 'role-manager', 
-                    currentUser.role === 'employee' && 'role-employee'
-                  )}
-                >
-                  {getJobTitleLabel(currentUser.jobTitle)}
-                </span>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate text-sidebar-foreground">{currentUser.name}</p>
+                <div className="flex items-center space-x-2">
+                  <span 
+                    className={cn(
+                      "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border animate-pulse-glow",
+                      currentUser.role === 'owner' && 'role-owner',
+                      currentUser.role === 'manager' && 'role-manager', 
+                      currentUser.role === 'employee' && 'role-employee'
+                    )}
+                  >
+                    {getJobTitleLabel(currentUser.jobTitle)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -147,14 +172,16 @@ export default function Sidebar() {
                 key={item.name}
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start hover-scale hover-glow transition-all duration-200",
+                  "w-full hover-scale hover-glow transition-all duration-200",
+                  collapsed ? "justify-center px-2" : "justify-start",
                   isActive && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
                   !isActive && "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                 )}
                 onClick={() => navigate(item.href)}
+                title={collapsed ? item.name : undefined}
               >
-                <item.icon className="mr-3 h-4 w-4" />
-                {item.name}
+                <item.icon className={cn("h-4 w-4", !collapsed && "mr-3")} />
+                {!collapsed && item.name}
               </Button>
             );
           })}
@@ -164,14 +191,18 @@ export default function Sidebar() {
       <Separator />
 
       {/* Footer */}
-      <div className="p-4">
+      <div className={collapsed ? "p-2" : "p-4"}>
         <Button
           variant="ghost"
-          className="w-full justify-start text-sidebar-foreground hover:text-destructive hover-scale hover-glow transition-all duration-200"
+          className={cn(
+            "w-full text-sidebar-foreground hover:text-destructive hover-scale hover-glow transition-all duration-200",
+            collapsed ? "justify-center px-2" : "justify-start"
+          )}
           onClick={handleLogout}
+          title={collapsed ? "Logout" : undefined}
         >
-          <LogOut className="mr-3 h-4 w-4" />
-          Logout
+          <LogOut className={cn("h-4 w-4", !collapsed && "mr-3")} />
+          {!collapsed && "Logout"}
         </Button>
       </div>
     </aside>

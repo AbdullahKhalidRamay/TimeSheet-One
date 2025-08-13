@@ -22,6 +22,7 @@ import { Project, Product, Department, TimeEntry, ProjectDetail } from "@/valida
 interface WeeklyHours {
   billable: number;
   actual: number;
+  task?: string;
 }
 
 interface ProjectWeekData {
@@ -139,6 +140,21 @@ export default function WeeklyTimeTracker() {
     }
   }, [currentUser]);
 
+  // Ensure data loads when component mounts and data is available
+  useEffect(() => {
+    console.log('WeeklyTimeTracker: Checking data availability', {
+      currentUser: currentUser?.id,
+      projectsLength: projects.length,
+      productsLength: products.length,
+      departmentsLength: departments.length
+    });
+    
+    if (currentUser && projects.length > 0 && products.length > 0 && departments.length > 0) {
+      console.log('WeeklyTimeTracker: All data available, loading entries');
+      loadExistingEntries();
+    }
+  }, [currentUser, projects.length, products.length, departments.length]);
+
   // Load existing time entries for the current week
   const loadExistingEntries = useCallback(() => {
     if (!currentUser) return;
@@ -147,54 +163,82 @@ export default function WeeklyTimeTracker() {
     const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
     
+    console.log('WeeklyTimeTracker: loadExistingEntries called', {
+      currentUser: currentUser.id,
+      allEntriesCount: allEntries.length,
+      weekStart,
+      weekEnd,
+      selectedWeek
+    });
+    
     const newWeeklyData: ProjectWeekData = {};
     const newProductWeeklyData: ProductWeekData = {};
     const newDepartmentWeeklyData: DepartmentWeekData = {};
     const newDailyDescriptions: DailyDescription = {};
     
-    // Initialize with existing data to preserve any unsaved changes
-    Object.assign(newWeeklyData, weeklyData);
-    Object.assign(newProductWeeklyData, productWeeklyData);
-    Object.assign(newDepartmentWeeklyData, departmentWeeklyData);
-    
     allEntries.forEach(entry => {
       const entryDate = new Date(entry.date);
       if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
         const dayKey = format(entryDate, 'yyyy-MM-dd');
+
+        console.log('Processing entry:', {
+          date: entry.date,
+          dayKey,
+          category: entry.projectDetails?.category,
+          name: entry.projectDetails?.name,
+          task: entry.task,
+          billableHours: entry.billableHours,
+          actualHours: entry.actualHours
+        });
         
         // Load hours data based on category
         if (entry.projectDetails?.category === 'project') {
-          const projectId = projects.find(p => p.name === entry.projectDetails.name)?.id;
-          if (projectId) {
-            if (!newWeeklyData[projectId]) {
-              newWeeklyData[projectId] = {};
+          // Try to find project by name
+          const project = projects.find(p => p.name === entry.projectDetails.name);
+          if (project) {
+            if (!newWeeklyData[project.id]) {
+              newWeeklyData[project.id] = {};
             }
-            newWeeklyData[projectId][dayKey] = {
+            newWeeklyData[project.id][dayKey] = {
               billable: entry.billableHours,
-              actual: entry.actualHours
+              actual: entry.actualHours,
+              task: entry.projectDetails.task || entry.task || ''
             };
+            console.log('Loaded project data:', { projectId: project.id, projectName: project.name, dayKey, data: newWeeklyData[project.id][dayKey] });
+          } else {
+            console.log('Project not found:', entry.projectDetails.name);
           }
         } else if (entry.projectDetails?.category === 'product') {
-          const productId = products.find(p => p.name === entry.projectDetails.name)?.id;
-          if (productId) {
-            if (!newProductWeeklyData[productId]) {
-              newProductWeeklyData[productId] = {};
+          // Try to find product by name
+          const product = products.find(p => p.name === entry.projectDetails.name);
+          if (product) {
+            if (!newProductWeeklyData[product.id]) {
+              newProductWeeklyData[product.id] = {};
             }
-            newProductWeeklyData[productId][dayKey] = {
+            newProductWeeklyData[product.id][dayKey] = {
               billable: entry.billableHours,
-              actual: entry.actualHours
+              actual: entry.actualHours,
+              task: entry.projectDetails.task || entry.task || ''
             };
+            console.log('Loaded product data:', { productId: product.id, productName: product.name, dayKey, data: newProductWeeklyData[product.id][dayKey] });
+          } else {
+            console.log('Product not found:', entry.projectDetails.name);
           }
         } else if (entry.projectDetails?.category === 'department') {
-          const departmentId = departments.find(d => d.name === entry.projectDetails.name)?.id;
-          if (departmentId) {
-            if (!newDepartmentWeeklyData[departmentId]) {
-              newDepartmentWeeklyData[departmentId] = {};
+          // Try to find department by name
+          const department = departments.find(d => d.name === entry.projectDetails.name);
+          if (department) {
+            if (!newDepartmentWeeklyData[department.id]) {
+              newDepartmentWeeklyData[department.id] = {};
             }
-            newDepartmentWeeklyData[departmentId][dayKey] = {
+            newDepartmentWeeklyData[department.id][dayKey] = {
               billable: entry.billableHours,
-              actual: entry.actualHours
+              actual: entry.actualHours,
+              task: entry.projectDetails.task || entry.task || ''
             };
+            console.log('Loaded department data:', { departmentId: department.id, departmentName: department.name, dayKey, data: newDepartmentWeeklyData[department.id][dayKey] });
+          } else {
+            console.log('Department not found:', entry.projectDetails.name);
           }
         }
         
@@ -205,18 +249,27 @@ export default function WeeklyTimeTracker() {
       }
     });
     
+    console.log('Final loaded data:', {
+      projects: Object.keys(newWeeklyData).length,
+      products: Object.keys(newProductWeeklyData).length,
+      departments: Object.keys(newDepartmentWeeklyData).length,
+      descriptions: Object.keys(newDailyDescriptions).length
+    });
+    
     setWeeklyData(newWeeklyData);
     setProductWeeklyData(newProductWeeklyData);
     setDepartmentWeeklyData(newDepartmentWeeklyData);
     setDailyDescriptions(newDailyDescriptions);
-  }, [currentUser, selectedWeek, projects, products, departments, weeklyData, productWeeklyData, departmentWeeklyData]);
+  }, [currentUser, selectedWeek, projects, products, departments]);
 
   // Load existing entries when week changes or projects/products/departments are loaded
   useEffect(() => {
-    if (projects.length > 0 && products.length > 0 && departments.length > 0) {
+    if (projects.length > 0 && products.length > 0 && departments.length > 0 && currentUser) {
       loadExistingEntries();
     }
-  }, [projects, products, departments, selectedWeek, loadExistingEntries]);
+  }, [currentUser, selectedWeek, projects.length, products.length, departments.length]);
+
+
 
   // Initialize weekly data when projects/products/departments or week changes, but preserve existing data
   useEffect(() => {
@@ -234,7 +287,8 @@ export default function WeeklyTimeTracker() {
             if (!newData[project.id][dayKey]) {
               newData[project.id][dayKey] = {
                 billable: 0,
-                actual: 0
+                actual: 0,
+                task: ''
               };
             }
           }
@@ -258,7 +312,8 @@ export default function WeeklyTimeTracker() {
             if (!newData[product.id][dayKey]) {
               newData[product.id][dayKey] = {
                 billable: 0,
-                actual: 0
+                actual: 0,
+                task: ''
               };
             }
           }
@@ -282,7 +337,8 @@ export default function WeeklyTimeTracker() {
             if (!newData[department.id][dayKey]) {
               newData[department.id][dayKey] = {
                 billable: 0,
-                actual: 0
+                actual: 0,
+                task: ''
               };
             }
           }
@@ -322,7 +378,7 @@ export default function WeeklyTimeTracker() {
       
       // Ensure the day exists for this project
       if (!prev[projectId][dayKey]) {
-        prev[projectId][dayKey] = { billable: 0, actual: 0 };
+        prev[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
       return {
@@ -332,6 +388,31 @@ export default function WeeklyTimeTracker() {
           [dayKey]: {
             ...prev[projectId][dayKey],
             [type]: value
+          }
+        }
+      };
+    });
+  };
+  
+  const updateProjectData = (dayKey: string, projectId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
+    setWeeklyData(prev => {
+      // Ensure the project exists in the data
+      if (!prev[projectId]) {
+        prev[projectId] = {};
+      }
+      
+      // Ensure the day exists for this project
+      if (!prev[projectId][dayKey]) {
+        prev[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      return {
+        ...prev,
+        [projectId]: {
+          ...prev[projectId],
+          [dayKey]: {
+            ...prev[projectId][dayKey],
+            [field]: value
           }
         }
       };
@@ -347,7 +428,7 @@ export default function WeeklyTimeTracker() {
       
       // Ensure the day exists for this product
       if (!prev[productId][dayKey]) {
-        prev[productId][dayKey] = { billable: 0, actual: 0 };
+        prev[productId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
       return {
@@ -357,6 +438,31 @@ export default function WeeklyTimeTracker() {
           [dayKey]: {
             ...prev[productId][dayKey],
             [type]: value
+          }
+        }
+      };
+    });
+  };
+  
+  const updateProductData = (dayKey: string, productId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
+    setProductWeeklyData(prev => {
+      // Ensure the product exists in the data
+      if (!prev[productId]) {
+        prev[productId] = {};
+      }
+      
+      // Ensure the day exists for this product
+      if (!prev[productId][dayKey]) {
+        prev[productId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      return {
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          [dayKey]: {
+            ...prev[productId][dayKey],
+            [field]: value
           }
         }
       };
@@ -372,7 +478,7 @@ export default function WeeklyTimeTracker() {
       
       // Ensure the day exists for this department
       if (!prev[departmentId][dayKey]) {
-        prev[departmentId][dayKey] = { billable: 0, actual: 0 };
+        prev[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
       return {
@@ -387,7 +493,73 @@ export default function WeeklyTimeTracker() {
       };
     });
   };
+  
+  const updateDepartmentData = (dayKey: string, departmentId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
+    setDepartmentWeeklyData(prev => {
+      // Ensure the department exists in the data
+      if (!prev[departmentId]) {
+        prev[departmentId] = {};
+      }
+      
+      // Ensure the day exists for this department
+      if (!prev[departmentId][dayKey]) {
+        prev[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      return {
+        ...prev,
+        [departmentId]: {
+          ...prev[departmentId],
+          [dayKey]: {
+            ...prev[departmentId][dayKey],
+            [field]: value
+          }
+        }
+      };
+    });
+  };
 
+  // Function to get existing task description for the selected project and date
+  const getExistingTaskDescription = () => {
+    if (!selectedProject || !selectedDateForQuickTask) return '';
+    
+    const dayKey = format(selectedDateForQuickTask, 'yyyy-MM-dd');
+    
+    // Check for existing description based on project type
+    if ('stages' in selectedProject) { // Project
+      return weeklyData[selectedProject.id]?.[dayKey]?.task || '';
+    } else if ('productStages' in selectedProject) { // Product
+      return productWeeklyData[selectedProject.id]?.[dayKey]?.task || '';
+    } else if ('functions' in selectedProject) { // Department
+      return departmentWeeklyData[selectedProject.id]?.[dayKey]?.task || '';
+    }
+    
+    return '';
+  };
+
+  // Function to check if an entry exists for a specific project and date
+  const hasEntryForProjectAndDate = (projectId: string, dayKey: string, projectType: 'project' | 'product' | 'department') => {
+    const allEntries = getTimeEntries();
+    const result = allEntries.some(entry => {
+      if (entry.date !== dayKey || entry.userId !== currentUser?.id) return false;
+      
+      if (projectType === 'project') {
+        return entry.projectDetails.category === 'project' && entry.projectDetails.name === projects.find(p => p.id === projectId)?.name;
+      } else if (projectType === 'product') {
+        return entry.projectDetails.category === 'product' && entry.projectDetails.name === products.find(p => p.id === projectId)?.name;
+      } else if (projectType === 'department') {
+        return entry.projectDetails.category === 'department' && entry.projectDetails.name === departments.find(d => d.id === projectId)?.name;
+      }
+      return false;
+    });
+    
+    if (result) {
+      console.log('hasEntryForProjectAndDate found entry:', { projectId, dayKey, projectType, result });
+    }
+    
+    return result;
+  };
+  
   // Add function to handle date selection for descriptions
   const handleDateSelection = (date: Date) => {
     const dateKey = format(date, 'yyyy-MM-dd');
@@ -525,14 +697,14 @@ export default function WeeklyTimeTracker() {
             billableHours: hours.billable,
             totalHours: hours.actual + hours.billable,
             availableHours: dailyAvailableHours[dayKey] || 0,
-            task: dailyDescriptions[dayKey] || `Weekly entry for ${project.name}`,
+            task: hours.task || dailyDescriptions[dayKey] || `Weekly entry for ${project.name}`,
             projectDetails: {
               category: 'project',
               name: project.name,
               level: '',
-              task: '',
+              task: hours.task || '',
               subtask: '',
-              description: dailyDescriptions[dayKey] || `Weekly time entry for ${project.name}`
+              description: hours.task || dailyDescriptions[dayKey] || `Weekly time entry for ${project.name}`
             } as ProjectDetail,
             isBillable: hours.billable > 0,
             status: 'pending',
@@ -560,14 +732,14 @@ export default function WeeklyTimeTracker() {
             billableHours: hours.billable,
             totalHours: hours.actual + hours.billable,
             availableHours: dailyAvailableHours[dayKey] || 0,
-            task: dailyDescriptions[dayKey] || `Weekly entry for ${product.name}`,
+            task: hours.task || dailyDescriptions[dayKey] || `Weekly entry for ${product.name}`,
             projectDetails: {
               category: 'product',
               name: product.name,
               stage: '',
-              task: '',
+              task: hours.task || '',
               subtask: '',
-              description: dailyDescriptions[dayKey] || `Weekly time entry for ${product.name}`
+              description: hours.task || dailyDescriptions[dayKey] || `Weekly time entry for ${product.name}`
             } as ProjectDetail,
             isBillable: hours.billable > 0,
             status: 'pending',
@@ -595,14 +767,14 @@ export default function WeeklyTimeTracker() {
             billableHours: hours.billable,
             totalHours: hours.actual + hours.billable,
             availableHours: dailyAvailableHours[dayKey] || 0,
-            task: dailyDescriptions[dayKey] || `Weekly entry for ${department.name}`,
+            task: hours.task || dailyDescriptions[dayKey] || `Weekly entry for ${department.name}`,
             projectDetails: {
               category: 'department',
               name: department.name,
               function: '',
-              task: '',
+              task: hours.task || '',
               subtask: '',
-              description: dailyDescriptions[dayKey] || `Weekly time entry for ${department.name}`
+              description: hours.task || dailyDescriptions[dayKey] || `Weekly time entry for ${department.name}`
             } as ProjectDetail,
             isBillable: hours.billable > 0,
             status: 'pending',
@@ -752,10 +924,73 @@ export default function WeeklyTimeTracker() {
         return updatedData;
       });
     }
-  }, [currentViewMode, projects, products, departments, dateRange, getMonthlyDates]);
+  }, [currentViewMode, projects, products, departments, dateRange]);
+
+  // Load existing entries for monthly view
+  useEffect(() => {
+    if (currentViewMode === 'monthly' && currentUser) {
+      const allEntries = getTimeEntries();
+      const monthlyDates = getMonthlyDates();
+      
+      console.log('Loading monthly data:', { currentViewMode, monthlyDates: monthlyDates.length, allEntries: allEntries.length });
+      
+      setMonthlyData((prevData) => {
+        const updatedData = { ...prevData };
+        
+        monthlyDates.forEach((date) => {
+          const dateKey = format(date, 'yyyy-MM-dd');
+          const dayEntries = allEntries.filter(entry => 
+            entry.date === dateKey && entry.userId === currentUser.id
+          );
+          
+          console.log(`Processing date ${dateKey}:`, { dayEntries: dayEntries.length });
+          
+          dayEntries.forEach(entry => {
+            if (entry.projectDetails?.category === 'project') {
+              const projectId = projects.find(p => p.name === entry.projectDetails.name)?.id;
+              if (projectId && updatedData[dateKey]?.[projectId]) {
+                updatedData[dateKey][projectId] = {
+                  task: entry.projectDetails.task || entry.task || '',
+                  availableHours: entry.availableHours || 0,
+                  actualHours: entry.actualHours || 0,
+                  billableHours: entry.billableHours || 0,
+                };
+                console.log('Updated monthly project data:', { dateKey, projectId, data: updatedData[dateKey][projectId] });
+              }
+            } else if (entry.projectDetails?.category === 'product') {
+              const productId = products.find(p => p.name === entry.projectDetails.name)?.id;
+              if (productId && updatedData[dateKey]?.[productId]) {
+                updatedData[dateKey][productId] = {
+                  task: entry.projectDetails.task || entry.task || '',
+                  availableHours: entry.availableHours || 0,
+                  actualHours: entry.actualHours || 0,
+                  billableHours: entry.billableHours || 0,
+                };
+                console.log('Updated monthly product data:', { dateKey, productId, data: updatedData[dateKey][productId] });
+              }
+            } else if (entry.projectDetails?.category === 'department') {
+              const departmentId = departments.find(d => d.name === entry.projectDetails.name)?.id;
+              if (departmentId && updatedData[dateKey]?.[departmentId]) {
+                updatedData[dateKey][departmentId] = {
+                  task: entry.projectDetails.task || entry.task || '',
+                  availableHours: entry.availableHours || 0,
+                  actualHours: entry.actualHours || 0,
+                  billableHours: entry.billableHours || 0,
+                };
+                console.log('Updated monthly department data:', { dateKey, departmentId, data: updatedData[dateKey][departmentId] });
+              }
+            }
+          });
+        });
+        
+        console.log('Final monthly data:', updatedData);
+        return updatedData;
+      });
+    }
+  }, [currentViewMode, currentUser, projects, products, departments, dateRange]);
 
   // Monthly view helper functions
-  const updateProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: string | number) => {
+  const updateMonthlyProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: string | number) => {
     setMonthlyData(prevData => ({
       ...prevData,
       [dateKey]: {
@@ -774,7 +1009,7 @@ export default function WeeklyTimeTracker() {
     }));
   };
 
-  const updateProductData = (dateKey: string, productId: string, field: keyof DailyProductData, value: string | number) => {
+  const updateMonthlyProductData = (dateKey: string, productId: string, field: keyof DailyProductData, value: string | number) => {
     setMonthlyData(prevData => ({
       ...prevData,
       [dateKey]: {
@@ -793,7 +1028,7 @@ export default function WeeklyTimeTracker() {
     }));
   };
 
-  const updateDepartmentData = (dateKey: string, departmentId: string, field: keyof DailyDepartmentData, value: string | number) => {
+  const updateMonthlyDepartmentData = (dateKey: string, departmentId: string, field: keyof DailyDepartmentData, value: string | number) => {
     setMonthlyData(prevData => ({
       ...prevData,
       [dateKey]: {
@@ -1085,6 +1320,18 @@ export default function WeeklyTimeTracker() {
     }
   };
 
+  // Debug: Monitor data changes
+  useEffect(() => {
+    console.log('WeeklyTimeTracker: Data changed', {
+      weeklyDataKeys: Object.keys(weeklyData),
+      productWeeklyDataKeys: Object.keys(productWeeklyData),
+      departmentWeeklyDataKeys: Object.keys(departmentWeeklyData),
+      weeklyData,
+      productWeeklyData,
+      departmentWeeklyData
+    });
+  }, [weeklyData, productWeeklyData, departmentWeeklyData]);
+
   return (
     <div className="space-y-6">
       {/* Quick Task Form */}
@@ -1098,12 +1345,24 @@ export default function WeeklyTimeTracker() {
           }}
           project={selectedProject}
           selectedDate={selectedDateForQuickTask}
+          initialDescription={getExistingTaskDescription()}
           onSuccess={(taskDescription: string) => {
             const dayKey = format(selectedDateForQuickTask, 'yyyy-MM-dd');
+            // Save the task description
             setDailyDescriptions(prev => ({
               ...prev,
               [dayKey]: taskDescription
             }));
+            
+            // Update the task description in the appropriate data structure based on project type
+            if ('stages' in selectedProject) { // Project
+              updateProjectData(dayKey, selectedProject.id, 'task', taskDescription);
+            } else if ('productStages' in selectedProject) { // Product
+              updateProductData(dayKey, selectedProject.id, 'task', taskDescription);
+            } else if ('functions' in selectedProject) { // Department
+              updateDepartmentData(dayKey, selectedProject.id, 'task', taskDescription);
+            }
+            
             setRefreshKey(prev => prev + 1);
           }}
         />
@@ -1195,6 +1454,83 @@ export default function WeeklyTimeTracker() {
         </CardContent>
       </Card>
 
+      {/* Data Summary - Show loaded timesheet data */}
+      {(() => {
+        const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
+        const allEntries = getTimeEntries();
+        const currentUser = getCurrentUser();
+        
+        if (!currentUser) return null;
+        
+        const weekEntries = allEntries.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id;
+        });
+        
+        if (weekEntries.length === 0) return null;
+        
+        const projectEntries = weekEntries.filter(entry => entry.projectDetails?.category === 'project');
+        const productEntries = weekEntries.filter(entry => entry.projectDetails?.category === 'product');
+        const departmentEntries = weekEntries.filter(entry => entry.projectDetails?.category === 'department');
+        
+        const totalHours = weekEntries.reduce((sum, entry) => sum + entry.actualHours + entry.billableHours, 0);
+        
+        return (
+          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-center space-x-6 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100">
+                    <span className="text-xs text-blue-600">✓</span>
+                  </div>
+                  <span className="text-blue-700 dark:text-blue-300 font-medium">Loaded from Timesheet:</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-blue-600 dark:text-blue-400">
+                    {projectEntries.length} Projects
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-green-600 dark:text-green-400">
+                    {productEntries.length} Products
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-purple-600 dark:text-purple-400">
+                    {departmentEntries.length} Departments
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {totalHours.toFixed(1)} Total Hours
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {weekEntries.length} Entries
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-center space-x-4 text-xs mt-2 text-gray-600 dark:text-gray-400">
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-blue-100 dark:bg-blue-800 rounded"></div>
+                  <span>Projects with data</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-green-100 dark:bg-green-800 rounded"></div>
+                  <span>Products with data</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-purple-100 dark:bg-purple-800 rounded"></div>
+                  <span>Departments with data</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Conditional rendering based on view mode */}
       {currentViewMode === 'weekly' && (
         /* Weekly View - Grid for Projects and Days */
@@ -1285,13 +1621,32 @@ export default function WeeklyTimeTracker() {
                   </td>
                   {weekDays.map(day => {
                     const dayKey = format(day, 'yyyy-MM-dd');
-                    const hours = weeklyData[project.id]?.[dayKey] || { billable: 0, actual: 0 };
+                    const hours = weeklyData[project.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
                     const isFutureDay = day.getTime() > new Date().getTime();
+                    const hasExistingEntry = hasEntryForProjectAndDate(project.id, dayKey, 'project');
                     const isSelected = isDateSelected(day);
                     const isInRange = isDateInRange(day);
+                    const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
+                    
+                    // Debug logging for data display
+                    if (hours.billable > 0 || hours.actual > 0) {
+                      console.log('Weekly view - Project data:', { 
+                        projectId: project.id, 
+                        projectName: project.name, 
+                        dayKey, 
+                        hours, 
+                        hasExistingEntry 
+                      });
+                    }
+                    
                     return (
-                      <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700">
+                      <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                         <div className="flex justify-around items-center gap-1">
+                          {hasData && (
+                            <div className="absolute top-1 right-1">
+                              <span className="text-xs text-blue-600 dark:text-blue-400">✓</span>
+                            </div>
+                          )}
                           <Input 
                             type="number" step="0.5" min="0" max="24"
                             value={hours.billable === 0 ? '' : hours.billable.toString()}
@@ -1300,9 +1655,10 @@ export default function WeeklyTimeTracker() {
                               const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
                               updateHours(project.id, dayKey, 'billable', value);
                             }}
-                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                            disabled={!project.isBillable || isFutureDay}
+                            className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                            disabled={!project.isBillable || isFutureDay || hasExistingEntry}
                             placeholder="0"
+                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                           />
                           <Input 
                             type="number" step="0.5" min="0" max="24"
@@ -1312,9 +1668,10 @@ export default function WeeklyTimeTracker() {
                               const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
                               updateHours(project.id, dayKey, 'actual', value);
                             }}
-                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                            disabled={isFutureDay}
+                            className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                            disabled={isFutureDay || hasExistingEntry}
                             placeholder="0"
+                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                           />
                           <Button
                             variant="ghost"
@@ -1325,24 +1682,12 @@ export default function WeeklyTimeTracker() {
                               setIsQuickTaskDialogOpen(true);
                             }}
                             className="h-6 w-6 p-0"
-                            title="Quick add task"
-                            disabled={isFutureDay}
+                            title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
+                            disabled={isFutureDay || hasExistingEntry}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
-                        {/* Description row for selected dates */}
-                        {(isSelected || isInRange) && (
-                          <div className="mt-2">
-                            <Textarea
-                              value={dailyDescriptions[dayKey] || ''}
-                              onChange={(e) => updateDescription(dayKey, e.target.value)}
-                              placeholder="Add description..."
-                              className="w-full text-xs h-16 resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                              disabled={isFutureDay}
-                            />
-                          </div>
-                        )}
                       </td>
                     );
                   })}
@@ -1367,13 +1712,21 @@ export default function WeeklyTimeTracker() {
                   </td>
                   {weekDays.map(day => {
                     const dayKey = format(day, 'yyyy-MM-dd');
-                    const hours = productWeeklyData[product.id]?.[dayKey] || { billable: 0, actual: 0 };
+                    const hours = productWeeklyData[product.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
                     const isFutureDay = day.getTime() > new Date().getTime();
+                    const hasExistingEntry = hasEntryForProjectAndDate(product.id, dayKey, 'product');
                     const isSelected = isDateSelected(day);
                     const isInRange = isDateInRange(day);
+                    const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
+                    
                     return (
-                      <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700">
+                      <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
                         <div className="flex justify-around items-center gap-1">
+                          {hasData && (
+                            <div className="absolute top-1 right-1">
+                              <span className="text-xs text-green-600 dark:text-green-400">✓</span>
+                            </div>
+                          )}
                           <Input 
                             type="number" step="0.5" min="0" max="24"
                             value={hours.billable === 0 ? '' : hours.billable.toString()}
@@ -1382,9 +1735,10 @@ export default function WeeklyTimeTracker() {
                               const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
                               updateProductHours(product.id, dayKey, 'billable', value);
                             }}
-                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                            disabled={!product.isBillable || isFutureDay}
+                            className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                            disabled={!product.isBillable || isFutureDay || hasExistingEntry}
                             placeholder="0"
+                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                           />
                           <Input 
                             type="number" step="0.5" min="0" max="24"
@@ -1394,9 +1748,10 @@ export default function WeeklyTimeTracker() {
                               const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
                               updateProductHours(product.id, dayKey, 'actual', value);
                             }}
-                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                            disabled={isFutureDay}
+                            className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                            disabled={isFutureDay || hasExistingEntry}
                             placeholder="0"
+                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                           />
                           <Button
                             variant="ghost"
@@ -1407,24 +1762,12 @@ export default function WeeklyTimeTracker() {
                               setIsQuickTaskDialogOpen(true);
                             }}
                             className="h-6 w-6 p-0"
-                            title="Quick add task"
-                            disabled={isFutureDay}
+                            title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
+                            disabled={isFutureDay || hasExistingEntry}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
-                        {/* Description row for selected dates */}
-                        {(isSelected || isInRange) && (
-                          <div className="mt-2">
-                            <Textarea
-                              value={dailyDescriptions[dayKey] || ''}
-                              onChange={(e) => updateDescription(dayKey, e.target.value)}
-                              placeholder="Add description..."
-                              className="w-full text-xs h-16 resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                              disabled={isFutureDay}
-                            />
-                          </div>
-                        )}
                       </td>
                     );
                   })}
@@ -1449,13 +1792,21 @@ export default function WeeklyTimeTracker() {
                   </td>
                   {weekDays.map(day => {
                     const dayKey = format(day, 'yyyy-MM-dd');
-                    const hours = departmentWeeklyData[department.id]?.[dayKey] || { billable: 0, actual: 0 };
+                    const hours = departmentWeeklyData[department.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
                     const isFutureDay = day.getTime() > new Date().getTime();
+                    const hasExistingEntry = hasEntryForProjectAndDate(department.id, dayKey, 'department');
                     const isSelected = isDateSelected(day);
                     const isInRange = isDateInRange(day);
+                    const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
+                    
                     return (
-                      <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700">
+                      <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}>
                         <div className="flex justify-around items-center gap-1">
+                          {hasData && (
+                            <div className="absolute top-1 right-1">
+                              <span className="text-xs text-purple-600 dark:text-purple-400">✓</span>
+                            </div>
+                          )}
                           <Input 
                             type="number" step="0.5" min="0" max="24"
                             value={hours.billable === 0 ? '' : hours.billable.toString()}
@@ -1464,9 +1815,10 @@ export default function WeeklyTimeTracker() {
                               const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
                               updateDepartmentHours(department.id, dayKey, 'billable', value);
                             }}
-                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                            disabled={!department.isBillable || isFutureDay}
+                            className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                            disabled={!department.isBillable || isFutureDay || hasExistingEntry}
                             placeholder="0"
+                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                           />
                           <Input 
                             type="number" step="0.5" min="0" max="24"
@@ -1476,9 +1828,10 @@ export default function WeeklyTimeTracker() {
                               const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
                               updateDepartmentHours(department.id, dayKey, 'actual', value);
                             }}
-                            className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                            disabled={isFutureDay}
+                            className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                            disabled={isFutureDay || hasExistingEntry}
                             placeholder="0"
+                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                           />
                           <Button
                             variant="ghost"
@@ -1489,24 +1842,12 @@ export default function WeeklyTimeTracker() {
                               setIsQuickTaskDialogOpen(true);
                             }}
                             className="h-6 w-6 p-0"
-                            title="Quick add task"
-                            disabled={isFutureDay}
+                            title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
+                            disabled={isFutureDay || hasExistingEntry}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
-                        {/* Description row for selected dates */}
-                        {(isSelected || isInRange) && (
-                          <div className="mt-2">
-                            <Textarea
-                              value={dailyDescriptions[dayKey] || ''}
-                              onChange={(e) => updateDescription(dayKey, e.target.value)}
-                              placeholder="Add description..."
-                              className="w-full text-xs h-16 resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                              disabled={isFutureDay}
-                            />
-                          </div>
-                        )}
                       </td>
                     );
                   })}
@@ -1741,12 +2082,12 @@ export default function WeeklyTimeTracker() {
                           type="text"
                           value={entryData.task}
                           onChange={(e) => {
-                            if (type === 'project') updateProjectData(dateKey, id, 'task', e.target.value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'task', e.target.value);
-                            else updateDepartmentData(dateKey, id, 'task', e.target.value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'task', e.target.value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'task', e.target.value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'task', e.target.value);
                           }}
                           placeholder="Task Description"
-                          disabled={isFutureDate}
+                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className="w-full text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                         />
                       </td>
@@ -1759,12 +2100,12 @@ export default function WeeklyTimeTracker() {
                           value={entryData.availableHours || ''}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateProjectData(dateKey, id, 'availableHours', value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'availableHours', value);
-                            else updateDepartmentData(dateKey, id, 'availableHours', value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'availableHours', value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'availableHours', value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'availableHours', value);
                           }}
                           placeholder="0"
-                          disabled={isFutureDate}
+                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
                         />
                       </td>
@@ -1777,12 +2118,12 @@ export default function WeeklyTimeTracker() {
                           value={entryData.actualHours || ''}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateProjectData(dateKey, id, 'actualHours', value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'actualHours', value);
-                            else updateDepartmentData(dateKey, id, 'actualHours', value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'actualHours', value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'actualHours', value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'actualHours', value);
                           }}
                           placeholder="0"
-                          disabled={isFutureDate}
+                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
                         />
                       </td>
@@ -1795,12 +2136,12 @@ export default function WeeklyTimeTracker() {
                           value={entryData.billableHours || ''}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateProjectData(dateKey, id, 'billableHours', value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'billableHours', value);
-                            else updateDepartmentData(dateKey, id, 'billableHours', value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'billableHours', value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'billableHours', value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'billableHours', value);
                           }}
                           placeholder="0"
-                          disabled={!data.isBillable || isFutureDate}
+                          disabled={!data.isBillable || isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className={`w-20 text-xs h-8 ${!data.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
                         />
                       </td>
@@ -2023,12 +2364,12 @@ export default function WeeklyTimeTracker() {
                           type="text"
                           value={entryData.task}
                           onChange={(e) => {
-                            if (type === 'project') updateProjectData(dateKey, id, 'task', e.target.value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'task', e.target.value);
-                            else updateDepartmentData(dateKey, id, 'task', e.target.value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'task', e.target.value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'task', e.target.value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'task', e.target.value);
                           }}
                           placeholder="Task Description"
-                          disabled={isFutureDate}
+                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className="w-full text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                         />
                       </td>
@@ -2041,12 +2382,12 @@ export default function WeeklyTimeTracker() {
                           value={entryData.availableHours || ''}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateProjectData(dateKey, id, 'availableHours', value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'availableHours', value);
-                            else updateDepartmentData(dateKey, id, 'availableHours', value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'availableHours', value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'availableHours', value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'availableHours', value);
                           }}
                           placeholder="0"
-                          disabled={isFutureDate}
+                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
                         />
                       </td>
@@ -2059,12 +2400,12 @@ export default function WeeklyTimeTracker() {
                           value={entryData.actualHours || ''}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateProjectData(dateKey, id, 'actualHours', value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'actualHours', value);
-                            else updateDepartmentData(dateKey, id, 'actualHours', value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'actualHours', value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'actualHours', value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'actualHours', value);
                           }}
                           placeholder="0"
-                          disabled={isFutureDate}
+                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
                         />
                       </td>
@@ -2077,12 +2418,12 @@ export default function WeeklyTimeTracker() {
                           value={entryData.billableHours || ''}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateProjectData(dateKey, id, 'billableHours', value);
-                            else if (type === 'product') updateProductData(dateKey, id, 'billableHours', value);
-                            else updateDepartmentData(dateKey, id, 'billableHours', value);
+                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'billableHours', value);
+                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'billableHours', value);
+                            else updateMonthlyDepartmentData(dateKey, id, 'billableHours', value);
                           }}
                           placeholder="0"
-                          disabled={!data.isBillable || isFutureDate}
+                          disabled={!data.isBillable || isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
                           className={`w-20 text-xs h-8 ${!data.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
                         />
                       </td>

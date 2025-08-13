@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ interface QuickTaskFormProps {
   project: Project | Product | Department;
   selectedDate: Date;
   onSuccess: (taskDescription: string) => void;
+  initialDescription?: string; // Added to support existing descriptions
 }
 
 export default function QuickTaskForm({
@@ -27,9 +28,15 @@ export default function QuickTaskForm({
   project,
   selectedDate,
   onSuccess,
+  initialDescription = "",
 }: QuickTaskFormProps) {
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(initialDescription);
   const currentUser = getCurrentUser();
+
+  // Update description when initialDescription changes (when editing existing entry)
+  useEffect(() => {
+    setDescription(initialDescription);
+  }, [initialDescription]);
 
   const handleSubmit = () => {
     if (!currentUser || !description.trim()) {

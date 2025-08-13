@@ -86,7 +86,8 @@ const Reports = () => {
     
     const actualHours = userEntries.reduce((sum, entry) => sum + (entry.actualHours || 0), 0);
     const billableHours = userEntries.reduce((sum, entry) => sum + (entry.isBillable ? (entry.billableHours || 0) : 0), 0);
-    const availableHours = userEntries.length > 0 ? users.find(u => u.id === userId)?.availableHours || 0 : 0;
+    // Calculate available hours from timesheet entries instead of user profile
+    const availableHours = userEntries.reduce((sum, entry) => sum + (entry.availableHours || 0), 0);
     const approvedEntries = userEntries.filter(entry => entry.status === 'approved');
     const pendingEntries = userEntries.filter(entry => entry.status === 'pending');
     
@@ -142,7 +143,8 @@ const Reports = () => {
     
     const actualHours = userEntries.reduce((sum, entry) => sum + (entry.actualHours || 0), 0);
     const billableHours = userEntries.reduce((sum, entry) => sum + (entry.isBillable ? (entry.billableHours || 0) : 0), 0);
-    const availableHours = userEntries.length > 0 ? users.find(u => u.id === userId)?.availableHours || 0 : 0;
+    // Calculate available hours from timesheet entries instead of user profile
+    const availableHours = userEntries.reduce((sum, entry) => sum + (entry.availableHours || 0), 0);
     const approvedEntries = userEntries.filter(entry => entry.status === 'approved');
     const pendingEntries = userEntries.filter(entry => entry.status === 'pending');
     
@@ -299,7 +301,7 @@ const Reports = () => {
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end space-x-1">
                             <Clock className="h-3 w-3 text-blue-600" />
-                            <span className="font-medium">{user.availableHours ? user.availableHours.toFixed(1) : '0.0'}</span>
+                            <span className="font-medium">{stats.availableHours}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">{stats.totalEntries}</TableCell>

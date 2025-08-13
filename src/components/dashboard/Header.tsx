@@ -46,26 +46,11 @@ export default function Header({
   };
 
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 animate-fade-in">
-      <div className="flex h-16 items-center justify-between px-6">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-heading">{title}</h1>
-        </div>
-
-        <div className="flex items-center">
-          {showSearch && (
-            <div className="relative w-64 mr-4">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={searchPlaceholder}
-                className="pl-10 input-primary"
-                onChange={(e) => onSearch?.(e.target.value)}
-              />
-            </div>
-          )}
-
-          <div className="flex items-center space-x-3 mr-6">
-            {actionButtons}
+    <div className="sticky top-0 z-40 animate-fade-in">
+      <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-heading">{title}</h1>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -102,7 +87,31 @@ export default function Header({
             </DropdownMenu>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+      
+      {/* Search bar and action buttons in header */}
+      {(showSearch || actionButtons.length > 0) && (
+        <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border py-2 px-6">
+          <div className="flex items-center justify-between">
+            {showSearch && (
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder={searchPlaceholder}
+                  className="pl-10 input-primary"
+                  onChange={(e) => onSearch?.(e.target.value)}
+                />
+              </div>
+            )}
+            
+            {actionButtons.length > 0 && (
+              <div className="flex items-center space-x-3">
+                {actionButtons}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

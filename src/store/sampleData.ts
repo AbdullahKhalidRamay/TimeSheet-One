@@ -3,12 +3,20 @@ import { getCurrentUser, getAllUsers } from '../lib/auth';
 import { TimeEntry, Project, Product, Department, ProjectDetail, Team } from '../validation';
 
 export const initializeSampleData = () => {
-  // Only initialize if no data exists
-  const existingProjects = JSON.parse(localStorage.getItem('projects') || '[]');
-  if (existingProjects.length > 0) return;
+  // Clear existing data to ensure fresh initialization
+  localStorage.removeItem('projects');
+  localStorage.removeItem('products');
+  localStorage.removeItem('departments');
+  localStorage.removeItem('timeEntries');
+  localStorage.removeItem('teams');
+  
+  console.log('Clearing existing data and reinitializing...');
 
   const users = getAllUsers();
   const currentUser = getCurrentUser();
+
+  console.log('Current user:', currentUser);
+  console.log('Available users:', users.map(u => ({ id: u.id, name: u.name, role: u.role })));
 
   // Sample Projects
   const projectId1 = generateId();
@@ -149,6 +157,32 @@ export const initializeSampleData = () => {
   const sampleTimeEntries: TimeEntry[] = [
     {
       id: generateId(),
+      userId: users[0].id, // CEO/Owner (current user)
+      userName: users[0].name,
+      date: new Date().toISOString().split('T')[0],
+      clockIn: '09:00',
+      clockOut: '17:00',
+      breakTime: 60,
+      totalHours: 7,
+      billableHours: 6, // Add billable hours
+      actualHours: 7,   // Add actual hours
+      availableHours: 8, // Add available hours
+      task: 'Worked on implementing the new dashboard UI components and integrated them with the backend API',
+      projectDetails: {
+        category: 'project',
+        name: 'Mobile App Development',
+        level: 'Frontend Development',
+        task: 'UI Design Implementation',
+        subtask: 'Dashboard',
+        description: 'Implemented responsive dashboard with real-time data'
+      },
+      isBillable: true,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: generateId(),
       userId: users[3].id, // Employee
       userName: users[3].name,
       date: new Date().toISOString().split('T')[0],
@@ -156,6 +190,9 @@ export const initializeSampleData = () => {
       clockOut: '17:00',
       breakTime: 60,
       totalHours: 7,
+      billableHours: 6,
+      actualHours: 7,
+      availableHours: 8,
       task: 'Worked on implementing the new dashboard UI components and integrated them with the backend API',
       projectDetails: {
         category: 'project',
@@ -179,6 +216,9 @@ export const initializeSampleData = () => {
       clockOut: '16:30',
       breakTime: 30,
       totalHours: 7.5,
+      billableHours: 7,
+      actualHours: 7.5,
+      availableHours: 8,
       task: 'Reviewed and approved budget allocations for Q4 projects and conducted financial analysis',
       projectDetails: {
         category: 'department',
