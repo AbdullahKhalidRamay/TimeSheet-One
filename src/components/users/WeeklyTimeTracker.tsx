@@ -6,15 +6,18 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Save, Check, Clock, AlertCircle, X } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isFuture, isToday, differenceInDays } from "date-fns";
+import { Plus, Calendar as CalendarIcon, Save, Check, Clock, AlertCircle, X } from "lucide-react";
+
+import { format, startOfWeek, endOfWeek, addDays, isFuture, isToday, differenceInDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import DailyTrackerForm from "./DailyTrackerForm";
 import QuickTaskForm from "./QuickTaskForm";
+import WeeklyView from "./WeeklyView";
+import MonthlyView from "./MonthlyView";
+import DailyView from "./DailyView";
 import { getCurrentUser } from "@/lib/auth";
 import { getTimeEntryStatusForDate, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
 import { Project, Product, Department, TimeEntry, ProjectDetail } from "@/validation/index";
@@ -349,25 +352,7 @@ export default function WeeklyTimeTracker() {
     }
   }, [projects, products, departments, selectedWeek]);
 
-  const handlePreviousWeek = () => {
-    setSelectedWeek(prev => subWeeks(prev, 1));
-  };
 
-  const handleNextWeek = () => {
-    const nextWeek = addWeeks(selectedWeek, 1);
-    const nextWeekStart = startOfWeek(nextWeek, { weekStartsOn: 1 });
-    
-    // Only allow if the week start is not in the future
-    if (!isFuture(nextWeekStart) || isToday(nextWeekStart)) {
-      setSelectedWeek(nextWeek);
-    }
-  };
-
-  const canGoToNextWeek = () => {
-    const nextWeek = addWeeks(selectedWeek, 1);
-    const nextWeekStart = startOfWeek(nextWeek, { weekStartsOn: 1 });
-    return !isFuture(nextWeekStart) || isToday(nextWeekStart);
-  };
 
   const updateHours = (projectId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
     setWeeklyData(prev => {
@@ -537,28 +522,7 @@ export default function WeeklyTimeTracker() {
     return '';
   };
 
-  // Function to check if an entry exists for a specific project and date
-  const hasEntryForProjectAndDate = (projectId: string, dayKey: string, projectType: 'project' | 'product' | 'department') => {
-    const allEntries = getTimeEntries();
-    const result = allEntries.some(entry => {
-      if (entry.date !== dayKey || entry.userId !== currentUser?.id) return false;
-      
-      if (projectType === 'project') {
-        return entry.projectDetails.category === 'project' && entry.projectDetails.name === projects.find(p => p.id === projectId)?.name;
-      } else if (projectType === 'product') {
-        return entry.projectDetails.category === 'product' && entry.projectDetails.name === products.find(p => p.id === projectId)?.name;
-      } else if (projectType === 'department') {
-        return entry.projectDetails.category === 'department' && entry.projectDetails.name === departments.find(d => d.id === projectId)?.name;
-      }
-      return false;
-    });
-    
-    if (result) {
-      // console.log('hasEntryForProjectAndDate found entry:', { projectId, dayKey, projectType, result });
-    }
-    
-    return result;
-  };
+
   
   // Add function to handle date selection for descriptions
   const handleDateSelection = (date: Date) => {
@@ -577,8 +541,8 @@ export default function WeeklyTimeTracker() {
         // Different date - set as range
         setSelectedDates([firstDate, date].sort((a, b) => a.getTime() - b.getTime()));
       }
-    } else {
-      // Third date selected - reset to new first date
+    } else if (selectedDates.length === 2) {
+      // Third date selected - remove the second date and make third date the new first date
       setSelectedDates([date]);
     }
   };
@@ -849,9 +813,7 @@ export default function WeeklyTimeTracker() {
     return null;
   };
 
-  const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
 
   // Determine the current view mode
   const currentViewMode = getViewMode();
@@ -1390,43 +1352,7 @@ export default function WeeklyTimeTracker() {
         </CardContent>
       </Card>
 
-      {/* Show default weekly navigation when no date range is selected */}
-      {!dateRange?.from && (
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <CalendarIcon className="h-5 w-5" />
-                <span>Weekly Time Tracker</span>
-              </CardTitle>
-              <div className="flex items-center space-x-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePreviousWeek}
-                  className="flex items-center space-x-1"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span>Previous</span>
-                </Button>
-                <Badge variant="secondary" className="px-3 py-1">
-                  {format(weekStart, "MMM dd")} - {format(weekEnd, "MMM dd, yyyy")}
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextWeek}
-                  disabled={!canGoToNextWeek()}
-                  className="flex items-center space-x-1"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-      )}
+
 
       {/* Status Legend */}
       <Card className="bg-gray-50 dark:bg-gray-800">
@@ -1533,943 +1459,67 @@ export default function WeeklyTimeTracker() {
 
       {/* Conditional rendering based on view mode */}
       {currentViewMode === 'weekly' && (
-        /* Weekly View - Grid for Projects and Days */
-        <div className="overflow-x-auto bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-          <table className="w-full text-center border-collapse">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-800">
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Projects/Products/Departments</th>
-                {weekDays.map(day => {
-                  const statusIndicator = getStatusIndicator(day);
-                  return (
-                    <th 
-                      key={day.toString()} 
-                      className={`py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${(isDateSelected(day) || isDateInRange(day)) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                      onClick={() => handleDateSelection(day)}
-                    >
-                      <div className="flex flex-col items-center space-y-1">
-                        <div className="flex items-center justify-center space-x-2">
-                          <span>{format(day, 'E, MMM d')}</span>
-                          {statusIndicator && (
-                            <div 
-                              className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${statusIndicator.bgColor}`}
-                              title={statusIndicator.tooltip}
-                            >
-                              <statusIndicator.icon className={`w-3 h-3 ${statusIndicator.color}`} />
-                            </div>
-                          )}
-                        </div>
-                        {/* B/A Labels Row */}
-                        <div className="flex justify-around items-center gap-1 text-xs">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-16 h-6 flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded cursor-help font-medium">
-                                B
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Billable Hours</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-16 h-6 flex items-center justify-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded cursor-help font-medium">
-                                A
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Actual Hours</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {/* Projects Section */}
-              {projects.map(project => (
-                <tr key={`project-${project.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">Project</span>
-                            <span className="font-semibold">{project.name}</span>
-                          </div>
-                          {project.department && (
-                            <span className="text-xs text-gray-600 dark:text-gray-400">
-                              Department: {project.department}
-                            </span>
-                          )}
-                          {project.associatedProducts && project.associatedProducts.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {project.associatedProducts.map((product, index) => (
-                                <span key={index} className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
-                                  {product}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                      </div>
-                    </div>
-                  </td>
-                  {weekDays.map(day => {
-                    const dayKey = format(day, 'yyyy-MM-dd');
-                    const hours = weeklyData[project.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
-                    const isFutureDay = day.getTime() > new Date().getTime();
-                    const hasExistingEntry = hasEntryForProjectAndDate(project.id, dayKey, 'project');
-                    const isSelected = isDateSelected(day);
-                    const isInRange = isDateInRange(day);
-                    const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
-                    
-                    // Debug logging for data display
-                    // if (hours.billable > 0 || hours.actual > 0) {
-                    //   console.log('Weekly view - Project data:', { 
-                    //     projectId: project.id, 
-                    //     projectName: project.name, 
-                    //     dayKey, 
-                    //     hours, 
-                    //     hasExistingEntry 
-                    //   });
-                    // }
-                    
-                    return (
-                      <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                        <div className="flex justify-around items-center gap-1">
-                          {hasData && (
-                            <div className="absolute top-1 right-1">
-                              <span className="text-xs text-blue-600 dark:text-blue-400">✓</span>
-                            </div>
-                          )}
-                          <Input 
-                            type="number" step="0.5" min="0" max="24"
-                            value={hours.billable === 0 ? '' : hours.billable.toString()}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                              updateHours(project.id, dayKey, 'billable', value);
-                            }}
-                            className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                            disabled={!project.isBillable || isFutureDay || hasExistingEntry}
-                            placeholder="0"
-                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                          />
-                          <Input 
-                            type="number" step="0.5" min="0" max="24"
-                            value={hours.actual === 0 ? '' : hours.actual.toString()}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                              updateHours(project.id, dayKey, 'actual', value);
-                            }}
-                            className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                            disabled={isFutureDay || hasExistingEntry}
-                            placeholder="0"
-                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedProject(project);
-                              setSelectedDateForQuickTask(day);
-                              setIsQuickTaskDialogOpen(true);
-                            }}
-                            className="h-6 w-6 p-0"
-                            title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
-                            disabled={isFutureDay || hasExistingEntry}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-
-              {/* Products Section */}
-              {products.map(product => (
-                <tr key={`product-${product.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">Product</span>
-                            <span className="font-semibold">{product.name}</span>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-                  </td>
-                  {weekDays.map(day => {
-                    const dayKey = format(day, 'yyyy-MM-dd');
-                    const hours = productWeeklyData[product.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
-                    const isFutureDay = day.getTime() > new Date().getTime();
-                    const hasExistingEntry = hasEntryForProjectAndDate(product.id, dayKey, 'product');
-                    const isSelected = isDateSelected(day);
-                    const isInRange = isDateInRange(day);
-                    const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
-                    
-                    return (
-                      <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
-                        <div className="flex justify-around items-center gap-1">
-                          {hasData && (
-                            <div className="absolute top-1 right-1">
-                              <span className="text-xs text-green-600 dark:text-green-400">✓</span>
-                            </div>
-                          )}
-                          <Input 
-                            type="number" step="0.5" min="0" max="24"
-                            value={hours.billable === 0 ? '' : hours.billable.toString()}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                              updateProductHours(product.id, dayKey, 'billable', value);
-                            }}
-                            className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                            disabled={!product.isBillable || isFutureDay || hasExistingEntry}
-                            placeholder="0"
-                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                          />
-                          <Input 
-                            type="number" step="0.5" min="0" max="24"
-                            value={hours.actual === 0 ? '' : hours.actual.toString()}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                              updateProductHours(product.id, dayKey, 'actual', value);
-                            }}
-                            className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                            disabled={isFutureDay || hasExistingEntry}
-                            placeholder="0"
-                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedProject(product);
-                              setSelectedDateForQuickTask(day);
-                              setIsQuickTaskDialogOpen(true);
-                            }}
-                            className="h-6 w-6 p-0"
-                            title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
-                            disabled={isFutureDay || hasExistingEntry}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-
-              {/* Departments Section */}
-              {departments.map(department => (
-                <tr key={`department-${department.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">Department</span>
-                            <span className="font-semibold">{department.name}</span>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-                  </td>
-                  {weekDays.map(day => {
-                    const dayKey = format(day, 'yyyy-MM-dd');
-                    const hours = departmentWeeklyData[department.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
-                    const isFutureDay = day.getTime() > new Date().getTime();
-                    const hasExistingEntry = hasEntryForProjectAndDate(department.id, dayKey, 'department');
-                    const isSelected = isDateSelected(day);
-                    const isInRange = isDateInRange(day);
-                    const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
-                    
-                    return (
-                      <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}>
-                        <div className="flex justify-around items-center gap-1">
-                          {hasData && (
-                            <div className="absolute top-1 right-1">
-                              <span className="text-xs text-purple-600 dark:text-purple-400">✓</span>
-                            </div>
-                          )}
-                          <Input 
-                            type="number" step="0.5" min="0" max="24"
-                            value={hours.billable === 0 ? '' : hours.billable.toString()}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                              updateDepartmentHours(department.id, dayKey, 'billable', value);
-                            }}
-                            className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                            disabled={!department.isBillable || isFutureDay || hasExistingEntry}
-                            placeholder="0"
-                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                          />
-                          <Input 
-                            type="number" step="0.5" min="0" max="24"
-                            value={hours.actual === 0 ? '' : hours.actual.toString()}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                              updateDepartmentHours(department.id, dayKey, 'actual', value);
-                            }}
-                            className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                            disabled={isFutureDay || hasExistingEntry}
-                            placeholder="0"
-                            title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedProject(department);
-                              setSelectedDateForQuickTask(day);
-                              setIsQuickTaskDialogOpen(true);
-                            }}
-                            className="h-6 w-6 p-0"
-                            title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
-                            disabled={isFutureDay || hasExistingEntry}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-              {/* Available Hours Row */}
-              <tr className="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-700">
-                <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-semibold text-blue-800 dark:text-blue-400">Available Hours</td>
-                {weekDays.map(day => {
-                  const dayKey = format(day, 'yyyy-MM-dd');
-                  const isFutureDay = day.getTime() > new Date().getTime();
-                  const availableHours = dailyAvailableHours[dayKey] || 0;
-                  return (
-                    <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
-                      <div className="flex justify-center">
-                        <Input 
-                          type="number" 
-                          step="0.5" 
-                          min="0" 
-                          max="24"
-                          value={availableHours === 0 ? '' : availableHours.toString()}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                            setDailyAvailableHours(prev => ({
-                              ...prev,
-                              [dayKey]: value
-                            }));
-                          }}
-                          className="w-20 text-center text-sm h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-blue-300 dark:border-blue-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                          disabled={isFutureDay}
-                          placeholder="0"
-                        />
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <WeeklyView
+          selectedWeek={selectedWeek}
+          onWeekChange={setSelectedWeek}
+          weeklyData={weeklyData}
+          productWeeklyData={productWeeklyData}
+          departmentWeeklyData={departmentWeeklyData}
+          dailyAvailableHours={dailyAvailableHours}
+          projects={projects}
+          products={products}
+          departments={departments}
+          onUpdateHours={updateHours}
+          onUpdateProjectData={updateProjectData}
+          onUpdateProductHours={updateProductHours}
+          onUpdateProductData={updateProductData}
+          onUpdateDepartmentHours={updateDepartmentHours}
+          onUpdateDepartmentData={updateDepartmentData}
+          onUpdateAvailableHours={(dayKey, value) => setDailyAvailableHours(prev => ({ ...prev, [dayKey]: value }))}
+          onQuickTaskClick={(project, date) => {
+            setSelectedProject(project);
+            setSelectedDateForQuickTask(date);
+            setIsQuickTaskDialogOpen(true);
+          }}
+          onSaveWeeklyData={saveWeeklyData}
+          selectedDates={selectedDates}
+          onDateSelection={handleDateSelection}
+        />
       )}
 
       {/* Monthly View */}
+      {/* Monthly View */}
       {currentViewMode === 'monthly' && (
-        <div className="overflow-x-auto bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-          <table className="min-w-full text-center border-collapse">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-800">
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Date</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Entry Details</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Task</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Available Hours</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Actual Hours</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Billable Hours</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {getMonthlyDates().flatMap(currentDate => {
-                const formattedDate = format(currentDate, 'dd/MM/yyyy');
-                const day = format(currentDate, "EEEE");
-                const currentUser = getCurrentUser();
-                const statusData = currentUser ? getTimeEntryStatusForDate(format(currentDate, 'yyyy-MM-dd'), currentUser.id) : null;
-                const isFutureDate = isFuture(currentDate) && !isToday(currentDate);
-                const dateKey = format(currentDate, 'yyyy-MM-dd');
-
-                // Get status indicator
-                const getStatusIndicator = () => {
-                  if (!statusData || !statusData.hasEntries) {
-                    return {
-                      text: 'No Entries',
-                      color: 'text-gray-500 dark:text-gray-400',
-                      icon: null
-                    };
-                  }
-
-                  const hasApproved = statusData.statuses.includes('approved');
-                  const hasPending = statusData.statuses.includes('pending');
-                  const hasRejected = statusData.statuses.includes('rejected');
-
-                  if (hasApproved && !hasPending && !hasRejected) {
-                    return {
-                      text: `✓ Approved (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                      color: 'text-green-600 dark:text-green-400',
-                      icon: Check
-                    };
-                  } else if (hasPending) {
-                    return {
-                      text: `⏳ Pending (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                      color: 'text-yellow-600 dark:text-yellow-400',
-                      icon: Clock
-                    };
-                  } else if (hasRejected) {
-                    return {
-                      text: `❌ Rejected (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                      color: 'text-red-600 dark:text-red-400',
-                      icon: AlertCircle
-                    };
-                  }
-                  return {
-                    text: `✓ Done (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                    color: 'text-green-600 dark:text-green-400',
-                    icon: Check
-                  };
-                };
-
-                const statusIndicator = getStatusIndicator();
-
-                // Create all entries for this date
-                const allEntries = [];
-
-                // Add all projects
-                projects.forEach((project, index) => {
-                  const projectData = monthlyData[dateKey]?.[project.id] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  allEntries.push({
-                    type: 'project',
-                    id: project.id,
-                    data: project,
-                    entryData: projectData,
-                    index
-                  });
-                });
-
-                // Add all products
-                products.forEach((product, index) => {
-                  const productData = monthlyData[dateKey]?.[product.id] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  allEntries.push({
-                    type: 'product',
-                    id: product.id,
-                    data: product,
-                    entryData: productData,
-                    index
-                  });
-                });
-
-                // Add all departments
-                departments.forEach((department, index) => {
-                  const departmentData = monthlyData[dateKey]?.[department.id] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  allEntries.push({
-                    type: 'department',
-                    id: department.id,
-                    data: department,
-                    entryData: departmentData,
-                    index
-                  });
-                });
-
-                // If no entries exist, show a message
-                if (allEntries.length === 0) {
-                  return [
-                    <tr key={currentDate.toString()} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
-                        <div className="flex flex-col items-center">
-                          <span className="text-sm">{day}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">No projects, products, or departments available</span>
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <div className="flex flex-col items-center">
-                          <span className={`text-xs font-medium ${statusIndicator.color}`}>
-                            {statusIndicator.text}
-                          </span>
-                          {!isFutureDate && (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => saveEntryForDate(currentDate)}
-                              className="mt-2 text-xs h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              <Save className="h-3 w-3 mr-1" />
-                              Save Entry
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ];
-                }
-
-                // Show rows for each entry
-                return allEntries.map((entry, entryIndex) => {
-                  const { type, id, data, entryData } = entry;
-                  const isFirstEntry = entryIndex === 0;
-
-                  return (
-                    <tr key={`${dateKey}-${type}-${id}`} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
-                        {isFirstEntry ? (
-                          <div className="flex flex-col items-center">
-                            <span className="text-sm">{day}</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</span>
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          type === 'project' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                          type === 'product' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
-                          'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                        }`}>
-                          {type === 'project' ? 'Project' : type === 'product' ? 'Product' : 'Department'}: {data.name}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="text"
-                          value={entryData.task}
-                          onChange={(e) => {
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'task', e.target.value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'task', e.target.value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'task', e.target.value);
-                          }}
-                          placeholder="Task Description"
-                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className="w-full text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          value={entryData.availableHours || ''}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'availableHours', value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'availableHours', value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'availableHours', value);
-                          }}
-                          placeholder="0"
-                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          value={entryData.actualHours || ''}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'actualHours', value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'actualHours', value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'actualHours', value);
-                          }}
-                          placeholder="0"
-                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          value={entryData.billableHours || ''}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'billableHours', value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'billableHours', value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'billableHours', value);
-                          }}
-                          placeholder="0"
-                          disabled={!data.isBillable || isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className={`w-20 text-xs h-8 ${!data.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        {isFirstEntry ? (
-                          <div className="flex flex-col items-center">
-                            <span className={`text-xs font-medium ${statusIndicator.color}`}>
-                              {statusIndicator.text}
-                            </span>
-                            {!isFutureDate && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => saveEntryForDate(currentDate)}
-                                className="mt-2 text-xs h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                <Save className="h-3 w-3 mr-1" />
-                                Save Entry
-                              </Button>
-                            )}
-                          </div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                });
-              })}
-            </tbody>
-          </table>
-        </div>
+        <MonthlyView
+          monthlyData={monthlyData}
+          projects={projects}
+          products={products}
+          departments={departments}
+          onUpdateMonthlyProjectData={updateMonthlyProjectData}
+          onUpdateMonthlyProductData={updateMonthlyProductData}
+          onUpdateMonthlyDepartmentData={updateMonthlyDepartmentData}
+          onSaveEntryForDate={saveEntryForDate}
+          onSaveEntireRange={saveEntireRange}
+          getMonthlyDates={getMonthlyDates}
+        />
       )}
 
       {/* Daily View */}
       {currentViewMode === 'daily' && (
-        <div className="overflow-x-auto bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-          <table className="min-w-full text-center border-collapse">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-800">
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Date</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Entry Details</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Task</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Available Hours</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Actual Hours</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Billable Hours</th>
-                <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {getMonthlyDates().flatMap(currentDate => {
-                const formattedDate = format(currentDate, 'dd/MM/yyyy');
-                const day = format(currentDate, "EEEE");
-                const statusData = currentUser ? getTimeEntryStatusForDate(format(currentDate, 'yyyy-MM-dd'), currentUser.id) : null;
-                const isFutureDate = isFuture(currentDate) && !isToday(currentDate);
-                const dateKey = format(currentDate, 'yyyy-MM-dd');
-
-                // Get status indicator
-                const getStatusIndicator = () => {
-                  if (!statusData || !statusData.hasEntries) {
-                    return {
-                      text: 'No Entries',
-                      color: 'text-gray-500 dark:text-gray-400',
-                      icon: null
-                    };
-                  }
-
-                  const hasApproved = statusData.statuses.includes('approved');
-                  const hasPending = statusData.statuses.includes('pending');
-                  const hasRejected = statusData.statuses.includes('rejected');
-
-                  if (hasApproved && !hasPending && !hasRejected) {
-                    return {
-                      text: `✓ Approved (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                      color: 'text-green-600 dark:text-green-400',
-                      icon: Check
-                    };
-                  } else if (hasPending) {
-                    return {
-                      text: `⏳ Pending (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                      color: 'text-yellow-600 dark:text-yellow-400',
-                      icon: Clock
-                    };
-                  } else if (hasRejected) {
-                    return {
-                      text: `❌ Rejected (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                      color: 'text-red-600 dark:text-red-400',
-                      icon: AlertCircle
-                    };
-                  }
-                  return {
-                    text: `✓ Done (${statusData.entriesCount} entries, ${statusData.totalHours.toFixed(1)}h)`,
-                    color: 'text-green-600 dark:text-green-400',
-                    icon: Check
-                  };
-                };
-
-                const statusIndicator = getStatusIndicator();
-
-                // Create all entries for this date
-                const allEntries = [];
-
-                // Add all projects
-                projects.forEach((project, index) => {
-                  const projectData = monthlyData[dateKey]?.[project.id] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  allEntries.push({
-                    type: 'project',
-                    id: project.id,
-                    data: project,
-                    entryData: projectData,
-                    index
-                  });
-                });
-
-                // Add all products
-                products.forEach((product, index) => {
-                  const productData = monthlyData[dateKey]?.[product.id] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  allEntries.push({
-                    type: 'product',
-                    id: product.id,
-                    data: product,
-                    entryData: productData,
-                    index
-                  });
-                });
-
-                // Add all departments
-                departments.forEach((department, index) => {
-                  const departmentData = monthlyData[dateKey]?.[department.id] || {
-                    task: '',
-                    availableHours: 0,
-                    actualHours: 0,
-                    billableHours: 0
-                  };
-
-                  allEntries.push({
-                    type: 'department',
-                    id: department.id,
-                    data: department,
-                    entryData: departmentData,
-                    index
-                  });
-                });
-
-                // If no entries exist, show a message
-                if (allEntries.length === 0) {
-                  return [
-                    <tr key={currentDate.toString()} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
-                        <div className="flex flex-col items-center">
-                          <span className="text-sm">{day}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">No projects, products, or departments available</span>
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700"></td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <div className="flex flex-col items-center">
-                          <span className={`text-xs font-medium ${statusIndicator.color}`}>
-                            {statusIndicator.text}
-                          </span>
-                          {!isFutureDate && (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => saveEntryForDate(currentDate)}
-                              className="mt-2 text-xs h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              <Save className="h-3 w-3 mr-1" />
-                              Save Entry
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ];
-                }
-
-                // Show rows for each entry
-                return allEntries.map((entry, entryIndex) => {
-                  const { type, id, data, entryData } = entry;
-                  const isFirstEntry = entryIndex === 0;
-
-                  return (
-                    <tr key={`${dateKey}-${type}-${id}`} className={`odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 ${isFutureDate ? 'opacity-50' : ''}`}>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-100">
-                        {isFirstEntry ? (
-                          <div className="flex flex-col items-center">
-                            <span className="text-sm">{day}</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</span>
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-sm">
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          type === 'project' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                          type === 'product' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
-                          'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                        }`}>
-                          {type === 'project' ? 'Project' : type === 'product' ? 'Product' : 'Department'}: {data.name}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="text"
-                          value={entryData.task}
-                          onChange={(e) => {
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'task', e.target.value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'task', e.target.value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'task', e.target.value);
-                          }}
-                          placeholder="Task Description"
-                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className="w-full text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          value={entryData.availableHours || ''}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'availableHours', value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'availableHours', value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'availableHours', value);
-                          }}
-                          placeholder="0"
-                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          value={entryData.actualHours || ''}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'actualHours', value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'actualHours', value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'actualHours', value);
-                          }}
-                          placeholder="0"
-                          disabled={isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className="w-20 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]"
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          value={entryData.billableHours || ''}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            if (type === 'project') updateMonthlyProjectData(dateKey, id, 'billableHours', value);
-                            else if (type === 'product') updateMonthlyProductData(dateKey, id, 'billableHours', value);
-                            else updateMonthlyDepartmentData(dateKey, id, 'billableHours', value);
-                          }}
-                          placeholder="0"
-                          disabled={!data.isBillable || isFutureDate || hasEntryForProjectAndDate(id, dateKey, type)}
-                          className={`w-20 text-xs h-8 ${!data.isBillable ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'} border-gray-300 dark:border-gray-600 [ &::-webkit-outer-spin-button]:appearance-none [ &::-webkit-inner-spin-button]:appearance-none [ &[type=number]]:[-moz-appearance:textfield]`}
-                        />
-                      </td>
-                      <td className="py-3 px-4 border border-gray-200 dark:border-gray-700">
-                        {isFirstEntry ? (
-                          <div className="flex flex-col items-center">
-                            <span className={`text-xs font-medium ${statusIndicator.color}`}>
-                              {statusIndicator.text}
-                            </span>
-                            {!isFutureDate && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => saveEntryForDate(currentDate)}
-                                className="mt-2 text-xs h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                <Save className="h-3 w-3 mr-1" />
-                                Save Entry
-                              </Button>
-                            )}
-                          </div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                });
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DailyView
+          monthlyData={monthlyData}
+          projects={projects}
+          products={products}
+          departments={departments}
+          onUpdateMonthlyProjectData={updateMonthlyProjectData}
+          onUpdateMonthlyProductData={updateMonthlyProductData}
+          onUpdateMonthlyDepartmentData={updateMonthlyDepartmentData}
+          onSaveEntryForDate={saveEntryForDate}
+          getMonthlyDates={getMonthlyDates}
+        />
       )}
 
-      <div className="flex justify-end pt-4">
-        {currentViewMode === 'weekly' && (
-          <Button onClick={saveWeeklyData} className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded shadow-lg transition-colors">
-            <Save className="mr-2 h-4 w-4" />
-            Save Week
-          </Button>
-        )}
-        {currentViewMode === 'monthly' && (
-          <Button onClick={saveEntireRange} className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-6 rounded shadow-lg transition-colors flex items-center space-x-2">
-            <Save className="h-4 w-4" />
-            <span>Save Entire Range</span>
-          </Button>
-        )}
-      </div>
+
 
       {/* Daily Tracker Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -78,6 +78,13 @@ export function DateRangePicker({
   const today = new Date();
   today.setHours(23, 59, 59, 999); // Set to end of today
 
+  // Close popover when a complete range is selected
+  React.useEffect(() => {
+    if (dateRange?.from && dateRange?.to) {
+      setIsOpen(false);
+    }
+  }, [dateRange?.from, dateRange?.to]);
+
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDateRangeChange?.(undefined);
@@ -91,6 +98,8 @@ export function DateRangePicker({
     }
     return placeholder;
   };
+
+
 
   // Quick filter options
   const quickFilters = [
@@ -171,21 +180,33 @@ export function DateRangePicker({
       <PopoverContent className="w-auto p-0" align="start">
         <div className="flex">
           <div>
-            <Calendar
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={dateRange}
-              onSelect={(range) => {
-                onDateRangeChange?.(range);
-                // Close popover when both dates are selected
-                if (range?.from && range?.to) {
-                  setIsOpen(false);
-                }
-              }}
-              disabled={{ after: today }}
-              initialFocus
-              numberOfMonths={2}
-            />
+                         <Calendar
+               mode="range"
+               defaultMonth={dateRange?.from}
+               selected={dateRange}
+               onSelect={(range) => {
+                 // Custom logic: if we have 2 dates selected and click a third date,
+                 // reset to the new date as the first date
+                 if (dateRange?.from && dateRange?.to && range?.from && !range?.to) {
+                   // Third date clicked - reset to new first date
+                   onDateRangeChange?.({ from: range.from, to: undefined });
+                 } else if (dateRange?.from && dateRange?.to && range?.from && range?.to) {
+                   // If we have a complete range and user selects a new complete range,
+                   // it means they clicked a third date that created a new range
+                   // We should reset to just the new first date
+                   onDateRangeChange?.({ from: range.from, to: undefined });
+                 } else {
+                   onDateRangeChange?.(range);
+                   // Close popover when both dates are selected
+                   if (range?.from && range?.to) {
+                     setIsOpen(false);
+                   }
+                 }
+               }}
+               disabled={{ after: today }}
+               initialFocus
+               numberOfMonths={2}
+             />
             <div className="p-3 border-t">
               <div className="flex justify-between items-center text-sm text-muted-foreground">
                 <span>Select start and end dates</span>
