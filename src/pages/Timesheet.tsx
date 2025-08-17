@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +9,12 @@ import { DateRange } from "react-day-picker";
 import { Input } from "@/components/ui/input";
 import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon, Search } from "lucide-react";
 import Header from "@/components/dashboard/Header";
-import { getCurrentUser, getAllUsers } from "@/lib/auth";
-import { getTimeEntries, deleteTimeEntry, getProjects, getProducts, getDepartments } from "@/services/storage";
+import { getCurrentUser } from "@/lib/auth";
+import { deleteTimeEntry } from "@/services/storage";
 import { TimeEntry, rolePermissions } from "@/validation/index";
 import { useNavigate } from "react-router-dom";
 import EditSingleTimeEntryForm from "@/components/users/EditSingleTimeEntryForm";
+import { useTimeEntries, useUsers, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 
 interface GroupedEntry {
   date: string;
@@ -33,7 +34,6 @@ interface GroupedEntry {
 }
 
 export default function Timesheet() {
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [statusFilter, setStatusFilter] = useState("all");
@@ -45,128 +45,135 @@ export default function Timesheet() {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
-  const users = getAllUsers();
-  const projects = getProjects();
-  const products = getProducts();
-  const departments = getDepartments();
+  
+  const { timeEntries: allTimeEntries, refreshTimeEntries } = useTimeEntries();
+  const { users } = useUsers();
+  const { projects } = useProjects();
+  const { products } = useProducts();
+  const { departments } = useDepartments();
+
+  const timeEntries = useMemo(() => {
+    if (currentUser?.role === 'owner') {
+      return allTimeEntries;
+    } else if (currentUser?.role === 'manager') {
+      return allTimeEntries;
+    } else {
+      return allTimeEntries.filter(entry => entry.userId === currentUser?.id);
+    }
+  }, [allTimeEntries, currentUser]);
 
   const loadTimeEntries = useCallback(() => {
-    const allEntries = getTimeEntries();
-    
-    if (currentUser?.role === 'owner') {
-      setTimeEntries(allEntries);
-    } else if (currentUser?.role === 'manager') {
-      setTimeEntries(allEntries);
-    } else {
-      setTimeEntries(allEntries.filter(entry => entry.userId === currentUser?.id));
-    }
-  }, [currentUser]);
+    refreshTimeEntries();
+  }, [refreshTimeEntries]);
 
-  useEffect(() => {
-    loadTimeEntries();
-  }, [loadTimeEntries]);
-
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-  };
+  }, []);
 
-  const handleUserClick = (userId: string) => {
+  const handleUserClick = useCallback((userId: string) => {
     setSelectedUser(userId === selectedUser ? null : userId);
-  };
+  }, [selectedUser]);
 
-  const handleDeleteEntry = (entryId: string) => {
+  const handleDeleteEntry = useCallback((entryId: string) => {
     const entry = timeEntries.find(e => e.id === entryId);
     if (entry && (entry.status === 'pending' || currentUser?.role === 'owner')) {
       deleteTimeEntry(entryId);
+      invalidateCache('timeEntries');
       loadTimeEntries();
     }
-  };
+  }, [timeEntries, currentUser?.role, loadTimeEntries]);
 
 
-  const filteredEntries = timeEntries.filter(entry => {
-    const matchesSearch = !searchQuery ||
-      entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.date.includes(searchQuery);
+  const filteredEntries = useMemo(() => {
+    return timeEntries.filter(entry => {
+      const matchesSearch = !searchQuery ||
+        entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.date.includes(searchQuery);
 
-    const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
-    
-    const entryDate = new Date(entry.date);
-    
-    // Date filtering logic - only use calendar date range
-    let matchesDateFilter = true;
-    
-    if (dateRange && dateRange.from) {
-      // Use calendar date range if selected
-      const startDate = new Date(dateRange.from);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(dateRange.to || dateRange.from);
-      endDate.setHours(23, 59, 59, 999);
-      matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
-    }
-    // If no date range is selected, show all entries (no date filtering)
+      const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
+      
+      const entryDate = new Date(entry.date);
+      
+      // Date filtering logic - only use calendar date range
+      let matchesDateFilter = true;
+      
+      if (dateRange && dateRange.from) {
+        // Use calendar date range if selected
+        const startDate = new Date(dateRange.from);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(dateRange.to || dateRange.from);
+        endDate.setHours(23, 59, 59, 999);
+        matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
+      }
+      // If no date range is selected, show all entries (no date filtering)
 
-    const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
-    const matchesBillable = billableFilter === 'all' || 
-      (billableFilter === 'billable' && entry.isBillable) ||
-      (billableFilter === 'non-billable' && !entry.isBillable);
-    const matchesProject = projectFilter === 'all' || 
-      (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
-      (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
-      (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
+      const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
+      const matchesBillable = billableFilter === 'all' || 
+        (billableFilter === 'billable' && entry.isBillable) ||
+        (billableFilter === 'non-billable' && !entry.isBillable);
+      const matchesProject = projectFilter === 'all' || 
+        (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
 
-    return matchesSearch && matchesStatus && matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
-  });
+      return matchesSearch && matchesStatus && matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
+    });
+  }, [timeEntries, searchQuery, statusFilter, dateRange, roleFilter, billableFilter, projectFilter, projects, products, departments]);
 
   // Get entries for overtime calculation (current month if no date filter)
-  const overtimeEntries = timeEntries.filter(entry => {
-    const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
-    const matchesBillable = billableFilter === 'all' || 
-      (billableFilter === 'billable' && entry.isBillable) ||
-      (billableFilter === 'non-billable' && !entry.isBillable);
-    const matchesProject = projectFilter === 'all' || 
-      (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
-      (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
-      (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
-    
-    const entryDate = new Date(entry.date);
-    let matchesDateFilter = true;
-    
-    if (dateRange && dateRange.from) {
-      // Use selected date range
-      const startDate = new Date(dateRange.from);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(dateRange.to || dateRange.from);
-      endDate.setHours(23, 59, 59, 999);
-      matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
-    } else {
-      // Default to current month if no date range selected
-      const now = new Date();
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      matchesDateFilter = entryDate >= currentMonthStart && entryDate <= currentMonthEnd;
-    }
+  const overtimeEntries = useMemo(() => {
+    return timeEntries.filter(entry => {
+      const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
+      const matchesBillable = billableFilter === 'all' || 
+        (billableFilter === 'billable' && entry.isBillable) ||
+        (billableFilter === 'non-billable' && !entry.isBillable);
+      const matchesProject = projectFilter === 'all' || 
+        (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
+      
+      const entryDate = new Date(entry.date);
+      let matchesDateFilter = true;
+      
+      if (dateRange && dateRange.from) {
+        // Use selected date range
+        const startDate = new Date(dateRange.from);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(dateRange.to || dateRange.from);
+        endDate.setHours(23, 59, 59, 999);
+        matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
+      } else {
+        // Default to current month if no date range selected
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        matchesDateFilter = entryDate >= currentMonthStart && entryDate <= currentMonthEnd;
+      }
 
-    return matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
-  });
+      return matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
+    });
+  }, [timeEntries, roleFilter, billableFilter, projectFilter, projects, products, departments, dateRange]);
 
   // Group entries by date and sum hours for the same date
-  const groupedEntries = filteredEntries.reduce((groups, entry) => {
-    const date = entry.date;
-    if (!groups[date]) {
-      groups[date] = {
-        ...entry,
-        totalHours: 0,
-        entries: []
-      };
-    }
-    groups[date].totalHours += entry.totalHours;
-    groups[date].entries.push(entry);
-    return groups;
-  }, {} as Record<string, GroupedEntry>);
+  const groupedEntries = useMemo(() => {
+    return filteredEntries.reduce((groups, entry) => {
+      const date = entry.date;
+      if (!groups[date]) {
+        groups[date] = {
+          ...entry,
+          totalHours: 0,
+          entries: []
+        };
+      }
+      groups[date].totalHours += entry.totalHours;
+      groups[date].entries.push(entry);
+      return groups;
+    }, {} as Record<string, GroupedEntry>);
+  }, [filteredEntries]);
 
-  const getStatsForEntries = (entries: TimeEntry[]) => {
+  const getStatsForEntries = useCallback((entries: TimeEntry[]) => {
     const dailyEntries = entries.reduce((acc: { [key: string]: TimeEntry[] }, entry) => {
       const date = entry.date;
       if (!acc[date]) acc[date] = [];
@@ -186,24 +193,24 @@ export default function Timesheet() {
       averageHours,
       entries
     };
-  };
+  }, []);
 
   // Get entries based on current selection
-  const getFilteredStats = () => {
+  const getFilteredStats = useCallback(() => {
     let entriesToUse = filteredEntries;
     if (selectedUser) {
       entriesToUse = filteredEntries.filter(entry => entry.userId === selectedUser);
     }
     return getStatsForEntries(entriesToUse);
-  };
+  }, [filteredEntries, selectedUser, getStatsForEntries]);
 
-  const stats = getFilteredStats();
+  const stats = useMemo(() => getFilteredStats(), [getFilteredStats]);
   const totalActualHours = stats.totalActualHours;
   const totalBillableHours = stats.totalBillableHours;
   const daysWorked = stats.daysWorked;
   
   // Calculate overtime based on total expected hours for the period
-  const calculateOvertimeHours = () => {
+  const calculateOvertimeHours = useCallback(() => {
     const standardDailyHours = 8;
     
     // Calculate total actual hours from overtime entries
@@ -246,42 +253,42 @@ export default function Timesheet() {
     // Calculate overtime (total actual - expected, but never negative)
     const overtime = Math.max(0, totalActualHoursForOvertime - expectedHours);
     return overtime;
-  };
+  }, [overtimeEntries, dateRange]);
   
-  const overtimeCalculated = calculateOvertimeHours();
-  const averageHours = totalActualHours / (daysWorked || 1);
+  const overtimeCalculated = useMemo(() => calculateOvertimeHours(), [calculateOvertimeHours]);
+  const averageHours = useMemo(() => totalActualHours / (daysWorked || 1), [totalActualHours, daysWorked]);
   
   // Get current user's available hours
   const availableHours = currentUser?.availableHours || 0;
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'approved': return 'bg-green-600 text-white';
       case 'rejected': return 'bg-red-600 text-white';
       case 'pending': return 'bg-yellow-500 text-black';
       default: return 'bg-gray-200 text-gray-800';
     }
-  };
+  }, []);
 
-  const canEdit = (entry: TimeEntry) => {
+  const canEdit = useCallback((entry: TimeEntry) => {
     if (currentUser?.role === 'owner') return true;
     if (currentUser?.role === 'manager') return entry.status === 'pending';
     if (entry.userId !== currentUser?.id) return false;
     return entry.status === 'pending';
-  };
+  }, [currentUser]);
 
-  const canDelete = (entry: TimeEntry) => {
+  const canDelete = useCallback((entry: TimeEntry) => {
     if (currentUser?.role === 'owner') return true;
     if (currentUser?.role === 'manager') return entry.status === 'pending';
     if (entry.userId !== currentUser?.id) return false;
     return entry.status === 'pending';
-  };
+  }, [currentUser]);
 
-  const handleAddEntry = () => {
+  const handleAddEntry = useCallback(() => {
     navigate('/tracker');
-  };
+  }, [navigate]);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     // Export functionality
     const csvContent = "data:text/csv;charset=utf-8," + 
       "Date,Employee,Project,Task,Hours,Status\n" +
@@ -296,9 +303,9 @@ export default function Timesheet() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, [filteredEntries]);
 
-  const handleSubmitTimesheet = () => {
+  const handleSubmitTimesheet = useCallback(() => {
     // Submit timesheet functionality - mark all pending entries as submitted
     const pendingEntries = filteredEntries.filter(entry => 
       entry.status === 'pending' && entry.userId === currentUser?.id
@@ -310,24 +317,25 @@ export default function Timesheet() {
     }
     
     alert(`Submitted ${pendingEntries.length} entries for approval`);
-  };
+  }, [filteredEntries, currentUser?.id]);
 
   // Edit handlers
-  const handleEditEntry = (entry: TimeEntry) => {
+  const handleEditEntry = useCallback((entry: TimeEntry) => {
     setEditingEntry(entry);
     setDailyTrackerOpen(true);
-  };
+  }, []);
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = useCallback(() => {
     setDailyTrackerOpen(false);
     setEditingEntry(null);
+    invalidateCache('timeEntries');
     loadTimeEntries();
-  };
+  }, [loadTimeEntries]);
 
-  const handleCloseDailyTracker = () => {
+  const handleCloseDailyTracker = useCallback(() => {
     setDailyTrackerOpen(false);
     setEditingEntry(null);
-  };
+  }, []);
 
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
@@ -514,21 +522,18 @@ export default function Timesheet() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Items</SelectItem>
-                  <optgroup label="Projects">
-                    {projects.map(project => (
-                      <SelectItem value={`project-${project.id}`} key={`project-${project.id}`}>{project.name}</SelectItem>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Products">
-                    {products.map(product => (
-                      <SelectItem value={`product-${product.id}`} key={`product-${product.id}`}>{product.name}</SelectItem>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Departments">
-                    {departments.map(department => (
-                      <SelectItem value={`department-${department.id}`} key={`department-${department.id}`}>{department.name}</SelectItem>
-                    ))}
-                  </optgroup>
+                  <SelectItem value="projects" disabled className="font-semibold text-muted-foreground">Projects</SelectItem>
+                  {projects.map(project => (
+                    <SelectItem value={`project-${project.id}`} key={`project-${project.id}`} className="ml-4">{project.name}</SelectItem>
+                  ))}
+                  <SelectItem value="products" disabled className="font-semibold text-muted-foreground">Products</SelectItem>
+                  {products.map(product => (
+                    <SelectItem value={`product-${product.id}`} key={`product-${product.id}`} className="ml-4">{product.name}</SelectItem>
+                  ))}
+                  <SelectItem value="departments" disabled className="font-semibold text-muted-foreground">Departments</SelectItem>
+                  {departments.map(department => (
+                    <SelectItem value={`department-${department.id}`} key={`department-${department.id}`} className="ml-4">{department.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,58 +7,57 @@ import { Input } from "@/components/ui/input";
 import { Bell, Check, X, Eye, Search } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
-import { getNotifications, markNotificationAsRead } from "@/services/storage";
+import { markNotificationAsRead } from "@/services/storage";
+import { invalidateCache } from "@/hooks/useData";
+import { useNotifications } from "@/hooks/useData";
 import { Notification } from "@/validation/index";
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [readFilter, setReadFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const currentUser = getCurrentUser();
+  
+  const { notifications, loading, refreshNotifications } = useNotifications(currentUser?.id || '');
 
   const loadNotifications = useCallback(() => {
     if (currentUser) {
-      const userNotifications = getNotifications(currentUser.id);
-      setNotifications(userNotifications.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
+      refreshNotifications();
     }
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (currentUser) {
-      loadNotifications();
-    }
-  }, [currentUser, loadNotifications]);
+  }, [currentUser, refreshNotifications]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
 
-  const handleMarkAsRead = (notificationId: string) => {
+  const handleMarkAsRead = useCallback((notificationId: string) => {
     markNotificationAsRead(notificationId);
-    loadNotifications();
-  };
+    invalidateCache('notifications');
+    refreshNotifications();
+  }, [refreshNotifications]);
 
-  const filteredNotifications = notifications.filter(notification => {
-    const matchesSearch = !searchQuery ||
-      notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      notification.message.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter(notification => {
+      const matchesSearch = !searchQuery ||
+        notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        notification.message.toLowerCase().includes(searchQuery.toLowerCase());
 
-    let matchesRead = true;
-    if (readFilter === 'read') {
-      matchesRead = notification.isRead;
-    } else if (readFilter === 'unread') {
-      matchesRead = !notification.isRead;
-    }
+      let matchesRead = true;
+      if (readFilter === 'read') {
+        matchesRead = notification.isRead;
+      } else if (readFilter === 'unread') {
+        matchesRead = !notification.isRead;
+      }
 
-    const matchesType = typeFilter === 'all' || notification.type === typeFilter;
+      const matchesType = typeFilter === 'all' || notification.type === typeFilter;
 
-    return matchesSearch && matchesRead && matchesType;
-  });
+      return matchesSearch && matchesRead && matchesType;
+    });
+  }, [notifications, searchQuery, readFilter, typeFilter]);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = useMemo(() => {
+    return notifications.filter(n => !n.isRead).length;
+  }, [notifications]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {

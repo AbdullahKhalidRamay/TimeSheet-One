@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,15 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { FolderOpen, Plus, Building2, Package, Users, Trash2, Edit2, Search } from "lucide-react";
 import Header from "@/components/dashboard/Header";
-import { getProjects, getProducts, getDepartments, deleteProject, deleteProduct, deleteDepartment } from "@/services/storage";
+import { deleteProject, deleteProduct, deleteDepartment } from "@/services/storage";
 import { Project, Product, Department } from "@/validation/index";
 import { getCurrentUser } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
+import { useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 
 export default function Projects() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isProjectFormOpen, setProjectFormOpen] = useState(false);
   const [isProductFormOpen, setProductFormOpen] = useState(false);
@@ -30,109 +28,117 @@ export default function Projects() {
   const currentUser = getCurrentUser();
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
-  useEffect(() => {
-    loadData();
+  const { projects, loading: projectsLoading, refreshProjects } = useProjects();
+  const { products, loading: productsLoading, refreshProducts } = useProducts();
+  const { departments, loading: departmentsLoading, refreshDepartments } = useDepartments();
+
+  const loadData = useCallback(() => {
+    refreshProjects();
+    refreshProducts();
+    refreshDepartments();
+  }, [refreshProjects, refreshProducts, refreshDepartments]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
   }, []);
 
-  const loadData = () => {
-    setProjects(getProjects());
-    setProducts(getProducts());
-    setDepartments(getDepartments());
-  };
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
-
-  const filterBySearch = <T extends { name: string }>(items: T[]): T[] => {
+  const filterBySearch = useCallback(<T extends { name: string }>(items: T[]): T[] => {
     if (!searchQuery) return items;
     return items.filter(item => 
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  };
+  }, [searchQuery]);
 
-  const handleProjectSuccess = () => {
+  const handleProjectSuccess = useCallback(() => {
     setProjectFormOpen(false);
+    invalidateCache('projects');
     loadData();
-  };
+  }, [loadData]);
 
-  const handleProductSuccess = () => {
+  const handleProductSuccess = useCallback(() => {
     setProductFormOpen(false);
+    invalidateCache('products');
     loadData();
-  };
+  }, [loadData]);
 
-  const handleDepartmentSuccess = () => {
+  const handleDepartmentSuccess = useCallback(() => {
     setDepartmentFormOpen(false);
     setEditingDepartment(null);
+    invalidateCache('departments');
     loadData();
-  };
+  }, [loadData]);
 
   // Edit handlers
-  const handleEditProject = (project: Project) => {
+  const handleEditProject = useCallback((project: Project) => {
     setEditingProject(project);
     setProjectFormOpen(true);
-  };
+  }, []);
 
-  const handleEditProduct = (product: Product) => {
+  const handleEditProduct = useCallback((product: Product) => {
     setEditingProduct(product);
     setProductFormOpen(true);
-  };
+  }, []);
 
-  const handleEditDepartment = (department: Department) => {
+  const handleEditDepartment = useCallback((department: Department) => {
     setEditingDepartment(department);
     setDepartmentFormOpen(true);
-  };
+  }, []);
 
   // Delete handlers
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = useCallback((projectId: string) => {
     if (confirm('Are you sure you want to delete this project?')) {
       deleteProject(projectId);
+      invalidateCache('projects');
       loadData();
     }
-  };
+  }, [loadData]);
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = useCallback((productId: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
       deleteProduct(productId);
+      invalidateCache('products');
       loadData();
     }
-  };
+  }, [loadData]);
 
-  const handleDeleteDepartment = (departmentId: string) => {
+  const handleDeleteDepartment = useCallback((departmentId: string) => {
     if (confirm('Are you sure you want to delete this department?')) {
       deleteDepartment(departmentId);
+      invalidateCache('departments');
       loadData();
     }
-  };
+  }, [loadData]);
 
   // Close handlers with reset
-  const handleCloseProjectForm = () => {
+  const handleCloseProjectForm = useCallback(() => {
     setProjectFormOpen(false);
     setEditingProject(null);
-  };
+  }, []);
 
-  const handleCloseProductForm = () => {
+  const handleCloseProductForm = useCallback(() => {
     setProductFormOpen(false);
     setEditingProduct(null);
-  };
+  }, []);
 
-  const handleCloseDepartmentForm = () => {
+  const handleCloseDepartmentForm = useCallback(() => {
     setDepartmentFormOpen(false);
     setEditingDepartment(null);
-  };
+  }, []);
 
   // Update success handlers
-  const handleProjectSuccessUpdated = () => {
+  const handleProjectSuccessUpdated = useCallback(() => {
     setProjectFormOpen(false);
     setEditingProject(null);
+    invalidateCache('projects');
     loadData();
-  };
+  }, [loadData]);
 
-  const handleProductSuccessUpdated = () => {
+  const handleProductSuccessUpdated = useCallback(() => {
     setProductFormOpen(false);
     setEditingProduct(null);
+    invalidateCache('products');
     loadData();
-  };
+  }, [loadData]);
 
   return (
     <div className="dashboard-layout">

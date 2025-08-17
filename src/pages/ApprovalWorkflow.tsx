@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,40 +10,37 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { CheckSquare, X, Check, Clock, History, MessageSquare, Search, DollarSign } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
-import { getTimeEntries, updateTimeEntryStatus, getApprovalHistory } from "@/services/storage";
+import { updateTimeEntryStatus } from "@/services/storage";
 import { TimeEntry, ApprovalAction } from "@/validation/index";
 import { rolePermissions } from "@/validation/index";
+import { useTimeEntries, useApprovalHistory, invalidateCache } from "@/hooks/useData";
 
 export default function ApprovalWorkflow() {
-  const [pendingEntries, setPendingEntries] = useState<TimeEntry[]>([]);
-  const [approvalHistory, setApprovalHistory] = useState<ApprovalAction[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [approvalMessage, setApprovalMessage] = useState("");
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
   const currentUser = getCurrentUser();
 
-  useEffect(() => {
-    loadData();
+  const { timeEntries, refreshTimeEntries } = useTimeEntries();
+  const { approvalHistory, refreshApprovalHistory } = useApprovalHistory();
+
+  const loadData = useCallback(() => {
+    refreshTimeEntries();
+    refreshApprovalHistory();
+  }, [refreshTimeEntries, refreshApprovalHistory]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
   }, []);
 
-  const loadData = () => {
-    const allEntries = getTimeEntries();
-    setPendingEntries(allEntries.filter(entry => entry.status === 'pending'));
-    setApprovalHistory(getApprovalHistory());
-  };
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
-
-  const handleApproval = (entry: TimeEntry, action: 'approve' | 'reject') => {
+  const handleApproval = useCallback((entry: TimeEntry, action: 'approve' | 'reject') => {
     setSelectedEntry(entry);
     setApprovalAction(action);
     setApprovalMessage("");
-  };
+  }, []);
 
-  const submitApproval = () => {
+  const submitApproval = useCallback(() => {
     if (!selectedEntry || !currentUser || !approvalMessage.trim()) return;
 
     const status = approvalAction === 'approve' ? 'approved' : 'rejected';
@@ -51,30 +48,40 @@ export default function ApprovalWorkflow() {
     
     setSelectedEntry(null);
     setApprovalMessage("");
+    invalidateCache('timeEntries');
+    invalidateCache('approvalHistory');
     loadData();
-  };
+  }, [selectedEntry, currentUser, approvalMessage, approvalAction, loadData]);
 
-  const filteredPendingEntries = pendingEntries.filter(entry => {
-    if (!searchQuery) return true;
-    return (
-      entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.date.includes(searchQuery)
-    );
-  });
+  const pendingEntries = useMemo(() => {
+    return timeEntries.filter(entry => entry.status === 'pending');
+  }, [timeEntries]);
 
-  const filteredHistory = approvalHistory.filter(action => {
-    if (!searchQuery) return true;
-    const entry = getTimeEntries().find(e => e.id === action.entryId);
-    if (!entry) return false;
-    return (
-      entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      action.message.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  const filteredPendingEntries = useMemo(() => {
+    return pendingEntries.filter(entry => {
+      if (!searchQuery) return true;
+      return (
+        entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.date.includes(searchQuery)
+      );
+    });
+  }, [pendingEntries, searchQuery]);
+
+  const filteredHistory = useMemo(() => {
+    return approvalHistory.filter(action => {
+      if (!searchQuery) return true;
+      const entry = timeEntries.find(e => e.id === action.entryId);
+      if (!entry) return false;
+      return (
+        entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        action.message.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  }, [approvalHistory, searchQuery, timeEntries]);
 
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 

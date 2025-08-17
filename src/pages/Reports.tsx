@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { getAllUsers } from '@/lib/auth';
-import { getTeams, getTimeEntries, getProjects, getProducts, getDepartments, deleteTeam } from '@/services/storage';
+import React, { useState, useCallback, useMemo } from 'react';
+import { deleteTeam } from '@/services/storage';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +12,7 @@ import { Users, Clock, DollarSign, Building, Download, Search, Trash2 } from 'lu
 import { User, Team } from '@/validation';
 import Header from '@/components/dashboard/Header';
 import { DateRange } from 'react-day-picker';
+import { useUsers, useTeams, useTimeEntries, useProjects, useProducts, useDepartments, invalidateCache } from '@/hooks/useData';
 
 const Reports = () => {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -20,39 +20,41 @@ const Reports = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
-  const users = getAllUsers();
-  const teams = getTeams();
-  const timeEntries = getTimeEntries();
-  const projects = getProjects();
-  const products = getProducts();
-  const departments = getDepartments();
-
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  const handleSearch = (query: string) => {
+  const { users, refreshUsers } = useUsers();
+  const { teams, refreshTeams } = useTeams();
+  const { timeEntries, refreshTimeEntries } = useTimeEntries();
+  const { projects, refreshProjects } = useProjects();
+  const { products, refreshProducts } = useProducts();
+  const { departments, refreshDepartments } = useDepartments();
+
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-  };
+  }, []);
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
+  const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
     setDateRange(range);
-  };
+  }, []);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = !searchQuery ||
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = !searchQuery ||
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesTeam = teamFilter === 'all' || teams.some(team => team.memberIds.includes(user.id) && team.id === teamFilter);
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+      const matchesTeam = teamFilter === 'all' || teams.some(team => team.memberIds.includes(user.id) && team.id === teamFilter);
 
-    return matchesSearch && matchesRole && matchesTeam;
-  });
+      return matchesSearch && matchesRole && matchesTeam;
+    });
+  }, [users, searchQuery, roleFilter, teamFilter, teams]);
 
-  const handleShowDetails = (teamId: string) => {
+  const handleShowDetails = useCallback((teamId: string) => {
     setSelectedTeamId((prevId) => (prevId === teamId ? null : teamId));
-  };
+  }, []);
 
-  const handleDeleteTeam = (teamId: string) => {
+  const handleDeleteTeam = useCallback((teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     if (team && confirm(`Are you sure you want to delete the team "${team.name}"? This action cannot be undone.`)) {
       deleteTeam(teamId);
@@ -64,12 +66,13 @@ const Reports = () => {
       if (teamFilter === teamId) {
         setTeamFilter('all');
       }
-      // Force a re-render by triggering a state update
-      window.location.reload();
+      // Invalidate cache and refresh data instead of reloading
+      invalidateCache('teams');
+      refreshTeams();
     }
-  };
+  }, [teams, selectedTeamId, teamFilter, refreshTeams]);
 
-  const getUserStats = (userId: string) => {
+  const getUserStats = useCallback((userId: string) => {
     let userEntries = timeEntries.filter(entry => entry.userId === userId);
     
     // Apply date filter if set
@@ -99,10 +102,10 @@ const Reports = () => {
       pendingEntries: pendingEntries.length,
       totalEntries: userEntries.length
     };
-  };
+  }, [timeEntries, dateRange]);
 
   // Team-specific stats - only hours on team's projects/products/departments
-  const getTeamUserStats = (userId: string, team: Team) => {
+  const getTeamUserStats = useCallback((userId: string, team: Team) => {
     const { teamProjects, teamProducts, teamDepartments } = getTeamProjects(team);
     
     // Get all project/product/department names associated with this team
@@ -156,15 +159,15 @@ const Reports = () => {
       pendingEntries: pendingEntries.length,
       totalEntries: userEntries.length
     };
-  };
+  }, [timeEntries, dateRange]);
 
-  const getTeamProjects = (team: Team) => {
+  const getTeamProjects = useCallback((team: Team) => {
     const teamProjects = projects.filter(p => team.associatedProjects.includes(p.id));
     const teamProducts = products.filter(p => team.associatedProducts.includes(p.id));
     const teamDepartments = departments.filter(d => team.associatedDepartments.includes(d.id));
     
     return { teamProjects, teamProducts, teamDepartments };
-  };
+  }, [projects, products, departments]);
 
   return (
     <div className="dashboard-layout">

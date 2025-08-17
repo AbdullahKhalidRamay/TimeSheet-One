@@ -26,12 +26,22 @@ export const saveTimeEntry = (entry: TimeEntry): void => {
   }
   
   localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(entries));
+  
+  // Invalidate cache to ensure fresh data
+  if (typeof window !== 'undefined' && (window as any).invalidateCache) {
+    (window as any).invalidateCache('timeEntries');
+  }
 };
 
 export const deleteTimeEntry = (entryId: string): void => {
   const entries = getTimeEntries();
   const filteredEntries = entries.filter(e => e.id !== entryId);
   localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(filteredEntries));
+  
+  // Invalidate cache to ensure fresh data
+  if (typeof window !== 'undefined' && (window as any).invalidateCache) {
+    (window as any).invalidateCache('timeEntries');
+  }
 };
 
 export const updateTimeEntryStatus = (entryId: string, status: 'approved' | 'rejected', message: string, approvedBy: string): void => {

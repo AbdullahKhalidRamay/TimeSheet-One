@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,15 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Users, UserPlus, ChevronDown, Search, Edit, Trash2 } from "lucide-react";
 import Header from "@/components/dashboard/Header";
-import { getAllUsers, getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { User } from "@/validation/index";
 import { rolePermissions, Team } from "@/validation/index";
-import { getTeams, getProjects, getProducts, getDepartments, deleteTeam, addMemberToTeam } from "@/services/storage";
+import { deleteTeam, addMemberToTeam } from "@/services/storage";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import CreateTeamForm from "@/components/users/CreateTeamForm";
+import { useUsers, useTeams, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 
 export default function Teams() {
-  const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -23,60 +23,60 @@ export default function Teams() {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const currentUser = getCurrentUser();
 
-  useEffect(() => {
-    loadUsers();
+  const { users, refreshUsers } = useUsers();
+  const { teams, refreshTeams } = useTeams();
+  const { projects } = useProjects();
+  const { products } = useProducts();
+  const { departments } = useDepartments();
+
+  const loadUsers = useCallback(() => {
+    refreshUsers();
+  }, [refreshUsers]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
   }, []);
 
-  const loadUsers = () => {
-    setUsers(getAllUsers());
-  };
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = !searchQuery ||
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
+      const matchesStatus = statusFilter === 'all' || statusFilter === 'active'; // Assume all users are active for now
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter;
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = !searchQuery ||
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch && matchesStatus && matchesRole;
+    });
+  }, [users, searchQuery, statusFilter, roleFilter]);
 
-    const matchesStatus = statusFilter === 'all' || statusFilter === 'active'; // Assume all users are active for now
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-
-    return matchesSearch && matchesStatus && matchesRole;
-  });
-
-  const getJobTitleColor = (role: string) => {
+  const getJobTitleColor = useCallback((role: string) => {
     switch (role) {
       case "owner": return "bg-role-owner text-white";
       case "manager": return "bg-role-manager text-white";
       case "employee": return "bg-role-employee text-white";
       default: return "bg-muted";
     }
-  };
-
-  const getJobTitleLabel = (jobTitle: string) => {
-    return jobTitle;
-  };
-
-  const [teams, setTeams] = useState<Team[]>([]);
-  const permissions = rolePermissions[currentUser?.role || 'employee'];
-
-  useEffect(() => {
-    loadTeams();
   }, []);
 
-  const loadTeams = () => {
-    setTeams(getTeams());
-  };
+  const getJobTitleLabel = useCallback((jobTitle: string) => {
+    return jobTitle;
+  }, []);
 
-  const handleDeleteTeam = (teamId: string) => {
+  const permissions = rolePermissions[currentUser?.role || 'employee'];
+
+  const loadTeams = useCallback(() => {
+    refreshTeams();
+  }, [refreshTeams]);
+
+  const handleDeleteTeam = useCallback((teamId: string) => {
     if (confirm('Are you sure you want to delete this team?')) {
       deleteTeam(teamId);
+      invalidateCache('teams');
       loadTeams();
     }
-  };
+  }, [loadTeams]);
 
   return (
     <div className="dashboard-layout">
@@ -226,7 +226,7 @@ export default function Teams() {
                       <div className="space-y-1">
                         {team.associatedProjects.length > 0 ? (
                           team.associatedProjects.map(projectId => {
-                            const project = getProjects().find(p => p.id === projectId);
+                            const project = projects.find(p => p.id === projectId);
                             return project ? (
                               <Badge key={project.id} variant="secondary" className="mr-1">{project.name}</Badge>
                             ) : null;
@@ -240,7 +240,7 @@ export default function Teams() {
                       <div className="space-y-1">
                         {team.associatedProducts && team.associatedProducts.length > 0 ? (
                           team.associatedProducts.map(productId => {
-                            const product = getProducts().find(p => p.id === productId);
+                            const product = products.find(p => p.id === productId);
                             return product ? (
                               <Badge key={product.id} variant="outline" className="mr-1 bg-purple-50 text-purple-700 border-purple-200">{product.name}</Badge>
                             ) : null;
@@ -254,7 +254,7 @@ export default function Teams() {
                       <div className="space-y-1">
                         {team.associatedDepartments && team.associatedDepartments.length > 0 ? (
                           team.associatedDepartments.map(departmentId => {
-                            const department = getDepartments().find(d => d.id === departmentId);
+                            const department = departments.find(d => d.id === departmentId);
                             return department ? (
                               <Badge key={department.id} variant="outline" className="mr-1 bg-orange-50 text-orange-700 border-orange-200">{department.name}</Badge>
                             ) : null;
