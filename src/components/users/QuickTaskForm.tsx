@@ -62,13 +62,13 @@ export default function QuickTaskForm({
 
   // Determine the type and styling for the badge
   const getProjectTypeInfo = () => {
-    if ('stages' in project) {
+    if ('levels' in project) {
       return {
         type: 'Project',
         badgeClass: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
         icon: '📋'
       };
-    } else if ('productStages' in project) {
+    } else if ('stages' in project) {
       return {
         type: 'Product',
         badgeClass: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',

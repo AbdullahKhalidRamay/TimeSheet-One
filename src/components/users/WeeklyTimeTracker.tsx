@@ -504,9 +504,9 @@ export default function WeeklyTimeTracker() {
     const dayKey = format(selectedDateForQuickTask, 'yyyy-MM-dd');
     
     // Check for existing description based on project type
-    if ('stages' in selectedProject) { // Project
+    if ('levels' in selectedProject) { // Project
       return weeklyData[selectedProject.id]?.[dayKey]?.task || '';
-    } else if ('productStages' in selectedProject) { // Product
+    } else if ('stages' in selectedProject) { // Product
       return productWeeklyData[selectedProject.id]?.[dayKey]?.task || '';
     } else if ('functions' in selectedProject) { // Department
       return departmentWeeklyData[selectedProject.id]?.[dayKey]?.task || '';
@@ -1311,9 +1311,9 @@ export default function WeeklyTimeTracker() {
             // }));
             
             // Update the task description in the appropriate data structure based on project type
-            if ('stages' in selectedProject) { // Project
+            if ('levels' in selectedProject) { // Project
               updateProjectData(dayKey, selectedProject.id, 'task', taskDescription);
-            } else if ('productStages' in selectedProject) { // Product
+            } else if ('stages' in selectedProject) { // Product
               updateProductData(dayKey, selectedProject.id, 'task', taskDescription);
             } else if ('functions' in selectedProject) { // Department
               updateDepartmentData(dayKey, selectedProject.id, 'task', taskDescription);

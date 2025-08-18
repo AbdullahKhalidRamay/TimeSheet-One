@@ -9,7 +9,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Edit2, Trash2 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { saveTimeEntry, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
+import { saveTimeEntry, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, getTimeEntries } from "@/services/storage";
 import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
 
 interface EditTimeEntryFormProps {
@@ -37,9 +37,9 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
   const [projects, setProjects] = useState<Project[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [availableLevels, setAvailableLevels] = useState<{ name: string; tasks?: unknown[]; duties?: unknown[] }[]>([]);
-  const [availableTasks, setAvailableTasks] = useState<{ name: string; subtasks?: unknown[]; tasks?: unknown[] }[]>([]);
-  const [availableSubtasks, setAvailableSubtasks] = useState<{ name: string }[]>([]);
+  const [availableLevels, setAvailableLevels] = useState<string[]>([]);
+  const [availableTasks, setAvailableTasks] = useState<string[]>([]);
+  const [availableSubtasks, setAvailableSubtasks] = useState<string[]>([]);
   const [isBillableDisabled, setIsBillableDisabled] = useState(false);
 
   const currentUser = getCurrentUser();
@@ -64,10 +64,10 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
         date: editingEntry.date,
         category: editingEntry.projectDetails.category,
         projectName: editingEntry.projectDetails.name,
-        level: editingEntry.projectDetails.level,
-        task: editingEntry.projectDetails.task,
-        subtask: editingEntry.projectDetails.subtask,
-        description: editingEntry.task, // Note: task field contains description
+        level: editingEntry.projectDetails.level || '',
+        task: editingEntry.projectDetails.task || '',
+        subtask: editingEntry.projectDetails.subtask || '',
+        description: editingEntry.task || '', // Task description goes in description field
         clockIn: editingEntry.clockIn,
         clockOut: editingEntry.clockOut,
         breakTime: editingEntry.breakTime,
@@ -91,81 +91,224 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
     }
   }, [editingEntry, isOpen]);
 
-  const loadLevels = useCallback(() => {
-    let levels: { name: string; tasks?: unknown[]; duties?: unknown[] }[] = [];
+  // Function to get unique levels from existing time entries for the specific project/product/department
+  const getUniqueLevels = useCallback(() => {
+    const allEntries = getTimeEntries();
+    const levels = new Set<string>();
     
-    if (formData.category === 'project') {
-      const project = projects.find(p => p.name === formData.projectName);
-      levels = project?.levels || [];
-    } else if (formData.category === 'product') {
-      const product = products.find(p => p.name === formData.projectName);
-      levels = product?.stages || [];
-    } else if (formData.category === 'department') {
-      const department = departments.find(d => d.name === formData.projectName);
-      levels = department?.functions || [];
+    allEntries.forEach(entry => {
+      if (entry.projectDetails?.category === formData.category && 
+          entry.projectDetails?.name === formData.projectName &&
+          entry.projectDetails?.level &&
+          entry.projectDetails.level.trim() !== '') {
+        levels.add(entry.projectDetails.level);
+      }
+    });
+    
+    // Also add levels from the project/product/department definition
+    if (formData.category && formData.projectName) {
+      let item: Project | Product | Department | undefined;
+      
+      switch (formData.category) {
+        case 'project':
+          item = projects.find(p => p.name === formData.projectName);
+          if (item && 'levels' in item) {
+            item.levels.forEach(level => {
+              if (level.name.trim() !== '') levels.add(level.name);
+            });
+          }
+          break;
+        case 'product':
+          item = products.find(p => p.name === formData.projectName);
+          if (item && 'stages' in item) {
+            item.stages.forEach(stage => {
+              if (stage.name.trim() !== '') levels.add(stage.name);
+            });
+          }
+          break;
+        case 'department':
+          item = departments.find(d => d.name === formData.projectName);
+          if (item && 'functions' in item) {
+            item.functions.forEach(func => {
+              if (func.name.trim() !== '') levels.add(func.name);
+            });
+          }
+          break;
+      }
     }
     
-    setAvailableLevels(levels);
-    setAvailableTasks([]);
-    setAvailableSubtasks([]);
+    return Array.from(levels).sort();
   }, [formData.category, formData.projectName, projects, products, departments]);
 
+  // Function to get unique tasks from existing time entries for the specific project/product/department
+  const getUniqueTasks = useCallback(() => {
+    const allEntries = getTimeEntries();
+    const tasks = new Set<string>();
+    
+    allEntries.forEach(entry => {
+      if (entry.projectDetails?.category === formData.category && 
+          entry.projectDetails?.name === formData.projectName &&
+          entry.projectDetails?.level === formData.level &&
+          entry.projectDetails?.task &&
+          entry.projectDetails.task.trim() !== '') {
+        tasks.add(entry.projectDetails.task);
+      }
+    });
+    
+    // Also add tasks from the project/product/department definition
+    if (formData.category && formData.projectName && formData.level) {
+      let item: Project | Product | Department | undefined;
+      
+      switch (formData.category) {
+        case 'project':
+          item = projects.find(p => p.name === formData.projectName);
+          if (item && 'levels' in item) {
+            const level = item.levels.find(l => l.name === formData.level);
+            if (level) {
+              level.tasks.forEach(task => {
+                if (task.name.trim() !== '') tasks.add(task.name);
+              });
+            }
+          }
+          break;
+        case 'product':
+          item = products.find(p => p.name === formData.projectName);
+          if (item && 'stages' in item) {
+            const stage = item.stages.find(s => s.name === formData.level);
+            if (stage) {
+              stage.tasks.forEach(task => {
+                if (task.name.trim() !== '') tasks.add(task.name);
+              });
+            }
+          }
+          break;
+        case 'department':
+          item = departments.find(d => d.name === formData.projectName);
+          if (item && 'functions' in item) {
+            const func = item.functions.find(f => f.name === formData.level);
+            if (func) {
+              func.duties.forEach(duty => {
+                if (duty.name.trim() !== '') tasks.add(duty.name);
+              });
+            }
+          }
+          break;
+      }
+    }
+    
+    return Array.from(tasks).sort();
+  }, [formData.category, formData.projectName, formData.level, projects, products, departments]);
+
+  // Function to get unique subtasks from existing time entries for the specific project/product/department
+  const getUniqueSubtasks = useCallback(() => {
+    const allEntries = getTimeEntries();
+    const subtasks = new Set<string>();
+    
+    allEntries.forEach(entry => {
+      if (entry.projectDetails?.category === formData.category && 
+          entry.projectDetails?.name === formData.projectName &&
+          entry.projectDetails?.level === formData.level &&
+          entry.projectDetails?.task === formData.task &&
+          entry.projectDetails?.subtask &&
+          entry.projectDetails.subtask.trim() !== '') {
+        subtasks.add(entry.projectDetails.subtask);
+      }
+    });
+    
+    // Also add subtasks from the project/product/department definition
+    if (formData.category && formData.projectName && formData.level && formData.task) {
+      let item: Project | Product | Department | undefined;
+      
+      switch (formData.category) {
+        case 'project':
+          item = projects.find(p => p.name === formData.projectName);
+          if (item && 'levels' in item) {
+            const level = item.levels.find(l => l.name === formData.level);
+            if (level) {
+              const task = level.tasks.find(t => t.name === formData.task);
+              if (task) {
+                task.subtasks.forEach(subtask => {
+                  if (subtask.name.trim() !== '') subtasks.add(subtask.name);
+                });
+              }
+            }
+          }
+          break;
+        case 'product':
+          item = products.find(p => p.name === formData.projectName);
+          if (item && 'stages' in item) {
+            const stage = item.stages.find(s => s.name === formData.level);
+            if (stage) {
+              const task = stage.tasks.find(t => t.name === formData.task);
+              if (task) {
+                task.subtasks.forEach(subtask => {
+                  if (subtask.name.trim() !== '') subtasks.add(subtask.name);
+                });
+              }
+            }
+          }
+          break;
+        case 'department':
+          item = departments.find(d => d.name === formData.projectName);
+          if (item && 'functions' in item) {
+            const func = item.functions.find(f => f.name === formData.level);
+            if (func) {
+              const duty = func.duties.find(d => d.name === formData.task);
+              if (duty) {
+                duty.subduties.forEach(subduty => {
+                  if (subduty.name.trim() !== '') subtasks.add(subduty.name);
+                });
+              }
+            }
+          }
+          break;
+      }
+    }
+    
+    return Array.from(subtasks).sort();
+  }, [formData.category, formData.projectName, formData.level, formData.task, projects, products, departments]);
+
+  // Load levels when category and project name change
   useEffect(() => {
     if (formData.category && formData.projectName) {
-      loadLevels();
+      const levels = getUniqueLevels();
+      setAvailableLevels(levels);
+      setAvailableTasks([]);
+      setAvailableSubtasks([]);
+      
       const billableStatus = determineIsBillable(formData.category as 'project' | 'product' | 'department', formData.projectName);
       setFormData(prev => ({ ...prev, isBillable: billableStatus }));
       setIsBillableDisabled(true);
     } else {
       setFormData(prev => ({ ...prev, isBillable: false }));
       setIsBillableDisabled(false);
+      setAvailableLevels([]);
+      setAvailableTasks([]);
+      setAvailableSubtasks([]);
     }
-  }, [formData.category, formData.projectName, loadLevels]);
+  }, [formData.category, formData.projectName, getUniqueLevels]);
 
-  const loadTasks = useCallback(() => {
-    let tasks: { name: string; subtasks?: unknown[]; tasks?: unknown[] }[] = [];
-    
-    const level = availableLevels.find(l => l.name === formData.level);
-    if (level) {
-      if (formData.category === 'project') {
-        tasks = (level.tasks as { name: string; subtasks?: unknown[] }[]) || [];
-      } else if (formData.category === 'product') {
-        tasks = (level.tasks as { name: string; subtasks?: unknown[] }[]) || [];
-      } else if (formData.category === 'department') {
-        tasks = (level.duties as { name: string; tasks?: unknown[] }[]) || [];
-      }
-    }
-    
-    setAvailableTasks(tasks);
-    setAvailableSubtasks([]);
-  }, [availableLevels, formData.level, formData.category]);
-
-  const loadSubtasks = useCallback(() => {
-    let subtasks: { name: string }[] = [];
-    
-    const task = availableTasks.find(t => t.name === formData.task);
-    if (task) {
-      if (formData.category === 'department') {
-        subtasks = (task.tasks as { name: string }[]) || [];
-      } else {
-        subtasks = (task.subtasks as { name: string }[]) || [];
-      }
-    }
-    
-    setAvailableSubtasks(subtasks);
-  }, [availableTasks, formData.task, formData.category]);
-
+  // Load tasks when level changes
   useEffect(() => {
     if (formData.level) {
-      loadTasks();
+      const tasks = getUniqueTasks();
+      setAvailableTasks(tasks);
+      setAvailableSubtasks([]);
+    } else {
+      setAvailableTasks([]);
+      setAvailableSubtasks([]);
     }
-  }, [formData.level, loadTasks]);
+  }, [formData.level, getUniqueTasks]);
 
+  // Load subtasks when task changes
   useEffect(() => {
     if (formData.task) {
-      loadSubtasks();
+      const subtasks = getUniqueSubtasks();
+      setAvailableSubtasks(subtasks);
+    } else {
+      setAvailableSubtasks([]);
     }
-  }, [formData.task, loadSubtasks]);
+  }, [formData.task, getUniqueSubtasks]);
 
   const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -191,7 +334,7 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
       level: formData.level,
       task: formData.task,
       subtask: formData.subtask,
-      description: formData.description,
+      description: formData.description, // Task description goes in description field
     };
 
     const updatedTimeEntry: TimeEntry = {
@@ -201,7 +344,7 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
       clockOut: formData.clockOut,
       breakTime: formData.breakTime,
       availableHours,
-      task: formData.description,
+      task: formData.description, // Task description goes in task field
       projectDetails,
       isBillable: formData.isBillable,
       updatedAt: new Date().toISOString(),
@@ -239,26 +382,15 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
   };
 
   const getLevelLabel = () => {
-    switch (formData.category) {
-      case 'project': return 'Project Level';
-      case 'product': return 'Product Stage';
-      case 'department': return 'Department Function';
-      default: return 'Level';
-    }
+    return 'Level';
   };
 
   const getTaskLabel = () => {
-    switch (formData.category) {
-      case 'department': return 'Duty';
-      default: return 'Task';
-    }
+    return 'Task';
   };
 
   const getSubtaskLabel = () => {
-    switch (formData.category) {
-      case 'department': return 'Task';
-      default: return 'Subtask';
-    }
+    return 'Subtask';
   };
 
   return (
@@ -322,7 +454,7 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
           )}
 
           {/* Level Selection */}
-          {formData.projectName && availableLevels.length > 0 && (
+          {formData.projectName && (
             <div className="space-y-2">
               <Label htmlFor="level">{getLevelLabel()}</Label>
               <Select value={formData.level} onValueChange={(value) => handleInputChange('level', value)}>
@@ -331,8 +463,8 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
                 </SelectTrigger>
                 <SelectContent>
                   {availableLevels.map((level) => (
-                    <SelectItem key={level.id} value={level.name}>
-                      {level.name}
+                    <SelectItem key={level} value={level}>
+                      {level}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -341,43 +473,39 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
           )}
 
           {/* Task and Subtask */}
-          {formData.level && availableTasks.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task">{getTaskLabel()}</Label>
-                <Select value={formData.task} onValueChange={(value) => handleInputChange('task', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={`Select ${getTaskLabel()}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTasks.map((task) => (
-                      <SelectItem key={task.id} value={task.name}>
-                        {task.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.task && availableSubtasks.length > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="subtask">{getSubtaskLabel()}</Label>
-                  <Select value={formData.subtask} onValueChange={(value) => handleInputChange('subtask', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={`Select ${getSubtaskLabel()}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableSubtasks.map((subtask) => (
-                        <SelectItem key={subtask.id} value={subtask.name}>
-                          {subtask.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="task">{getTaskLabel()}</Label>
+              <Select value={formData.task} onValueChange={(value) => handleInputChange('task', value)} disabled={!formData.level}>
+                <SelectTrigger>
+                  <SelectValue placeholder={`Select ${getTaskLabel()}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTasks.map((task) => (
+                    <SelectItem key={task} value={task}>
+                      {task}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
+
+            <div className="space-y-2">
+              <Label htmlFor="subtask">{getSubtaskLabel()}</Label>
+              <Select value={formData.subtask} onValueChange={(value) => handleInputChange('subtask', value)} disabled={!formData.level || !formData.task}>
+                <SelectTrigger>
+                  <SelectValue placeholder={`Select ${getSubtaskLabel()}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSubtasks.map((subtask) => (
+                    <SelectItem key={subtask} value={subtask}>
+                      {subtask}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {/* Time Inputs */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -415,7 +543,7 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
             <Label htmlFor="description">Task Description</Label>
             <Textarea
               id="description"
-              placeholder="What did you do in this sub-task?"
+              placeholder="Describe what you did in this task..."
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               rows={3}
