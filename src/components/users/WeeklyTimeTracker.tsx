@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Check, Clock, AlertCircle } from "lucide-react";
-
 import { format, startOfWeek, endOfWeek, addDays, isFuture, isToday, differenceInDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -134,22 +133,18 @@ export default function WeeklyTimeTracker() {
     }
   }, [currentUser]);
 
-  // Ensure data loads when component mounts and data is available
+  // Load existing time entries when data is available
   useEffect(() => {
-    // console.log('WeeklyTimeTracker: Checking data availability', {
-    //   currentUser: currentUser?.id,
-    //   projectsLength: projects.length,
-    //   productsLength: products.length,
-    //   departmentsLength: departments.length
-    // });
-    
-    if (currentUser && projects.length > 0 && products.length > 0 && departments.length > 0) {
-      // console.log('WeeklyTimeTracker: All data available, loading entries');
-      loadExistingEntries();
+    if (currentUser && (projects.length > 0 || products.length > 0 || departments.length > 0)) {
+      // Add a small delay to ensure data is fully loaded
+      const timer = setTimeout(() => {
+        loadExistingEntries();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [currentUser,projects.length, products.length, departments.length]);
+  }, [currentUser, projects.length, products.length, departments.length]);
 
-  // Load existing time entries for the current week
+  // Load existing entries for the current week
   const loadExistingEntries = useCallback(() => {
     if (!currentUser) return;
     
@@ -157,35 +152,18 @@ export default function WeeklyTimeTracker() {
     const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
     
-    // console.log('WeeklyTimeTracker: loadExistingEntries called', {
-    //   currentUser: currentUser.id,
-    //   allEntriesCount: allEntries.length,
-    //   weekStart,
-    //   weekEnd,
-    //   selectedWeek
-    // });
-    
     const newWeeklyData: ProjectWeekData = {};
     const newProductWeeklyData: ProductWeekData = {};
     const newDepartmentWeeklyData: DepartmentWeekData = {};
-    // Remove the shared daily descriptions since we'll use individual task descriptions
-    // const newDailyDescriptions: DailyDescription = {};
+    
+    let processedEntries = 0;
     
     allEntries.forEach(entry => {
       const entryDate = new Date(entry.date);
       if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
+        processedEntries++;
         const dayKey = format(entryDate, 'yyyy-MM-dd');
 
-        // console.log('Processing entry:', {
-        //   date: entry.date,
-        //   dayKey,
-        //   category: entry.projectDetails?.category,
-        //   name: entry.projectDetails?.name,
-        //   task: entry.task,
-        //   billableHours: entry.billableHours,
-        //   actualHours: entry.actualHours
-        // });
-        
         // Load hours data based on category
         if (entry.projectDetails?.category === 'project') {
           // Try to find project by name
@@ -199,9 +177,8 @@ export default function WeeklyTimeTracker() {
               actual: entry.actualHours,
               task: entry.projectDetails.task || entry.task || ''
             };
-            // console.log('Loaded project data:', { projectId: project.id, projectName: project.name, dayKey, data: newWeeklyData[project.id][dayKey] });
           } else {
-            // console.log('Project not found:', entry.projectDetails.name);
+            console.log('Project not found:', entry.projectDetails.name);
           }
         } else if (entry.projectDetails?.category === 'product') {
           // Try to find product by name
@@ -215,9 +192,8 @@ export default function WeeklyTimeTracker() {
               actual: entry.actualHours,
               task: entry.projectDetails.task || entry.task || ''
             };
-            // console.log('Loaded product data:', { productId: product.id, productName: product.name, dayKey, data: newProductWeeklyData[product.id][dayKey] });
           } else {
-            // console.log('Product not found:', entry.projectDetails.name);
+            console.log('Product not found:', entry.projectDetails.name);
           }
         } else if (entry.projectDetails?.category === 'department') {
           // Try to find department by name
@@ -231,39 +207,24 @@ export default function WeeklyTimeTracker() {
               actual: entry.actualHours,
               task: entry.projectDetails.task || entry.task || ''
             };
-            // console.log('Loaded department data:', { departmentId: department.id, departmentName: department.name, dayKey, data: newDepartmentWeeklyData[department.id][dayKey] });
           } else {
-            // console.log('Department not found:', entry.projectDetails.name);
+            console.log('Department not found:', entry.projectDetails.name);
           }
         }
-        
-        // Remove the shared description loading since we'll use individual task descriptions
-        // if (entry.projectDetails?.description && entry.projectDetails.description !== `Weekly time entry for ${entry.projectDetails?.name || 'Unknown'}`) {
-        //   newDailyDescriptions[dayKey] = entry.projectDetails.description;
-        // }
       }
     });
-    
-    // console.log('Final loaded data:', {
-    //   projects: Object.keys(newWeeklyData).length,
-    //   products: Object.keys(newProductWeeklyData).length,
-    //   departments: Object.keys(newDepartmentWeeklyData).length,
-    //   descriptions: Object.keys(newDailyDescriptions).length
-    // });
     
     setWeeklyData(newWeeklyData);
     setProductWeeklyData(newProductWeeklyData);
     setDepartmentWeeklyData(newDepartmentWeeklyData);
-    // Remove the shared daily descriptions setter
-    // setDailyDescriptions(newDailyDescriptions);
   }, [currentUser, selectedWeek, projects, products, departments]);
 
-  // Load existing entries when week changes or projects/products/departments are loaded
+  // Load existing entries when week changes
   useEffect(() => {
-    if (projects.length > 0 && products.length > 0 && departments.length > 0 && currentUser) {
+    if (currentUser && (projects.length > 0 || products.length > 0 || departments.length > 0)) {
       loadExistingEntries();
     }
-  }, [currentUser, selectedWeek, projects.length, products.length, departments.length]);
+  }, [selectedWeek, loadExistingEntries]);
 
 
 
@@ -278,6 +239,7 @@ export default function WeeklyTimeTracker() {
             newData[project.id] = {};
           }
           
+          // Only initialize days that don't already have data
           for (let i = 0; i < 7; i++) {
             const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
             if (!newData[project.id][dayKey]) {
@@ -303,6 +265,7 @@ export default function WeeklyTimeTracker() {
             newData[product.id] = {};
           }
           
+          // Only initialize days that don't already have data
           for (let i = 0; i < 7; i++) {
             const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
             if (!newData[product.id][dayKey]) {
@@ -328,6 +291,7 @@ export default function WeeklyTimeTracker() {
             newData[department.id] = {};
           }
           
+          // Only initialize days that don't already have data
           for (let i = 0; i < 7; i++) {
             const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
             if (!newData[department.id][dayKey]) {
@@ -887,8 +851,6 @@ export default function WeeklyTimeTracker() {
       const allEntries = getTimeEntries();
       const monthlyDates = getMonthlyDates();
       
-      // console.log('Loading monthly data:', { currentViewMode, monthlyDates: monthlyDates.length, allEntries: allEntries.length });
-      
       setMonthlyData((prevData) => {
         const updatedData = { ...prevData };
         
@@ -897,8 +859,6 @@ export default function WeeklyTimeTracker() {
           const dayEntries = allEntries.filter(entry => 
             entry.date === dateKey && entry.userId === currentUser.id
           );
-          
-          // console.log(`Processing date ${dateKey}:`, { dayEntries: dayEntries.length });
           
           dayEntries.forEach(entry => {
             if (entry.projectDetails?.category === 'project') {
@@ -910,7 +870,6 @@ export default function WeeklyTimeTracker() {
                   actualHours: entry.actualHours || 0,
                   billableHours: entry.billableHours || 0,
                 };
-                // console.log('Updated monthly project data:', { dateKey, projectId, data: updatedData[dateKey][projectId] });
               }
             } else if (entry.projectDetails?.category === 'product') {
               const productId = products.find(p => p.name === entry.projectDetails.name)?.id;
@@ -921,7 +880,6 @@ export default function WeeklyTimeTracker() {
                   actualHours: entry.actualHours || 0,
                   billableHours: entry.billableHours || 0,
                 };
-                // console.log('Updated monthly product data:', { dateKey, productId, data: updatedData[dateKey][productId] });
               }
             } else if (entry.projectDetails?.category === 'department') {
               const departmentId = departments.find(d => d.name === entry.projectDetails.name)?.id;
@@ -932,13 +890,11 @@ export default function WeeklyTimeTracker() {
                   actualHours: entry.actualHours || 0,
                   billableHours: entry.billableHours || 0,
                 };
-                // console.log('Updated monthly department data:', { dateKey, departmentId, data: updatedData[dateKey][departmentId] });
               }
             }
           });
         });
         
-        // console.log('Final monthly data:', updatedData);
         return updatedData;
       });
     }
@@ -1374,82 +1330,7 @@ export default function WeeklyTimeTracker() {
         </CardContent>
       </Card>
 
-      {/* Data Summary - Show loaded timesheet data */}
-      {(() => {
-        const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
-        const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
-        const allEntries = getTimeEntries();
-        const currentUser = getCurrentUser();
-        
-        if (!currentUser) return null;
-        
-        const weekEntries = allEntries.filter(entry => {
-          const entryDate = new Date(entry.date);
-          return entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id;
-        });
-        
-        if (weekEntries.length === 0) return null;
-        
-        const projectEntries = weekEntries.filter(entry => entry.projectDetails?.category === 'project');
-        const productEntries = weekEntries.filter(entry => entry.projectDetails?.category === 'product');
-        const departmentEntries = weekEntries.filter(entry => entry.projectDetails?.category === 'department');
-        
-        const totalHours = weekEntries.reduce((sum, entry) => sum + entry.actualHours + entry.billableHours, 0);
-        
-        return (
-          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-center space-x-6 text-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100">
-                    <span className="text-xs text-blue-600">✓</span>
-                  </div>
-                  <span className="text-blue-700 dark:text-blue-300 font-medium">Loaded from Timesheet:</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-blue-600 dark:text-blue-400">
-                    {projectEntries.length} Projects
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-green-600 dark:text-green-400">
-                    {productEntries.length} Products
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-purple-600 dark:text-purple-400">
-                    {departmentEntries.length} Departments
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    {totalHours.toFixed(1)} Total Hours
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    {weekEntries.length} Entries
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-center space-x-4 text-xs mt-2 text-gray-600 dark:text-gray-400">
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-blue-100 dark:bg-blue-800 rounded"></div>
-                  <span>Projects with data</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-green-100 dark:bg-green-800 rounded"></div>
-                  <span>Products with data</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-purple-100 dark:bg-purple-800 rounded"></div>
-                  <span>Departments with data</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
+
 
       {/* Conditional rendering based on view mode */}
       {currentViewMode === 'weekly' && (

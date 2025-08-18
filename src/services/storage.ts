@@ -11,36 +11,42 @@ const TEAMS_KEY = 'teams';
 
 // Time Entries
 export const getTimeEntries = (): TimeEntry[] => {
-  const entriesStr = localStorage.getItem(TIME_ENTRIES_KEY);
-  return entriesStr ? JSON.parse(entriesStr) : [];
+  try {
+    const entriesStr = localStorage.getItem(TIME_ENTRIES_KEY);
+    if (!entriesStr) {
+      return [];
+    }
+    return JSON.parse(entriesStr);
+  } catch (error) {
+    console.error('Error loading time entries from localStorage:', error);
+    return [];
+  }
 };
 
 export const saveTimeEntry = (entry: TimeEntry): void => {
-  const entries = getTimeEntries();
-  const existingIndex = entries.findIndex(e => e.id === entry.id);
-  
-  if (existingIndex !== -1) {
-    entries[existingIndex] = entry;
-  } else {
-    entries.push(entry);
-  }
-  
-  localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(entries));
-  
-  // Invalidate cache to ensure fresh data
-  if (typeof window !== 'undefined' && (window as any).invalidateCache) {
-    (window as any).invalidateCache('timeEntries');
+  try {
+    const entries = getTimeEntries();
+    const existingIndex = entries.findIndex(e => e.id === entry.id);
+    
+    if (existingIndex !== -1) {
+      entries[existingIndex] = entry;
+    } else {
+      entries.push(entry);
+    }
+    
+    localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(entries));
+  } catch (error) {
+    console.error('Error saving time entry to localStorage:', error);
   }
 };
 
 export const deleteTimeEntry = (entryId: string): void => {
-  const entries = getTimeEntries();
-  const filteredEntries = entries.filter(e => e.id !== entryId);
-  localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(filteredEntries));
-  
-  // Invalidate cache to ensure fresh data
-  if (typeof window !== 'undefined' && (window as any).invalidateCache) {
-    (window as any).invalidateCache('timeEntries');
+  try {
+    const entries = getTimeEntries();
+    const filteredEntries = entries.filter(e => e.id !== entryId);
+    localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(filteredEntries));
+  } catch (error) {
+    console.error('Error deleting time entry from localStorage:', error);
   }
 };
 
