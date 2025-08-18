@@ -343,8 +343,8 @@ export default function WeeklyView({
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(project, day)}
-                          className="h-6 w-6 p-0"
-                          title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
+                          className={`h-6 w-6 p-0 ${hours.task.trim() ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          title={hours.task.trim() ? `Edit task for ${project.name}: ${hours.task}` : `Add task for ${project.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
                           <Plus className="h-3 w-3" />
@@ -416,8 +416,8 @@ export default function WeeklyView({
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(product, day)}
-                          className="h-6 w-6 p-0"
-                          title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
+                          className={`h-6 w-6 p-0 ${hours.task.trim() ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          title={hours.task.trim() ? `Edit task for ${product.name}: ${hours.task}` : `Add task for ${product.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
                           <Plus className="h-3 w-3" />
@@ -489,8 +489,8 @@ export default function WeeklyView({
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(department, day)}
-                          className="h-6 w-6 p-0"
-                          title={hasData ? `Quick add task (existing: ${hours.task || 'no task'})` : "Quick add task"}
+                          className={`h-6 w-6 p-0 ${hours.task.trim() ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          title={hours.task.trim() ? `Edit task for ${department.name}: ${hours.task}` : `Add task for ${department.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
                           <Plus className="h-3 w-3" />

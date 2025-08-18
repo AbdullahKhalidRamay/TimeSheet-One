@@ -1,19 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar as CalendarIcon, Save, Check, Clock, AlertCircle, X } from "lucide-react";
+import { Check, Clock, AlertCircle } from "lucide-react";
 
 import { format, startOfWeek, endOfWeek, addDays, isFuture, isToday, differenceInDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-picker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import DailyTrackerForm from "./DailyTrackerForm";
 import QuickTaskForm from "./QuickTaskForm";
 import WeeklyView from "./WeeklyView";
 import MonthlyView from "./MonthlyView";
@@ -50,10 +43,10 @@ interface DailyAvailableHours {
   [dayKey: string]: number;
 }
 
-// Add description interface
-interface DailyDescription {
-  [dayKey: string]: string;
-}
+// Remove the shared daily description interface since we'll use individual task descriptions
+// interface DailyDescription {
+//   [dayKey: string]: string;
+// }
 
 // Monthly view interfaces
 interface DailyProjectData {
@@ -99,9 +92,7 @@ export default function WeeklyTimeTracker() {
   const currentUser = getCurrentUser();
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isQuickTaskDialogOpen, setIsQuickTaskDialogOpen] = useState(false);
-  const [selectedDateForEntry, setSelectedDateForEntry] = useState<Date | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | Product | Department | null>(null);
   const [selectedDateForQuickTask, setSelectedDateForQuickTask] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -117,8 +108,8 @@ export default function WeeklyTimeTracker() {
   const [selectedProjects, setSelectedProjects] = useState<SelectedProjects>({});
   const [selectedProducts, setSelectedProducts] = useState<SelectedProducts>({});
   const [selectedDepartments, setSelectedDepartments] = useState<SelectedDepartments>({});
-  // Add description state
-  const [dailyDescriptions, setDailyDescriptions] = useState<DailyDescription>({});
+  // Remove the shared daily descriptions state since we'll use individual task descriptions
+  // const [dailyDescriptions, setDailyDescriptions] = useState<DailyDescription>({});
 
   // Determine the view mode based on the selected date range
   const getViewMode = () => {
@@ -156,7 +147,7 @@ export default function WeeklyTimeTracker() {
       // console.log('WeeklyTimeTracker: All data available, loading entries');
       loadExistingEntries();
     }
-  }, [currentUser, projects.length, products.length, departments.length]);
+  }, [currentUser,projects.length, products.length, departments.length]);
 
   // Load existing time entries for the current week
   const loadExistingEntries = useCallback(() => {
@@ -177,7 +168,8 @@ export default function WeeklyTimeTracker() {
     const newWeeklyData: ProjectWeekData = {};
     const newProductWeeklyData: ProductWeekData = {};
     const newDepartmentWeeklyData: DepartmentWeekData = {};
-    const newDailyDescriptions: DailyDescription = {};
+    // Remove the shared daily descriptions since we'll use individual task descriptions
+    // const newDailyDescriptions: DailyDescription = {};
     
     allEntries.forEach(entry => {
       const entryDate = new Date(entry.date);
@@ -245,10 +237,10 @@ export default function WeeklyTimeTracker() {
           }
         }
         
-        // Load description data
-        if (entry.projectDetails?.description && entry.projectDetails.description !== `Weekly time entry for ${entry.projectDetails?.name || 'Unknown'}`) {
-          newDailyDescriptions[dayKey] = entry.projectDetails.description;
-        }
+        // Remove the shared description loading since we'll use individual task descriptions
+        // if (entry.projectDetails?.description && entry.projectDetails.description !== `Weekly time entry for ${entry.projectDetails?.name || 'Unknown'}`) {
+        //   newDailyDescriptions[dayKey] = entry.projectDetails.description;
+        // }
       }
     });
     
@@ -262,7 +254,8 @@ export default function WeeklyTimeTracker() {
     setWeeklyData(newWeeklyData);
     setProductWeeklyData(newProductWeeklyData);
     setDepartmentWeeklyData(newDepartmentWeeklyData);
-    setDailyDescriptions(newDailyDescriptions);
+    // Remove the shared daily descriptions setter
+    // setDailyDescriptions(newDailyDescriptions);
   }, [currentUser, selectedWeek, projects, products, departments]);
 
   // Load existing entries when week changes or projects/products/departments are loaded
@@ -547,13 +540,13 @@ export default function WeeklyTimeTracker() {
     }
   };
 
-  // Add function to update description
-  const updateDescription = (dayKey: string, description: string) => {
-    setDailyDescriptions(prev => ({
-      ...prev,
-      [dayKey]: description
-    }));
-  };
+  // Remove the shared description update function since we'll use individual task descriptions
+  // const updateDescription = (dayKey: string, description: string) => {
+  //   setDailyDescriptions(prev => ({
+  //     ...prev,
+  //     [dayKey]: description
+  //   }));
+  // };
 
   // Check if a date is selected
   const isDateSelected = (date: Date) => {
@@ -661,14 +654,14 @@ export default function WeeklyTimeTracker() {
             billableHours: hours.billable,
             totalHours: hours.actual + hours.billable,
             availableHours: dailyAvailableHours[dayKey] || 0,
-            task: hours.task || dailyDescriptions[dayKey] || `Weekly entry for ${project.name}`,
+            task: hours.task || `Weekly entry for ${project.name}`,
             projectDetails: {
               category: 'project',
               name: project.name,
               level: '',
               task: hours.task || '',
               subtask: '',
-              description: hours.task || dailyDescriptions[dayKey] || `Weekly time entry for ${project.name}`
+              description: hours.task || `Weekly time entry for ${project.name}`
             } as ProjectDetail,
             isBillable: hours.billable > 0,
             status: 'pending',
@@ -696,14 +689,14 @@ export default function WeeklyTimeTracker() {
             billableHours: hours.billable,
             totalHours: hours.actual + hours.billable,
             availableHours: dailyAvailableHours[dayKey] || 0,
-            task: hours.task || dailyDescriptions[dayKey] || `Weekly entry for ${product.name}`,
+            task: hours.task || `Weekly entry for ${product.name}`,
             projectDetails: {
               category: 'product',
               name: product.name,
               stage: '',
               task: hours.task || '',
               subtask: '',
-              description: hours.task || dailyDescriptions[dayKey] || `Weekly time entry for ${product.name}`
+              description: hours.task || `Weekly time entry for ${product.name}`
             } as ProjectDetail,
             isBillable: hours.billable > 0,
             status: 'pending',
@@ -731,14 +724,14 @@ export default function WeeklyTimeTracker() {
             billableHours: hours.billable,
             totalHours: hours.actual + hours.billable,
             availableHours: dailyAvailableHours[dayKey] || 0,
-            task: hours.task || dailyDescriptions[dayKey] || `Weekly entry for ${department.name}`,
+            task: hours.task || `Weekly entry for ${department.name}`,
             projectDetails: {
               category: 'department',
               name: department.name,
               function: '',
               task: hours.task || '',
               subtask: '',
-              description: hours.task || dailyDescriptions[dayKey] || `Weekly time entry for ${department.name}`
+              description: hours.task || `Weekly time entry for ${department.name}`
             } as ProjectDetail,
             isBillable: hours.billable > 0,
             status: 'pending',
@@ -1310,11 +1303,12 @@ export default function WeeklyTimeTracker() {
           initialDescription={getExistingTaskDescription()}
           onSuccess={(taskDescription: string) => {
             const dayKey = format(selectedDateForQuickTask, 'yyyy-MM-dd');
-            // Save the task description
-            setDailyDescriptions(prev => ({
-              ...prev,
-              [dayKey]: taskDescription
-            }));
+            
+            // Remove the shared daily descriptions update since we'll use individual task descriptions
+            // setDailyDescriptions(prev => ({
+            //   ...prev,
+            //   [dayKey]: taskDescription
+            // }));
             
             // Update the task description in the appropriate data structure based on project type
             if ('stages' in selectedProject) { // Project
@@ -1518,28 +1512,6 @@ export default function WeeklyTimeTracker() {
           getMonthlyDates={getMonthlyDates}
         />
       )}
-
-
-
-      {/* Daily Tracker Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Add Time Entry for {selectedDateForEntry ? format(selectedDateForEntry, "EEEE, MMMM dd, yyyy") : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <DailyTrackerForm 
-              initialDate={selectedDateForEntry ? format(selectedDateForEntry, 'yyyy-MM-dd') : undefined}
-              onClose={() => {
-                setIsDialogOpen(false);
-                setRefreshKey(prev => prev + 1); // Force re-render to show updated status
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
