@@ -88,7 +88,7 @@ interface SelectedDepartments {
 }
 
 export default function WeeklyTimeTracker() {
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [isQuickTaskDialogOpen, setIsQuickTaskDialogOpen] = useState(false);
@@ -121,12 +121,34 @@ export default function WeeklyTimeTracker() {
     return 'weekly'; // Default to weekly view
   };
 
+  // Debug: Log when component re-renders
+  useEffect(() => {
+    console.log('WeeklyTimeTracker: Component re-rendered', {
+      currentUser: currentUser?.name,
+      projectsCount: projects.length,
+      productsCount: products.length,
+      departmentsCount: departments.length
+    });
+  });
+
   // Load user projects, products, and departments only once
   useEffect(() => {
     if (currentUser) {
       const userProjects = getUserAssociatedProjects(currentUser.id);
       const userProducts = getUserAssociatedProducts(currentUser.id);
       const userDepartments = getUserAssociatedDepartments(currentUser.id);
+      
+      console.log('WeeklyTimeTracker: Loading user data', {
+        currentUser: currentUser.name,
+        userId: currentUser.id,
+        userProjects: userProjects.length,
+        userProducts: userProducts.length,
+        userDepartments: userDepartments.length,
+        projects: userProjects.map(p => p.name),
+        products: userProducts.map(p => p.name),
+        departments: userDepartments.map(d => d.name)
+      });
+      
       setProjects(userProjects);
       setProducts(userProducts);
       setDepartments(userDepartments);
@@ -312,152 +334,155 @@ export default function WeeklyTimeTracker() {
 
 
   const updateHours = (projectId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    console.log('WeeklyTimeTracker: updateHours called', { projectId, dayKey, type, value });
+    
     setWeeklyData(prev => {
+      const newData = { ...prev };
+      
       // Ensure the project exists in the data
-      if (!prev[projectId]) {
-        prev[projectId] = {};
+      if (!newData[projectId]) {
+        newData[projectId] = {};
       }
       
       // Ensure the day exists for this project
-      if (!prev[projectId][dayKey]) {
-        prev[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
+      if (!newData[projectId][dayKey]) {
+        newData[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      return {
-        ...prev,
-        [projectId]: {
-          ...prev[projectId],
-          [dayKey]: {
-            ...prev[projectId][dayKey],
-            [type]: value
-          }
-        }
+      // Update the specific field
+      newData[projectId][dayKey] = {
+        ...newData[projectId][dayKey],
+        [type]: value
       };
+      
+      console.log('Updated weekly data:', newData[projectId][dayKey]);
+      return newData;
     });
   };
   
   const updateProjectData = (dayKey: string, projectId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
     setWeeklyData(prev => {
+      const newData = { ...prev };
+      
       // Ensure the project exists in the data
-      if (!prev[projectId]) {
-        prev[projectId] = {};
+      if (!newData[projectId]) {
+        newData[projectId] = {};
       }
       
       // Ensure the day exists for this project
-      if (!prev[projectId][dayKey]) {
-        prev[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
+      if (!newData[projectId][dayKey]) {
+        newData[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      return {
-        ...prev,
-        [projectId]: {
-          ...prev[projectId],
-          [dayKey]: {
-            ...prev[projectId][dayKey],
-            [field]: value
-          }
-        }
+      // Update the specific field
+      newData[projectId][dayKey] = {
+        ...newData[projectId][dayKey],
+        [field]: value
       };
+      
+      return newData;
     });
   };
 
   const updateProductHours = (productId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    console.log('WeeklyTimeTracker: updateProductHours called', { productId, dayKey, type, value });
+    
     setProductWeeklyData(prev => {
+      const newData = { ...prev };
+      
       // Ensure the product exists in the data
-      if (!prev[productId]) {
-        prev[productId] = {};
+      if (!newData[productId]) {
+        newData[productId] = {};
       }
       
       // Ensure the day exists for this product
-      if (!prev[productId][dayKey]) {
-        prev[productId][dayKey] = { billable: 0, actual: 0, task: '' };
+      if (!newData[productId][dayKey]) {
+        newData[productId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      return {
-        ...prev,
-        [productId]: {
-          ...prev[productId],
-          [dayKey]: {
-            ...prev[productId][dayKey],
-            [type]: value
-          }
-        }
+      // Update the specific field
+      newData[productId][dayKey] = {
+        ...newData[productId][dayKey],
+        [type]: value
       };
+      
+      console.log('Updated product weekly data:', newData[productId][dayKey]);
+      return newData;
     });
   };
   
   const updateProductData = (dayKey: string, productId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
     setProductWeeklyData(prev => {
+      const newData = { ...prev };
+      
       // Ensure the product exists in the data
-      if (!prev[productId]) {
-        prev[productId] = {};
+      if (!newData[productId]) {
+        newData[productId] = {};
       }
       
       // Ensure the day exists for this product
-      if (!prev[productId][dayKey]) {
-        prev[productId][dayKey] = { billable: 0, actual: 0, task: '' };
+      if (!newData[productId][dayKey]) {
+        newData[productId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      return {
-        ...prev,
-        [productId]: {
-          ...prev[productId],
-          [dayKey]: {
-            ...prev[productId][dayKey],
-            [field]: value
-          }
-        }
+      // Update the specific field
+      newData[productId][dayKey] = {
+        ...newData[productId][dayKey],
+        [field]: value
       };
+      
+      return newData;
     });
   };
 
   const updateDepartmentHours = (departmentId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    console.log('WeeklyTimeTracker: updateDepartmentHours called', { departmentId, dayKey, type, value });
+    
     setDepartmentWeeklyData(prev => {
+      const newData = { ...prev };
+      
       // Ensure the department exists in the data
-      if (!prev[departmentId]) {
-        prev[departmentId] = {};
+      if (!newData[departmentId]) {
+        newData[departmentId] = {};
       }
       
       // Ensure the day exists for this department
-      if (!prev[departmentId][dayKey]) {
-        prev[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
+      if (!newData[departmentId][dayKey]) {
+        newData[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      return {
-        ...prev,
-        [departmentId]: {
-          ...prev[departmentId],
-          [dayKey]: {
-            ...prev[departmentId][dayKey],
-            [type]: value
-          }
-        }
+      // Update the specific field
+      newData[departmentId][dayKey] = {
+        ...newData[departmentId][dayKey],
+        [type]: value
       };
+      
+      console.log('Updated department weekly data:', newData[departmentId][dayKey]);
+      return newData;
     });
   };
   
   const updateDepartmentData = (dayKey: string, departmentId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
     setDepartmentWeeklyData(prev => {
+      const newData = { ...prev };
+      
       // Ensure the department exists in the data
-      if (!prev[departmentId]) {
-        prev[departmentId] = {};
+      if (!newData[departmentId]) {
+        newData[departmentId] = {};
       }
       
-      // Ensure the day exists for this department
-      if (!prev[departmentId][dayKey]) {
-        prev[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
+      // Ensure the department exists in the data
+      if (!newData[departmentId][dayKey]) {
+        newData[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      return {
-        ...prev,
-        [departmentId]: {
-          ...prev[departmentId],
-          [dayKey]: {
-            ...prev[departmentId][dayKey],
-            [field]: value
-          }
-        }
+      // Update the specific field
+      newData[departmentId][dayKey] = {
+        ...newData[departmentId][dayKey],
+        [field]: value
       };
+      
+      return newData;
     });
   };
 

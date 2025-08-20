@@ -120,6 +120,10 @@ export default function WeeklyView({
       return false;
     });
     
+    if (result) {
+      console.log(`Entry found for ${projectType} ${projectId} on ${dayKey}, field will be disabled`);
+    }
+    
     return result;
   };
 
@@ -305,6 +309,20 @@ export default function WeeklyView({
                   const hasExistingEntry = hasEntryForProjectAndDate(project.id, dayKey, 'project');
                   const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                   
+                  // Debug disabled state
+                  const billableDisabled = !project.isBillable || isFutureDay || hasExistingEntry;
+                  const actualDisabled = isFutureDay || hasExistingEntry;
+                  
+                  if (billableDisabled || actualDisabled) {
+                    console.log(`Project ${project.name} on ${dayKey}:`, {
+                      isFutureDay,
+                      hasExistingEntry,
+                      projectIsBillable: project.isBillable,
+                      billableDisabled,
+                      actualDisabled
+                    });
+                  }
+                  
                   return (
                     <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                       <div className="flex justify-around items-center gap-1">
@@ -314,28 +332,36 @@ export default function WeeklyView({
                           </div>
                         )}
                         <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.billable === 0 ? '' : hours.billable.toString()}
+                          type="number" 
+                          step="0.5" 
+                          min="0" 
+                          max="24"
+                          value={hours.billable || ''}
                           onChange={(e) => {
                             const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                            console.log('Billable input changed:', { projectId: project.id, dayKey, value, inputValue });
                             onUpdateHours(project.id, dayKey, 'billable', value);
                           }}
                           className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={!project.isBillable || isFutureDay || hasExistingEntry}
+                          disabled={billableDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                         />
                         <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.actual === 0 ? '' : hours.actual.toString()}
+                          type="number" 
+                          step="0.5" 
+                          min="0" 
+                          max="24"
+                          value={hours.actual || ''}
                           onChange={(e) => {
                             const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                            console.log('Actual input changed:', { projectId: project.id, dayKey, value, inputValue });
                             onUpdateHours(project.id, dayKey, 'actual', value);
                           }}
                           className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={isFutureDay || hasExistingEntry}
+                          disabled={actualDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                         />
@@ -378,6 +404,20 @@ export default function WeeklyView({
                   const hasExistingEntry = hasEntryForProjectAndDate(product.id, dayKey, 'product');
                   const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                   
+                  // Debug disabled state
+                  const billableDisabled = !product.isBillable || isFutureDay || hasExistingEntry;
+                  const actualDisabled = isFutureDay || hasExistingEntry;
+                  
+                  if (billableDisabled || actualDisabled) {
+                    console.log(`Product ${product.name} on ${dayKey}:`, {
+                      isFutureDay,
+                      hasExistingEntry,
+                      productIsBillable: product.isBillable,
+                      billableDisabled,
+                      actualDisabled
+                    });
+                  }
+                  
                   return (
                     <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
                       <div className="flex justify-around items-center gap-1">
@@ -387,28 +427,36 @@ export default function WeeklyView({
                           </div>
                         )}
                         <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.billable === 0 ? '' : hours.billable.toString()}
+                          type="number" 
+                          step="0.5" 
+                          min="0" 
+                          max="24"
+                          value={hours.billable || ''}
                           onChange={(e) => {
                             const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                            console.log('Billable input changed:', { productId: product.id, dayKey, value, inputValue });
                             onUpdateProductHours(product.id, dayKey, 'billable', value);
                           }}
                           className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={!product.isBillable || isFutureDay || hasExistingEntry}
+                          disabled={billableDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                         />
                         <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.actual === 0 ? '' : hours.actual.toString()}
+                          type="number" 
+                          step="0.5" 
+                          min="0" 
+                          max="24"
+                          value={hours.actual || ''}
                           onChange={(e) => {
                             const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                            console.log('Actual input changed:', { productId: product.id, dayKey, value, inputValue });
                             onUpdateProductHours(product.id, dayKey, 'actual', value);
                           }}
                           className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={isFutureDay || hasExistingEntry}
+                          disabled={actualDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                         />
@@ -460,11 +508,15 @@ export default function WeeklyView({
                           </div>
                         )}
                         <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.billable === 0 ? '' : hours.billable.toString()}
+                          type="number" 
+                          step="0.5" 
+                          min="0" 
+                          max="24"
+                          value={hours.billable || ''}
                           onChange={(e) => {
                             const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                            console.log('Billable input changed:', { departmentId: department.id, dayKey, value, inputValue });
                             onUpdateDepartmentHours(department.id, dayKey, 'billable', value);
                           }}
                           className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
@@ -473,11 +525,15 @@ export default function WeeklyView({
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
                         />
                         <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.actual === 0 ? '' : hours.actual.toString()}
+                          type="number" 
+                          step="0.5" 
+                          min="0" 
+                          max="24"
+                          value={hours.actual || ''}
                           onChange={(e) => {
                             const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
+                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                            console.log('Actual input changed:', { departmentId: department.id, dayKey, value, inputValue });
                             onUpdateDepartmentHours(department.id, dayKey, 'actual', value);
                           }}
                           className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}

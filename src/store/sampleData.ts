@@ -19,7 +19,8 @@ export const initializeSampleData = () => {
   console.log('Available users:', users.map(u => ({ id: u.id, name: u.name, role: u.role })));
 
   // Sample Projects
-  const projectId1 = generateId();
+  const projectId1 = 'sample-project-1';
+  const projectId2 = 'sample-project-2';
   const sampleProjects: Project[] = [
     {
       id: projectId1,
@@ -68,11 +69,36 @@ export const initializeSampleData = () => {
       ],
       createdBy: 'System',
       createdAt: new Date().toISOString()
+    },
+    {
+      id: projectId2,
+      name: 'Project AIM-1',
+      isBillable: true,
+      levels: [
+        {
+          id: generateId(),
+          name: 'Planning',
+          tasks: [
+            {
+              id: generateId(),
+              name: 'Requirements Analysis',
+              description: 'Analyze project requirements',
+              subtasks: [
+                { id: generateId(), name: 'Stakeholder Interviews', description: 'Conduct stakeholder interviews' },
+                { id: generateId(), name: 'Documentation', description: 'Document requirements' }
+              ]
+            }
+          ]
+        }
+      ],
+      createdBy: 'System',
+      createdAt: new Date().toISOString()
     }
   ];
 
   // Sample Products
-  const productId1 = generateId();
+  const productId1 = 'sample-product-1';
+  const productId2 = 'sample-product-2';
   const sampleProducts: Product[] = [
     {
       id: productId1,
@@ -112,11 +138,35 @@ export const initializeSampleData = () => {
       ],
       createdBy: 'System',
       createdAt: new Date().toISOString()
+    },
+    {
+      id: productId2,
+      name: 'Product Apple',
+      isBillable: true,
+      stages: [
+        {
+          id: generateId(),
+          name: 'Design',
+          tasks: [
+            {
+              id: generateId(),
+              name: 'Product Design',
+              description: 'Design product features',
+              subtasks: [
+                { id: generateId(), name: 'UI/UX Design', description: 'Create user interface designs' },
+                { id: generateId(), name: 'Prototyping', description: 'Build product prototypes' }
+              ]
+            }
+          ]
+        }
+      ],
+      createdBy: 'System',
+      createdAt: new Date().toISOString()
     }
   ];
 
   // Sample Departments
-  const departmentId1 = generateId();
+  const departmentId1 = 'sample-department-1';
   const sampleDepartments: Department[] = [
     {
       id: departmentId1,
@@ -241,9 +291,9 @@ export const initializeSampleData = () => {
       id: generateId(),
       name: 'Frontend Development Team',
       description: 'Team responsible for frontend development tasks',
-      memberIds: [users[3].id], // Employee (Alice)
+      memberIds: [users[0].id, users[3].id], // CEO/Owner (John Mitchell) and Employee (Alice)
       leaderId: users[1].id, // Manager (Jane)
-      associatedProjects: [projectId1],
+      associatedProjects: [projectId1, projectId2],
       associatedProducts: [],
       associatedDepartments: [],
       createdBy: users[0].id, // Owner
@@ -253,10 +303,10 @@ export const initializeSampleData = () => {
       id: generateId(),
       name: 'Product Development Team',
       description: 'Team working on product development and testing',
-      memberIds: [users[2].id, users[3].id], // Finance Manager and Employee
+      memberIds: [users[0].id, users[2].id, users[3].id], // CEO/Owner, Finance Manager and Employee
       leaderId: users[1].id, // Manager
       associatedProjects: [],
-      associatedProducts: [productId1],
+      associatedProducts: [productId1, productId2],
       associatedDepartments: [],
       createdBy: users[0].id, // Owner
       createdAt: new Date().toISOString()
@@ -265,7 +315,7 @@ export const initializeSampleData = () => {
       id: generateId(),
       name: 'Engineering Department Team',
       description: 'Core engineering team handling department duties',
-      memberIds: [users[2].id], // Finance Manager
+      memberIds: [users[0].id, users[2].id], // CEO/Owner and Finance Manager
       leaderId: users[1].id, // Manager
       associatedProjects: [],
       associatedProducts: [],
