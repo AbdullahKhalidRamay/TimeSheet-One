@@ -107,18 +107,51 @@ export default function WeeklyTimeTracker() {
   const [selectedProjects, setSelectedProjects] = useState<SelectedProjects>({});
   const [selectedProducts, setSelectedProducts] = useState<SelectedProducts>({});
   const [selectedDepartments, setSelectedDepartments] = useState<SelectedDepartments>({});
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   // Remove the shared daily descriptions state since we'll use individual task descriptions
   // const [dailyDescriptions, setDailyDescriptions] = useState<DailyDescription>({});
 
+  // Effect to update selectedWeek when date range changes
+  useEffect(() => {
+    if (dateRange?.from && dateRange?.to) {
+      const dayDifference = differenceInDays(dateRange.to, dateRange.from) + 1;
+      
+      // Accept any 7-day range and update the weekly view accordingly
+      // This allows for ranges like Aug 6-12 instead of only Monday-Sunday ranges
+      if (dayDifference === 7) {
+        // Use the start date of the range as the selectedWeek
+        setSelectedWeek(dateRange.from);
+        // Force weekly view mode for any 7-day range
+        setViewMode('weekly');
+      }
+    }
+  }, [dateRange]);
+
   // Determine the view mode based on the selected date range
   const getViewMode = () => {
-    if (dateRange?.from && dateRange?.to) {
-      const dayDifference = differenceInDays(dateRange.to, dateRange.from);
-      if (dayDifference > 7) return 'monthly';
-      if (dayDifference === 0) return 'daily';
+    // If no date range is selected, use the default weekly view based on selectedWeek
+    if (!dateRange?.from || !dateRange?.to) {
       return 'weekly';
     }
-    return 'weekly'; // Default to weekly view
+    
+    // Calculate the difference in days (inclusive)
+    // Add 1 because differenceInDays doesn't count the end date
+    const dayDifference = differenceInDays(dateRange.to, dateRange.from) + 1;
+    
+    // For debugging
+    console.log('Date range:', { 
+      from: dateRange.from.toISOString().split('T')[0], 
+      to: dateRange.to.toISOString().split('T')[0], 
+      days: dayDifference 
+    });
+    
+    // If the range is exactly 7 days - accept any 7-day range regardless of start day
+    if (dayDifference === 7) {
+      return 'weekly';
+    }
+    
+    if (dayDifference === 1) return 'daily';
+    return 'monthly'; // Any other range shows monthly view
   };
 
   // Debug: Log when component re-renders

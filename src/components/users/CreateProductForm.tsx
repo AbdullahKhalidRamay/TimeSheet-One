@@ -324,7 +324,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
                                     value={subtask.name}
                                     onChange={(e) => updateSubtask(stage.id, task.id, subtask.id, 'name', e.target.value)}
                                     placeholder="Subtask name"
-                                    size="sm"
+                                    className="text-sm"
                                   />
                                   <Textarea
                                     value={subtask.description}

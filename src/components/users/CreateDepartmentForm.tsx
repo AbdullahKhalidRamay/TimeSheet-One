@@ -328,7 +328,7 @@ onClose();
                                     value={subduty.name}
                                     onChange={(e) => updateSubduty(func.id, duty.id, subduty.id, 'name', e.target.value)}
                                     placeholder="Subduty name"
-                                    size="sm"
+                                    className="text-sm"
                                   />
                                   <Textarea
                                     value={subduty.description}
