@@ -20,6 +20,7 @@ interface CreateDepartmentFormProps {
 
 export default function CreateDepartmentForm({ isOpen, onClose, onSuccess, editingDepartment }: CreateDepartmentFormProps) {
   const [departmentName, setDepartmentName] = useState("");
+  const [departmentDescription, setDepartmentDescription] = useState("");
   const [functions, setFunctions] = useState<DepartmentFunction[]>([
     {
       id: generateId(),
@@ -37,6 +38,7 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess, editi
     if (editingDepartment && isOpen) {
       setDepartmentName(editingDepartment.name);
       setIsBillable(editingDepartment.isBillable);
+      setDepartmentDescription(editingDepartment.departmentDescription);
       setFunctions(editingDepartment.functions.length > 0 ? editingDepartment.functions : [{
         id: generateId(),
         name: "",
@@ -46,6 +48,7 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess, editi
       // Reset form when closing
       setDepartmentName("");
       setIsBillable(false);
+      setDepartmentDescription("");
       setFunctions([{
         id: generateId(),
         name: "",
@@ -163,6 +166,7 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess, editi
     const department: Department = {
       id: isEditing ? editingDepartment!.id : generateId(),
       name: departmentName,
+      departmentDescription: departmentDescription,
       functions: functions.filter(func => func.name.trim()),
       isBillable,
       createdBy: isEditing ? editingDepartment!.createdBy : (currentUser?.name || "Unknown"),
@@ -176,18 +180,18 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess, editi
 
   const handleClose = () => {
     setDepartmentName("");
-    setFunctions([{
+   /* setFunctions([{
       id: generateId(),
       name: "",
       duties: []
-    }]);
+    }]);*/
 setIsBillable(false);
 onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100/30' : 'bg-green-100/30'}`}>
@@ -213,6 +217,17 @@ onClose();
               className="bg-background border-border focus:ring-2 focus:ring-primary/20"
             />
           </div>
+          {/* Department Description */}
+          <div className="space-y-2">
+            <Label htmlFor="departmentDescription" className="text-sm font-medium text-foreground">Department Description</Label>
+            <Textarea
+              id="departmentDescription"
+              value={departmentDescription}
+              onChange={(e) => setDepartmentDescription(e.target.value)}
+              placeholder="Enter a brief department description"
+              className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
 
           {/* Billable Status */}
           <div className="flex items-center space-x-3 p-3 bg-card rounded-lg border border-border">
@@ -227,8 +242,8 @@ onClose();
             </Label>
           </div>
 
-          {/* Department Functions */}
-          <div className="space-y-4">
+         {/* Department Functions */}
+          {/* <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-foreground">Department Functions</Label>
               <Button 
@@ -266,7 +281,7 @@ onClose();
                   </div>
 
                   {/* Duties */}
-                  <div className="space-y-2">
+                 {/* <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm">Duties</Label>
                       <Button
@@ -307,7 +322,8 @@ onClose();
                           />
 
                           {/* Subduties */}
-                          <div className="space-y-2">
+                         {/* <div className="space-y-2">
+
                             <div className="flex items-center justify-between">
                               <Label className="text-xs">Subduties</Label>
                               <Button
@@ -355,7 +371,7 @@ onClose();
                 </div>
               </Card>
             ))}
-          </div>
+          </div> */}
         </div>
 
         <DialogFooter>
@@ -375,7 +391,7 @@ onClose();
               <Plus className="h-4 w-4 mr-2" />
             )}
             {isEditing ? 'Update Department' : 'Create Department'}
-          </Button>
+          </Button> 
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -69,6 +69,7 @@ export interface ProjectDetail {
 export interface Project {
   id: string;
   name: string;
+  description: string;
   levels: ProjectLevel[];
   isBillable: boolean;
   department?: string;
@@ -99,6 +100,7 @@ export interface ProjectSubtask {
 export interface Product {
   id: string;
   name: string;
+  productDescription: string;
   stages: ProductStage[];
   isBillable: boolean;
   createdBy: string;
@@ -127,6 +129,7 @@ export interface ProductSubtask {
 export interface Department {
   id: string;
   name: string;
+  departmentDescription: string;
   functions: DepartmentFunction[];
   isBillable: boolean;
   createdBy: string;
@@ -136,6 +139,7 @@ export interface Department {
 export interface DepartmentFunction {
   id: string;
   name: string;
+  
   duties: DepartmentDuty[];
 }
 

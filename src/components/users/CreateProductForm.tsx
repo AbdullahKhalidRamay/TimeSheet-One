@@ -20,6 +20,7 @@ interface CreateProductFormProps {
 
 export default function CreateProductForm({ isOpen, onClose, onSuccess, editingProduct }: CreateProductFormProps) {
   const [productName, setProductName] = useState("");
+  const [productDescription, setProductDescription] = useState("");
   const [isBillable, setIsBillable] = useState(false);
   const [stages, setStages] = useState<ProductStage[]>([
     {
@@ -36,6 +37,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
   useEffect(() => {
     if (editingProduct && isOpen) {
       setProductName(editingProduct.name);
+      setProductDescription(editingProduct.productDescription);
       setIsBillable(editingProduct.isBillable);
       setStages(editingProduct.stages.length > 0 ? editingProduct.stages : [{
         id: generateId(),
@@ -163,6 +165,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
     const product: Product = {
       id: isEditing ? editingProduct!.id : generateId(),
       name: productName,
+      productDescription: productDescription,
       stages: stages.filter(stage => stage.name.trim()),
       isBillable,
       createdBy: isEditing ? editingProduct!.createdBy : (currentUser?.name || "Unknown"),
@@ -187,7 +190,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100/30' : 'bg-purple-100/30'}`}>
@@ -213,6 +216,17 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
               className="text-base p-3 border-2 focus:border-purple-500 transition-colors"
             />
           </div>
+          {/* Product Description */}
+          <div className="space-y-3">
+            <Label htmlFor="productDescription" className="text-base font-semibold text-gray-700">Product Description</Label>
+            <Textarea
+              id="productDescription"
+              value={productDescription}
+              onChange={(e) => setProductDescription(e.target.value)}
+              placeholder="Enter a brief product description"
+              className="text-base p-3 border-2 focus:border-purple-500 transition-colors"
+            />
+          </div>
 
           {/* Billable Status */}
           <Card className="p-4 bg-gradient-to-r from-green-50 to-purple-50 border-green-200">
@@ -230,7 +244,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
           </Card>
 
           {/* Product Stages */}
-          <div className="space-y-4">
+         {/* <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>Product Stages</Label>
               <Button type="button" onClick={addStage} size="sm">
@@ -262,7 +276,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
                   </div>
 
                   {/* Tasks */}
-                  <div className="space-y-2">
+              {/*    <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm">Tasks</Label>
                       <Button
@@ -303,7 +317,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
                           />
 
                           {/* Subtasks */}
-                          <div className="space-y-2">
+                       {/*   <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs">Subtasks</Label>
                               <Button
@@ -351,7 +365,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
                 </div>
               </Card>
             ))}
-          </div>
+          </div>*/}
         </div>
 
         <DialogFooter className="flex justify-between items-center border-t border-border pt-6">

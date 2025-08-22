@@ -20,6 +20,7 @@ interface CreateProjectFormProps {
 
 export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingProject }: CreateProjectFormProps) {
   const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
   const [isBillable, setIsBillable] = useState(false);
   const [levels, setLevels] = useState<ProjectLevel[]>([
     {
@@ -36,6 +37,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
   useEffect(() => {
     if (editingProject && isOpen) {
       setProjectName(editingProject.name);
+      setProjectDescription(editingProject.description);
       setIsBillable(editingProject.isBillable);
       setLevels(editingProject.levels.length > 0 ? editingProject.levels : [{
         id: generateId(),
@@ -46,6 +48,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
       // Reset form when closing
       setProjectName("");
       setIsBillable(false);
+      setProjectDescription("");
       setLevels([{
         id: generateId(),
         name: "",
@@ -163,6 +166,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
     const project: Project = {
       id: isEditing ? editingProject!.id : generateId(),
       name: projectName,
+      description: projectDescription,
       levels: levels.filter(level => level.name.trim()),
       isBillable,
       createdBy: isEditing ? editingProject!.createdBy : (currentUser?.name || "Unknown"),
@@ -186,7 +190,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100/30' : 'bg-blue-100/30'}`}>
@@ -213,6 +217,18 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
             />
           </div>
 
+          {/* Project Description */}
+          <div className="space-y-2">
+            <Label htmlFor="projectDescription" className="text-sm font-medium text-foreground">Project Description</Label>
+            <Textarea
+              id="projectDescription"
+              value={projectDescription}
+              onChange={(e) => setProjectDescription(e.target.value)}
+              placeholder="Enter a brief project description"
+              className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
           {/* Billable Status */}
           <div className="flex items-center space-x-3 p-3 bg-card rounded-lg border border-gray-300">
             <Switch
@@ -227,7 +243,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
           </div>
 
           {/* Project Levels */}
-          <div className="space-y-4">
+       {/*   <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-foreground">Project Levels</Label>
               <Button 
@@ -265,7 +281,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
                   </div>
 
                   {/* Tasks */}
-                  <div className="space-y-2">
+             {/*     <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm">Tasks</Label>
                       <Button
@@ -306,7 +322,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
                           />
 
                           {/* Subtasks */}
-                          <div className="space-y-2">
+                     {/*     <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs">Subtasks</Label>
                               <Button
@@ -353,7 +369,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
                 </div>
               </Card>
             ))}
-          </div>
+          </div>*/}
         </div>
 
         <DialogFooter>
