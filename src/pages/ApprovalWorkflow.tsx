@@ -7,19 +7,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CheckSquare, X, Check, Clock, History, MessageSquare, Search, DollarSign } from "lucide-react";
+import { CheckSquare, X, Check, Clock, History, MessageSquare, Search, DollarSign, Eye } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
 import { updateTimeEntryStatus } from "@/services/storage";
 import { TimeEntry, ApprovalAction } from "@/validation/index";
 import { rolePermissions } from "@/validation/index";
 import { useTimeEntries, useApprovalHistory, invalidateCache } from "@/hooks/useData";
+import { toast } from "@/components/ui/sonner";
 
 export default function ApprovalWorkflow() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [approvalMessage, setApprovalMessage] = useState("");
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
+  const [viewingEntry, setViewingEntry] = useState<TimeEntry | null>(null);
+  const [isDetailViewOpen, setDetailViewOpen] = useState(false);
   const currentUser = getCurrentUser();
 
   const { timeEntries, refreshTimeEntries } = useTimeEntries();
@@ -40,6 +43,16 @@ export default function ApprovalWorkflow() {
     setApprovalMessage("");
   }, []);
 
+  const handleViewEntry = useCallback((entry: TimeEntry) => {
+    setViewingEntry(entry);
+    setDetailViewOpen(true);
+  }, []);
+
+  const handleCloseDetailView = useCallback(() => {
+    setDetailViewOpen(false);
+    setViewingEntry(null);
+  }, []);
+
   const submitApproval = useCallback(() => {
     if (!selectedEntry || !currentUser || !approvalMessage.trim()) return;
 
@@ -51,6 +64,7 @@ export default function ApprovalWorkflow() {
     invalidateCache('timeEntries');
     invalidateCache('approvalHistory');
     loadData();
+    toast.success(`Timesheet entry ${status} successfully!`);
   }, [selectedEntry, currentUser, approvalMessage, approvalAction, loadData]);
 
   const pendingEntries = useMemo(() => {
@@ -174,13 +188,13 @@ export default function ApprovalWorkflow() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[900px]">
+                    <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Project Details</TableHead>
-                      <TableHead>Task</TableHead>
                       <TableHead>Actual Hours</TableHead>
                       <TableHead>Billable Hours</TableHead>
                       <TableHead>Available Hours</TableHead>
@@ -208,9 +222,6 @@ export default function ApprovalWorkflow() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="max-w-48 truncate">{entry.task}</div>
-                        </TableCell>
                         <TableCell>{(entry.actualHours || 0).toFixed(1)}h</TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-1">
@@ -226,6 +237,14 @@ export default function ApprovalWorkflow() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewEntry(entry)}
+                              className="text-gray-600 hover:text-gray-800"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Dialog>
                               <DialogTrigger asChild>
                                 <Button 
@@ -317,6 +336,7 @@ export default function ApprovalWorkflow() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -331,8 +351,9 @@ export default function ApprovalWorkflow() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[900px]">
+                    <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
@@ -347,7 +368,7 @@ export default function ApprovalWorkflow() {
                   </TableHeader>
                   <TableBody>
                     {filteredHistory.map((action) => {
-                      const entry = getTimeEntries().find(e => e.id === action.entryId);
+                      const entry = timeEntries.find(e => e.id === action.entryId);
                       if (!entry) return null;
                       
                       return (
@@ -385,11 +406,37 @@ export default function ApprovalWorkflow() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      {viewingEntry && (
+        <Dialog open={isDetailViewOpen} onOpenChange={setDetailViewOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Entry Details</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div>
+                <p><strong>Date:</strong> {new Date(viewingEntry.date).toLocaleDateString()}</p>
+                <p><strong>Employee:</strong> {viewingEntry.userName}</p>
+                <p><strong>Project:</strong> {viewingEntry.projectDetails.name}</p>
+                <p><strong>Task:</strong> {viewingEntry.task}</p>
+                <p><strong>Actual Hours:</strong> {(viewingEntry.actualHours || 0).toFixed(1)}h</p>
+                <p><strong>Billable Hours:</strong> {(viewingEntry.billableHours || 0).toFixed(1)}h</p>
+                <p><strong>Available Hours:</strong> {(viewingEntry.availableHours || 0).toFixed(1)}h</p>
+                <p><strong>Status:</strong> {viewingEntry.status.charAt(0).toUpperCase() + viewingEntry.status.slice(1)}</p>
+                <p><strong>Created At:</strong> {new Date(viewingEntry.createdAt).toLocaleDateString()}</p>
+                <p><strong>Updated At:</strong> {new Date(viewingEntry.updatedAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <Button className="mt-4" onClick={handleCloseDetailView}>Close</Button>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

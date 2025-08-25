@@ -10,6 +10,7 @@ import { Plus, Trash2, Edit2 } from "lucide-react";
 import { saveDepartment, generateId } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
 import { Department, DepartmentFunction, DepartmentDuty, DepartmentSubduty } from "@/validation/index";
+import { toast } from "@/components/ui/sonner";
 
 interface CreateDepartmentFormProps {
   isOpen: boolean;
@@ -159,7 +160,7 @@ export default function CreateDepartmentForm({ isOpen, onClose, onSuccess, editi
 
   const handleSubmit = () => {
     if (!departmentName.trim()) {
-      alert("Please enter a department name");
+      toast.error("Please enter a department name");
       return;
     }
 

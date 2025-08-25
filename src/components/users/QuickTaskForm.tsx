@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { getCurrentUser } from "@/lib/auth";
+import { toast } from "@/components/ui/sonner";
 import { Project, Product, Department } from "@/validation/index";
 
 interface QuickTaskFormProps {
@@ -41,7 +42,7 @@ export default function QuickTaskForm({
 
   const handleSubmit = () => {
     if (!currentUser || !description.trim()) {
-      alert("Please enter a task description");
+      toast.error("Please enter a task description");
       return;
     }
 

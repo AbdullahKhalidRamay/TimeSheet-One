@@ -9,6 +9,7 @@ import { Project, Product, Department } from "@/validation/index";
 import { getCurrentUser } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
 import { useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
+import { toast } from "@/components/ui/sonner";
 import { useSettings } from '@/contexts/SettingsContext';
 import ProjectsTab from '@/components/users/Projects Tab';
 import ProductsTab from '@/components/users/Products Tab';
@@ -89,27 +90,24 @@ export default function Projects() {
 
   // Delete handlers
   const handleDeleteProject = useCallback((projectId: string) => {
-    if (confirm('Are you sure you want to delete this project?')) {
-      deleteProject(projectId);
-      invalidateCache('projects');
-      refreshProjects();
-    }
+    deleteProject(projectId);
+    invalidateCache('projects');
+    refreshProjects();
+    toast.success('Project deleted successfully');
   }, [refreshProjects]);
 
   const handleDeleteProduct = useCallback((productId: string) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      deleteProduct(productId);
-      invalidateCache('products');
-      refreshProducts();
-    }
-  }, [refreshProducts]);
+    deleteProduct(productId);
+    invalidateCache('products');
+    refreshProducts();
+    toast.success('Product deleted successfully');
+  }, [refreshProjects]);
 
   const handleDeleteDepartment = useCallback((departmentId: string) => {
-    if (confirm('Are you sure you want to delete this department?')) {
-      deleteDepartment(departmentId);
-      invalidateCache('departments');
-      refreshDepartments();
-    }
+    deleteDepartment(departmentId);
+    invalidateCache('departments');
+    refreshDepartments();
+    toast.success('Department deleted successfully');
   }, [refreshDepartments]);
 
   // Close handlers with reset

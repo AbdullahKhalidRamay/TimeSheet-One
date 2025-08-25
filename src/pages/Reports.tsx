@@ -13,6 +13,7 @@ import { User, Team } from '@/validation';
 import Header from '@/components/dashboard/Header';
 import { DateRange } from 'react-day-picker';
 import { useUsers, useTeams, useTimeEntries, useProjects, useProducts, useDepartments, invalidateCache } from '@/hooks/useData';
+import { toast } from '@/components/ui/sonner';
 
 const Reports = () => {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -56,7 +57,7 @@ const Reports = () => {
 
   const handleDeleteTeam = useCallback((teamId: string) => {
     const team = teams.find(t => t.id === teamId);
-    if (team && confirm(`Are you sure you want to delete the team "${team.name}"? This action cannot be undone.`)) {
+    if (team) {
       deleteTeam(teamId);
       // Close details if this team was expanded
       if (selectedTeamId === teamId) {
@@ -69,6 +70,7 @@ const Reports = () => {
       // Invalidate cache and refresh data instead of reloading
       invalidateCache('teams');
       refreshTeams();
+      toast.success(`Team "${team.name}" deleted successfully`);
     }
   }, [teams, selectedTeamId, teamFilter, refreshTeams]);
 
@@ -89,8 +91,18 @@ const Reports = () => {
     
     const actualHours = userEntries.reduce((sum, entry) => sum + (entry.actualHours || 0), 0);
     const billableHours = userEntries.reduce((sum, entry) => sum + (entry.isBillable ? (entry.billableHours || 0) : 0), 0);
+    
     // Calculate available hours from timesheet entries instead of user profile
-    const availableHours = userEntries.reduce((sum, entry) => sum + (entry.availableHours || 0), 0);
+    // Only count one record per date for available hours
+    const uniqueDates = new Set();
+    const availableHours = userEntries.reduce((sum, entry) => {
+      if (!uniqueDates.has(entry.date)) {
+        uniqueDates.add(entry.date);
+        return sum + (entry.availableHours || 0);
+      }
+      return sum;
+    }, 0);
+    
     const approvedEntries = userEntries.filter(entry => entry.status === 'approved');
     const pendingEntries = userEntries.filter(entry => entry.status === 'pending');
     
@@ -147,7 +159,15 @@ const Reports = () => {
     const actualHours = userEntries.reduce((sum, entry) => sum + (entry.actualHours || 0), 0);
     const billableHours = userEntries.reduce((sum, entry) => sum + (entry.isBillable ? (entry.billableHours || 0) : 0), 0);
     // Calculate available hours from timesheet entries instead of user profile
-    const availableHours = userEntries.reduce((sum, entry) => sum + (entry.availableHours || 0), 0);
+    // Only count one record per date for available hours
+    const uniqueDates = new Set();
+    const availableHours = userEntries.reduce((sum, entry) => {
+      if (!uniqueDates.has(entry.date)) {
+        uniqueDates.add(entry.date);
+        return sum + (entry.availableHours || 0);
+      }
+      return sum;
+    }, 0);
     const approvedEntries = userEntries.filter(entry => entry.status === 'approved');
     const pendingEntries = userEntries.filter(entry => entry.status === 'pending');
     
@@ -256,20 +276,21 @@ const Reports = () => {
               <CardTitle>Members Report</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Actual Hours</TableHead>
-                    <TableHead className="text-right">Billable Hours</TableHead>
-                    <TableHead className="text-right">Available Hours</TableHead>
-                    <TableHead className="text-center">Entries</TableHead>
-                    <TableHead className="text-center">Approved</TableHead>
-                    <TableHead className="text-center">Pending</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead className="text-right">Actual Hours</TableHead>
+                      <TableHead className="text-right">Billable Hours</TableHead>
+                      <TableHead className="text-right">Available Hours</TableHead>
+                      <TableHead className="text-center">Entries</TableHead>
+                      <TableHead className="text-center">Approved</TableHead>
+                      <TableHead className="text-center">Pending</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => {
                     const stats = getUserStats(user.id);
@@ -319,6 +340,7 @@ const Reports = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -329,19 +351,20 @@ const Reports = () => {
               <CardTitle>Teams Report</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Team Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Leader</TableHead>
-                    <TableHead className="text-center">Members</TableHead>
-                    <TableHead>Projects</TableHead>
-                    <TableHead>Products</TableHead>
-                    <TableHead>Departments</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Team Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Leader</TableHead>
+                      <TableHead className="text-center">Members</TableHead>
+                      <TableHead>Projects</TableHead>
+                      <TableHead>Products</TableHead>
+                      <TableHead>Departments</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {teams.map((team) => {
                     const { teamProjects, teamProducts, teamDepartments } = getTeamProjects(team);
@@ -446,6 +469,7 @@ const Reports = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
               
               {/* Team Member Details - Show below table when expanded */}
               {selectedTeamId && (
@@ -456,8 +480,9 @@ const Reports = () => {
                         <Users className="h-4 w-4" />
                         <span>Team Members - {team.name}</span>
                       </h4>
-                      <Table>
-                        <TableHeader>
+                      <div className="overflow-x-auto">
+                        <Table className="min-w-[900px]">
+                          <TableHeader>
                           <TableRow>
                             <TableHead>Member</TableHead>
                             <TableHead>Email</TableHead>
@@ -526,6 +551,7 @@ const Reports = () => {
                           })}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
                   ))}
                 </div>

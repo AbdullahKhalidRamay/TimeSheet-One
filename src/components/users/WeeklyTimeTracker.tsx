@@ -13,6 +13,7 @@ import DailyView from "./DailyView";
 import { getCurrentUser } from "@/lib/auth";
 import { getTimeEntryStatusForDate, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
 import { Project, Product, Department, TimeEntry, ProjectDetail } from "@/validation/index";
+import { toast } from "@/components/ui/sonner";
 
 interface WeeklyHours {
   billable: number;
@@ -366,6 +367,44 @@ export default function WeeklyTimeTracker() {
 
 
 
+  // Auto-calculate available hours based on actual hours (8 - actual hours, minimum 0)
+  const calculateAvailableHours = useCallback((dayKey: string) => {
+    let totalActualHours = 0;
+    
+    // Sum all actual hours for the day from projects
+    Object.values(weeklyData).forEach(projectData => {
+      if (projectData[dayKey]) {
+        totalActualHours += projectData[dayKey].actual || 0;
+      }
+    });
+    
+    // Sum all actual hours for the day from products
+    Object.values(productWeeklyData).forEach(productData => {
+      if (productData[dayKey]) {
+        totalActualHours += productData[dayKey].actual || 0;
+      }
+    });
+    
+    // Sum all actual hours for the day from departments
+    Object.values(departmentWeeklyData).forEach(departmentData => {
+      if (departmentData[dayKey]) {
+        totalActualHours += departmentData[dayKey].actual || 0;
+      }
+    });
+    
+    // Calculate available hours: 8 - total actual hours, minimum 0
+    const availableHours = Math.max(0, 8 - totalActualHours);
+    
+    return availableHours;
+  }, [weeklyData, productWeeklyData, departmentWeeklyData]);
+
+  // Update available hours when actual hours change
+  const updateAvailableHours = useCallback((dayKey: string, value: number) => {
+    const calculatedAvailableHours = calculateAvailableHours(dayKey);
+    setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+  }, [calculateAvailableHours]);
+
+  // Update hours and recalculate available hours
   const updateHours = (projectId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
     console.log('WeeklyTimeTracker: updateHours called', { projectId, dayKey, type, value });
     
@@ -391,6 +430,14 @@ export default function WeeklyTimeTracker() {
       console.log('Updated weekly data:', newData[projectId][dayKey]);
       return newData;
     });
+
+    // Auto-calculate available hours when actual hours change
+    if (type === 'actual') {
+      setTimeout(() => {
+        const calculatedAvailableHours = calculateAvailableHours(dayKey);
+        setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+      }, 0);
+    }
   };
   
   const updateProjectData = (dayKey: string, projectId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
@@ -417,31 +464,34 @@ export default function WeeklyTimeTracker() {
     });
   };
 
+  // Update product hours and recalculate available hours
   const updateProductHours = (productId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
-    console.log('WeeklyTimeTracker: updateProductHours called', { productId, dayKey, type, value });
-    
     setProductWeeklyData(prev => {
       const newData = { ...prev };
       
-      // Ensure the product exists in the data
       if (!newData[productId]) {
         newData[productId] = {};
       }
       
-      // Ensure the day exists for this product
       if (!newData[productId][dayKey]) {
         newData[productId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      // Update the specific field
       newData[productId][dayKey] = {
         ...newData[productId][dayKey],
         [type]: value
       };
       
-      console.log('Updated product weekly data:', newData[productId][dayKey]);
       return newData;
     });
+
+    // Auto-calculate available hours when actual hours change
+    if (type === 'actual') {
+      setTimeout(() => {
+        const calculatedAvailableHours = calculateAvailableHours(dayKey);
+        setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+      }, 0);
+    }
   };
   
   const updateProductData = (dayKey: string, productId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
@@ -468,31 +518,34 @@ export default function WeeklyTimeTracker() {
     });
   };
 
+  // Update department hours and recalculate available hours
   const updateDepartmentHours = (departmentId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
-    console.log('WeeklyTimeTracker: updateDepartmentHours called', { departmentId, dayKey, type, value });
-    
     setDepartmentWeeklyData(prev => {
       const newData = { ...prev };
       
-      // Ensure the department exists in the data
       if (!newData[departmentId]) {
         newData[departmentId] = {};
       }
       
-      // Ensure the day exists for this department
       if (!newData[departmentId][dayKey]) {
         newData[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      // Update the specific field
       newData[departmentId][dayKey] = {
         ...newData[departmentId][dayKey],
         [type]: value
       };
       
-      console.log('Updated department weekly data:', newData[departmentId][dayKey]);
       return newData;
     });
+
+    // Auto-calculate available hours when actual hours change
+    if (type === 'actual') {
+      setTimeout(() => {
+        const calculatedAvailableHours = calculateAvailableHours(dayKey);
+        setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+      }, 0);
+    }
   };
   
   const updateDepartmentData = (dayKey: string, departmentId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
@@ -628,7 +681,7 @@ export default function WeeklyTimeTracker() {
     });
     
     if (daysToSave.size === 0) {
-      alert('No entries to save. Please enter hours for at least one project, product, or department.');
+      toast.error('No entries to save. Please enter hours for at least one project, product, or department.');
       return;
     }
     
@@ -773,7 +826,7 @@ export default function WeeklyTimeTracker() {
       message += `\n${skippedDaysCount} days were skipped due to existing entries.`;
     }
     
-    alert(message);
+    toast.success(message);
     setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
   };
 
@@ -1162,10 +1215,10 @@ export default function WeeklyTimeTracker() {
     });
     
     if (savedEntries > 0) {
-      alert(`Successfully saved ${savedEntries} time entries for ${format(date, 'MMM dd, yyyy')}!`);
+      toast.success(`Successfully saved ${savedEntries} time entries for ${format(date, 'MMM dd, yyyy')}!`);
       setRefreshKey(prev => prev + 1);
     } else {
-      alert('No entries to save. Please enter hours or task description for at least one project, product, or department.');
+      toast.info('No entries to save. Please enter hours or task description for at least one project, product, or department.');
     }
   };
 
@@ -1282,10 +1335,10 @@ export default function WeeklyTimeTracker() {
     
     if (totalSavedEntries > 0) {
       const rangeText = `${format(dateRange?.from || new Date(), 'MMM dd')} - ${format(dateRange?.to || new Date(), 'MMM dd, yyyy')}`;
-      alert(`Successfully saved ${totalSavedEntries} time entries for ${rangeText}!`);
+      toast.success(`Successfully saved ${totalSavedEntries} time entries for ${rangeText}!`);
       setRefreshKey(prev => prev + 1);
     } else {
-      alert('No entries to save. Please enter hours for at least one project, product, or department.');
+      toast.info('No entries to save. Please enter hours for at least one project, product, or department.');
     }
   };
 
@@ -1408,7 +1461,7 @@ export default function WeeklyTimeTracker() {
           onUpdateProductData={updateProductData}
           onUpdateDepartmentHours={updateDepartmentHours}
           onUpdateDepartmentData={updateDepartmentData}
-          onUpdateAvailableHours={(dayKey, value) => setDailyAvailableHours(prev => ({ ...prev, [dayKey]: value }))}
+          onUpdateAvailableHours={updateAvailableHours}
           onQuickTaskClick={(project, date) => {
             setSelectedProject(project);
             setSelectedDateForQuickTask(date);

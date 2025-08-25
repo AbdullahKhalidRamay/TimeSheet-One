@@ -104,7 +104,6 @@ export default function WeeklyView({
     return !isFuture(nextWeekStart) || isToday(nextWeekStart);
   };
 
-  // Function to check if an entry exists for a specific project and date
   const hasEntryForProjectAndDate = (projectId: string, dayKey: string, projectType: 'project' | 'product' | 'department') => {
     const allEntries = getTimeEntries();
     const result = allEntries.some(entry => {
@@ -127,13 +126,11 @@ export default function WeeklyView({
     return result;
   };
 
-  // Check if a date is selected
   const isDateSelected = (date: Date) => {
     const dateKey = format(date, 'yyyy-MM-dd');
     return selectedDates.some(d => format(d, 'yyyy-MM-dd') === dateKey);
   };
 
-  // Check if a date is in the selected range
   const isDateInRange = (date: Date) => {
     if (selectedDates.length !== 2) return false;
     const dateKey = format(date, 'yyyy-MM-dd');
@@ -142,14 +139,12 @@ export default function WeeklyView({
     return dateKey >= startKey && dateKey <= endKey;
   };
 
-  // Get status information for a specific date
   const getDateStatus = (date: Date) => {
     if (!currentUser) return null;
     const dateStr = format(date, 'yyyy-MM-dd');
     return getTimeEntryStatusForDate(dateStr, currentUser.id);
   };
 
-  // Get status icon and color based on entry status
   const getStatusIndicator = (date: Date) => {
     const dateStatus = getDateStatus(date);
     if (!dateStatus || !dateStatus.hasEntries) {
@@ -191,7 +186,6 @@ export default function WeeklyView({
 
   return (
     <div className="space-y-6">
-      {/* Weekly Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button
@@ -217,37 +211,35 @@ export default function WeeklyView({
         </div>
       </div>
 
-      {/* Weekly Grid */}
       <div className="overflow-x-auto bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-        <table className="w-full text-center border-collapse">
+        <table className="w-full text-center border-collapse min-w-[500px]">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800">
-              <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Projects/Products/Departments</th>
+              <th className="py-3 px-1 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold w-24">Assigned</th>
               {weekDays.map(day => {
                 const statusIndicator = getStatusIndicator(day);
                 return (
                   <th 
                     key={day.toString()} 
-                    className={`py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${(isDateSelected(day) || isDateInRange(day)) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                    className={`py-3 px-1 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-16 ${(isDateSelected(day) || isDateInRange(day)) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                     onClick={() => onDateSelection(day)}
                   >
                     <div className="flex flex-col items-center space-y-1">
-                      <div className="flex items-center justify-center space-x-2">
-                        <span>{format(day, 'E, MMM d')}</span>
+                      <div className="flex items-center justify-center space-x-1">
+                        <span className="text-xs">{format(day, 'E, MMM d')}</span>
                         {statusIndicator && (
                           <div 
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${statusIndicator.bgColor}`}
+                            className={`inline-flex items-center justify-center w-4 h-4 rounded-full ${statusIndicator.bgColor}`}
                             title={statusIndicator.tooltip}
                           >
-                            <statusIndicator.icon className={`w-3 h-3 ${statusIndicator.color}`} />
+                            <statusIndicator.icon className={`w-2 h-2 ${statusIndicator.color}`} />
                           </div>
                         )}
                       </div>
-                      {/* B/A Labels Row */}
                       <div className="flex justify-around items-center gap-1 text-xs">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="w-16 h-6 flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded cursor-help font-medium">
+                            <div className="w-6 h-3 flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded cursor-help font-medium text-xs">
                               B
                             </div>
                           </TooltipTrigger>
@@ -257,7 +249,7 @@ export default function WeeklyView({
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="w-16 h-6 flex items-center justify-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded cursor-help font-medium">
+                            <div className="w-6 h-3 flex items-center justify-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded cursor-help font-medium text-xs">
                               A
                             </div>
                           </TooltipTrigger>
@@ -273,29 +265,61 @@ export default function WeeklyView({
             </tr>
           </thead>
           <tbody>
-            {/* Projects Section */}
             {projects.map(project => (
               <tr key={`project-${project.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+                <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">Project</span>
-                          <span className="font-semibold">{project.name}</span>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs px-1 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">P</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="font-semibold break-words whitespace-normal text-xs" title={project.name}>{project.name}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{project.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                         {project.department && (
-                          <span className="text-xs text-gray-600 dark:text-gray-400">
-                            Department: {project.department}
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-xs text-gray-600 dark:text-gray-400 break-words whitespace-normal" title={`Department: ${project.department}`}>
+                                D: {project.department}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Department: {project.department}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                         {project.associatedProducts && project.associatedProducts.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {project.associatedProducts.map((product, index) => (
-                              <span key={index} className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
-                                {product}
-                              </span>
+                            {project.associatedProducts.slice(0, 1).map((product, index) => (
+                              <Tooltip key={index}>
+                                <TooltipTrigger asChild>
+                                  <span className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded break-words whitespace-normal" title={product}>
+                                    {product}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{product}</p>
+                                </TooltipContent>
+                              </Tooltip>
                             ))}
+                            {project.associatedProducts.length > 1 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
+                                    +{project.associatedProducts.length - 1}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{project.associatedProducts.slice(1).join(', ')}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         )}
                       </div>
@@ -309,22 +333,11 @@ export default function WeeklyView({
                   const hasExistingEntry = hasEntryForProjectAndDate(project.id, dayKey, 'project');
                   const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                   
-                  // Debug disabled state
                   const billableDisabled = !project.isBillable || isFutureDay || hasExistingEntry;
                   const actualDisabled = isFutureDay || hasExistingEntry;
                   
-                  if (billableDisabled || actualDisabled) {
-                    console.log(`Project ${project.name} on ${dayKey}:`, {
-                      isFutureDay,
-                      hasExistingEntry,
-                      projectIsBillable: project.isBillable,
-                      billableDisabled,
-                      actualDisabled
-                    });
-                  }
-                  
                   return (
-                    <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                    <td key={dayKey} className={`py-1 px-1 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                       <div className="flex justify-around items-center gap-1">
                         {hasData && (
                           <div className="absolute top-1 right-1">
@@ -340,10 +353,9 @@ export default function WeeklyView({
                           onChange={(e) => {
                             const inputValue = e.target.value;
                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            console.log('Billable input changed:', { projectId: project.id, dayKey, value, inputValue });
                             onUpdateHours(project.id, dayKey, 'billable', value);
                           }}
-                          className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
                           disabled={billableDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
@@ -357,10 +369,9 @@ export default function WeeklyView({
                           onChange={(e) => {
                             const inputValue = e.target.value;
                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            console.log('Actual input changed:', { projectId: project.id, dayKey, value, inputValue });
                             onUpdateHours(project.id, dayKey, 'actual', value);
                           }}
-                          className={`w-16 text-xs h-8 ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
                           disabled={actualDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
@@ -369,11 +380,11 @@ export default function WeeklyView({
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(project, day)}
-                          className={`h-6 w-6 p-0 ${hours.task.trim() ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          className={`h-5 w-5 p-0 ${hours.task.trim() ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-400 dark:text-gray-500'}`}
                           title={hours.task.trim() ? `Edit task for ${project.name}: ${hours.task}` : `Add task for ${project.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-2 w-2" />
                         </Button>
                       </div>
                     </td>
@@ -382,16 +393,22 @@ export default function WeeklyView({
               </tr>
             ))}
 
-            {/* Products Section */}
             {products.map(product => (
               <tr key={`product-${product.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+                <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">Product</span>
-                          <span className="font-semibold">{product.name}</span>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">Pr</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="font-semibold break-words whitespace-normal text-xs" title={product.name}>{product.name}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{product.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                     </div>
@@ -404,22 +421,11 @@ export default function WeeklyView({
                   const hasExistingEntry = hasEntryForProjectAndDate(product.id, dayKey, 'product');
                   const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                   
-                  // Debug disabled state
                   const billableDisabled = !product.isBillable || isFutureDay || hasExistingEntry;
                   const actualDisabled = isFutureDay || hasExistingEntry;
                   
-                  if (billableDisabled || actualDisabled) {
-                    console.log(`Product ${product.name} on ${dayKey}:`, {
-                      isFutureDay,
-                      hasExistingEntry,
-                      productIsBillable: product.isBillable,
-                      billableDisabled,
-                      actualDisabled
-                    });
-                  }
-                  
                   return (
-                    <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
+                    <td key={dayKey} className={`py-1 px-1 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
                       <div className="flex justify-around items-center gap-1">
                         {hasData && (
                           <div className="absolute top-1 right-1">
@@ -435,10 +441,9 @@ export default function WeeklyView({
                           onChange={(e) => {
                             const inputValue = e.target.value;
                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            console.log('Billable input changed:', { productId: product.id, dayKey, value, inputValue });
                             onUpdateProductHours(product.id, dayKey, 'billable', value);
                           }}
-                          className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
                           disabled={billableDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
@@ -452,10 +457,9 @@ export default function WeeklyView({
                           onChange={(e) => {
                             const inputValue = e.target.value;
                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            console.log('Actual input changed:', { productId: product.id, dayKey, value, inputValue });
                             onUpdateProductHours(product.id, dayKey, 'actual', value);
                           }}
-                          className={`w-16 text-xs h-8 ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
                           disabled={actualDisabled}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
@@ -464,11 +468,11 @@ export default function WeeklyView({
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(product, day)}
-                          className={`h-6 w-6 p-0 ${hours.task.trim() ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          className={`h-5 w-5 p-0 ${hours.task.trim() ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-gray-400 dark:text-gray-500'}`}
                           title={hours.task.trim() ? `Edit task for ${product.name}: ${hours.task}` : `Add task for ${product.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-2 w-2" />
                         </Button>
                       </div>
                     </td>
@@ -477,16 +481,22 @@ export default function WeeklyView({
               </tr>
             ))}
 
-            {/* Departments Section */}
             {departments.map(department => (
               <tr key={`department-${department.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+                <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">Department</span>
-                          <span className="font-semibold">{department.name}</span>
+                        <div className="flex items-center space-x-1">
+                          <span className="text-xs px-1 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">D</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="font-semibold break-words whitespace-normal text-xs" title={department.name}>{department.name}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{department.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                     </div>
@@ -500,7 +510,7 @@ export default function WeeklyView({
                   const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                   
                   return (
-                    <td key={dayKey} className={`py-2 px-2 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}>
+                    <td key={dayKey} className={`py-1 px-1 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}>
                       <div className="flex justify-around items-center gap-1">
                         {hasData && (
                           <div className="absolute top-1 right-1">
@@ -516,10 +526,9 @@ export default function WeeklyView({
                           onChange={(e) => {
                             const inputValue = e.target.value;
                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            console.log('Billable input changed:', { departmentId: department.id, dayKey, value, inputValue });
                             onUpdateDepartmentHours(department.id, dayKey, 'billable', value);
                           }}
-                          className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
                           disabled={!department.isBillable || isFutureDay || hasExistingEntry}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
@@ -533,10 +542,9 @@ export default function WeeklyView({
                           onChange={(e) => {
                             const inputValue = e.target.value;
                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            console.log('Actual input changed:', { departmentId: department.id, dayKey, value, inputValue });
                             onUpdateDepartmentHours(department.id, dayKey, 'actual', value);
                           }}
-                          className={`w-16 text-xs h-8 ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
+                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
                           disabled={isFutureDay || hasExistingEntry}
                           placeholder="0"
                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
@@ -545,11 +553,11 @@ export default function WeeklyView({
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(department, day)}
-                          className={`h-6 w-6 p-0 ${hours.task.trim() ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          className={`h-5 w-5 p-0 ${hours.task.trim() ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20' : 'text-gray-400 dark:text-gray-500'}`}
                           title={hours.task.trim() ? `Edit task for ${department.name}: ${hours.task}` : `Add task for ${department.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-2 w-2" />
                         </Button>
                       </div>
                     </td>
@@ -558,31 +566,18 @@ export default function WeeklyView({
               </tr>
             ))}
 
-            {/* Available Hours Row */}
             <tr className="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-700">
-              <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-semibold text-blue-800 dark:text-blue-400">Available Hours</td>
+              <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-semibold text-blue-800 dark:text-blue-400 text-xs">Avail Hr.</td>
               {weekDays.map(day => {
                 const dayKey = format(day, 'yyyy-MM-dd');
                 const isFutureDay = day.getTime() > new Date().getTime();
                 const availableHours = dailyAvailableHours[dayKey] || 0;
                 return (
-                  <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
+                  <td key={dayKey} className="py-1 px-1 border border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
                     <div className="flex justify-center">
-                      <Input 
-                        type="number" 
-                        step="0.5" 
-                        min="0" 
-                        max="24"
-                        value={availableHours === 0 ? '' : availableHours.toString()}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                          onUpdateAvailableHours(dayKey, value);
-                        }}
-                        className="w-20 text-center text-sm h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-blue-300 dark:border-blue-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                        disabled={isFutureDay}
-                        placeholder="0"
-                      />
+                      <div className="w-12 text-center text-xs h-6 bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-blue-100 border border-blue-300 dark:border-blue-600 rounded flex items-center justify-center font-medium">
+                        {availableHours.toFixed(1)}
+                      </div>
                     </div>
                   </td>
                 );
@@ -592,7 +587,6 @@ export default function WeeklyView({
         </table>
       </div>
 
-      {/* Save Button */}
       <div className="flex justify-end pt-4">
         <Button onClick={onSaveWeeklyData} className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded shadow-lg transition-colors">
           <span>Save Week</span>
@@ -601,4 +595,3 @@ export default function WeeklyView({
     </div>
   );
 }
- 

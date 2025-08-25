@@ -5,9 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getAllUsers, getCurrentUser } from "@/lib/auth";
-import { getProjects, getProducts, getDepartments, saveTeam } from "@/services/storage";
-import { User, Team } from "@/validation/index";
+import { getProjects, getProducts, getDepartments, saveTeam, generateId } from "@/services/storage";
+import { Team } from "@/validation/index";
 import { Users, Trash2 } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 interface CreateTeamFormProps {
   isOpen: boolean;
@@ -45,7 +46,7 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
 
   const handleSubmit = () => {
     if (!teamName.trim() || selectedMembers.length === 0) {
-      alert("Please fill out all fields");
+      toast.error("Please fill out all fields");
       return;
     }
 

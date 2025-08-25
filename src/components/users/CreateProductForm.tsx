@@ -10,6 +10,7 @@ import { Plus, Trash2, Edit2 } from "lucide-react";
 import { saveProduct, generateId } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
 import { Product, ProductStage, ProductTask, ProductSubtask } from "@/validation/index";
+import { toast } from "@/components/ui/sonner";
 
 interface CreateProductFormProps {
   isOpen: boolean;
@@ -158,7 +159,7 @@ export default function CreateProductForm({ isOpen, onClose, onSuccess, editingP
 
   const handleSubmit = () => {
     if (!productName.trim()) {
-      alert("Please enter a product name");
+      toast.error("Please enter a product name");
       return;
     }
 

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { DateRange } from "react-day-picker";
 import { Input } from "@/components/ui/input";
-import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon, Search } from "lucide-react";
+import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon, Search, Eye } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteTimeEntry } from "@/services/storage";
@@ -15,6 +15,8 @@ import { TimeEntry, rolePermissions } from "@/validation/index";
 import { useNavigate } from "react-router-dom";
 import EditSingleTimeEntryForm from "@/components/users/EditSingleTimeEntryForm";
 import { useTimeEntries, useUsers, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
+import { toast } from "@/components/ui/sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface GroupedEntry {
   date: string;
@@ -43,6 +45,8 @@ export default function Timesheet() {
   const [projectFilter, setProjectFilter] = useState("all");
   const [isDailyTrackerOpen, setDailyTrackerOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [viewingEntry, setViewingEntry] = useState<TimeEntry | null>(null);
+  const [isDetailViewOpen, setDetailViewOpen] = useState(false);
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
   
@@ -77,9 +81,14 @@ export default function Timesheet() {
   const handleDeleteEntry = useCallback((entryId: string) => {
     const entry = timeEntries.find(e => e.id === entryId);
     if (entry && (entry.status === 'pending' || currentUser?.role === 'owner')) {
-      deleteTimeEntry(entryId);
-      invalidateCache('timeEntries');
-      loadTimeEntries();
+      if (confirm('Are you sure you want to delete this time entry?')) {
+        deleteTimeEntry(entryId);
+        invalidateCache('timeEntries');
+        loadTimeEntries();
+        toast.success('Time entry deleted successfully');
+      }
+    } else {
+      toast.error('Cannot delete this entry. Only pending entries can be deleted.');
     }
   }, [timeEntries, currentUser?.role, loadTimeEntries]);
 
@@ -312,11 +321,11 @@ export default function Timesheet() {
     );
     
     if (pendingEntries.length === 0) {
-      alert('No pending entries to submit');
+      toast.error('No pending entries to submit');
       return;
     }
     
-    alert(`Submitted ${pendingEntries.length} entries for approval`);
+    toast.success(`Submitted ${pendingEntries.length} entries for approval`);
   }, [filteredEntries, currentUser?.id]);
 
   // Edit handlers
@@ -335,6 +344,16 @@ export default function Timesheet() {
   const handleCloseDailyTracker = useCallback(() => {
     setDailyTrackerOpen(false);
     setEditingEntry(null);
+  }, []);
+
+  const handleViewEntry = useCallback((entry: TimeEntry) => {
+    setViewingEntry(entry);
+    setDetailViewOpen(true);
+  }, []);
+
+  const handleCloseDetailView = useCallback(() => {
+    setDetailViewOpen(false);
+    setViewingEntry(null);
   }, []);
 
   const permissions = rolePermissions[currentUser?.role || 'employee'];
@@ -547,7 +566,8 @@ export default function Timesheet() {
             <CardTitle>Timesheet Entries</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+                    <div className="overflow-x-auto">
+          <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   {permissions.canViewAllTimesheets && (
@@ -555,7 +575,6 @@ export default function Timesheet() {
                   )}
                   <TableHead>Date</TableHead>
                 <TableHead>Project Details</TableHead>
-                <TableHead>Tasks</TableHead>
                 <TableHead>Actual Hours</TableHead>
                 <TableHead>Billable Hours</TableHead>
                 <TableHead>Available Hours</TableHead>
@@ -617,9 +636,6 @@ export default function Timesheet() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="max-w-48 truncate">{entry.task}</div>
-                    </TableCell>
-                    <TableCell>
                       <div className="text-sm">
                         <span className="font-medium">{(entry.actualHours || 0).toFixed(1)}h</span>
                       </div>
@@ -654,6 +670,14 @@ export default function Timesheet() {
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewEntry(entry)}
+                          className="text-gray-600 hover:text-gray-800"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {canDelete(entry) && (
                           <Button 
                             variant="ghost" 
@@ -670,6 +694,7 @@ export default function Timesheet() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -682,6 +707,32 @@ export default function Timesheet() {
             onSuccess={handleEditSuccess}
           />
         </div>
+      )}
+
+      {viewingEntry && (
+        <Dialog open={isDetailViewOpen} onOpenChange={setDetailViewOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Entry Details</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div>
+                <p><strong>Date:</strong> {new Date(viewingEntry.date).toLocaleDateString()}</p>
+                <p><strong>Employee:</strong> {users.find(u => u.id === viewingEntry.userId)?.name}</p>
+                <p><strong>Project:</strong> {viewingEntry.projectDetails.name}</p>
+                <p><strong>Task:</strong> {viewingEntry.task}</p>
+                <p><strong>Actual Hours:</strong> {(viewingEntry.actualHours || 0).toFixed(1)}h</p>
+                <p><strong>Billable Hours:</strong> {(viewingEntry.billableHours || 0).toFixed(1)}h</p>
+                <p><strong>Available Hours:</strong> {(viewingEntry.availableHours || 0).toFixed(1)}h</p>
+                <p><strong>Status:</strong> {viewingEntry.status.charAt(0).toUpperCase() + viewingEntry.status.slice(1)}</p>
+                <p><strong>Description:</strong> {viewingEntry.description}</p>
+                <p><strong>Created At:</strong> {new Date(viewingEntry.createdAt).toLocaleDateString()}</p>
+                <p><strong>Updated At:</strong> {new Date(viewingEntry.updatedAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <Button className="mt-4" onClick={handleCloseDetailView}>Close</Button>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

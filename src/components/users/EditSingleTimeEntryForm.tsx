@@ -9,9 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Save, X } from "lucide-react";
-import { TimeEntry, Project, Product, Department } from "@/validation/index";
+import { TimeEntry, Project, Product, Department, ProjectDetail } from "@/validation/index";
 import { saveTimeEntry, deleteTimeEntry, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, getTimeEntries } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
+import { toast } from "@/components/ui/sonner";
 
 interface EditSingleTimeEntryFormProps {
   entry: TimeEntry;
@@ -326,7 +327,7 @@ export default function EditSingleTimeEntryForm({ entry, onClose, onSuccess }: E
       onSuccess();
     } catch (error) {
       console.error('Error updating time entry:', error);
-      alert('Error updating time entry. Please try again.');
+      toast.error('Error updating time entry. Please try again.');
     } finally {
       setIsLoading(false);
     }

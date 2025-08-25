@@ -12,6 +12,7 @@ import { Plus, Trash2, Edit2 } from "lucide-react";
 import { saveProject, generateId } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
 import { Project, ProjectLevel, ProjectTask, ProjectSubtask } from "@/validation/index";
+import { toast } from "@/components/ui/sonner";
 
 interface CreateProjectFormProps {
   isOpen: boolean;
@@ -175,19 +176,19 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
 
   const handleSubmit = () => {
     if (!projectName.trim()) {
-      alert("Please enter a project name");
+      toast.error("Please enter a project name");
       return;
     }
     if (!clientName.trim()) {
-      alert("Please enter a client name");
+      toast.error("Please enter a client name");
       return;
     }
     if (!projectType) {
-      alert("Please select a project type");
+      toast.error("Please select a project type");
       return;
     }
     if (!validateEmail(clientEmail)) {
-      alert("Please enter a valid email address or leave it blank");
+      toast.error("Please enter a valid email address or leave it blank");
       return;
     }
 
@@ -269,7 +270,7 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
           {/* Project Type */}
           <div className="space-y-2">
             <Label htmlFor="projectType" className="text-sm font-medium text-foreground">Project Type</Label>
-            <Select value={projectType} onValueChange={setProjectType}>
+            <Select value={projectType} onValueChange={(value: string) => setProjectType(value as "" | "Fixed Cost" | "Time and Material" | "Full Time Employed")}>
               <SelectTrigger id="projectType" className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20">
                 <SelectValue placeholder="Select project type" />
               </SelectTrigger>
