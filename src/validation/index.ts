@@ -70,6 +70,9 @@ export interface Project {
   id: string;
   name: string;
   description: string;
+  projectType: 'Fixed Cost' | 'Time and Material' | 'Full Time Employed';
+  clientName: string;
+  clientEmail: string;
   levels: ProjectLevel[];
   isBillable: boolean;
   department?: string;

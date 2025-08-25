@@ -1,20 +1,21 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import CreateProjectForm from "@/components/users/CreateProjectForm";
-import CreateProductForm from "@/components/users/CreateProductForm";
-import CreateDepartmentForm from "@/components/users/CreateDepartmentForm";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { FolderOpen, Plus, Building2, Package, Users, Trash2, Edit2, Search } from "lucide-react";
+import { Package, Search } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { deleteProject, deleteProduct, deleteDepartment } from "@/services/storage";
 import { Project, Product, Department } from "@/validation/index";
 import { getCurrentUser } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
 import { useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
+import { useSettings } from '@/contexts/SettingsContext';
+import ProjectsTab from '@/components/users/Projects Tab';
+import ProductsTab from '@/components/users/Products Tab';
+import DepartmentsTab from '@/components/users/Departments Tab';
+import CreateProjectForm from "@/components/users/CreateProjectForm";
+import CreateProductForm from "@/components/users/CreateProductForm";
+import CreateDepartmentForm from "@/components/users/CreateDepartmentForm";
 
 export default function Projects() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,15 +29,17 @@ export default function Projects() {
   const currentUser = getCurrentUser();
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
-  const { projects, loading: projectsLoading, refreshProjects } = useProjects();
-  const { products, loading: productsLoading, refreshProducts } = useProducts();
-  const { departments, loading: departmentsLoading, refreshDepartments } = useDepartments();
+  const { projects, refreshProjects } = useProjects();
+  const { products, refreshProducts } = useProducts();
+  const { departments, refreshDepartments } = useDepartments();
+
+  const { showProductsTab, showDepartmentsTab } = useSettings();
 
   const loadData = useCallback(() => {
     refreshProjects();
-    refreshProducts();
-    refreshDepartments();
-  }, [refreshProjects, refreshProducts, refreshDepartments]);
+    if (showProductsTab) refreshProducts();
+    if (showDepartmentsTab) refreshDepartments();
+  }, [refreshProjects, refreshProducts, refreshDepartments, showProductsTab, showDepartmentsTab]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -52,21 +55,21 @@ export default function Projects() {
   const handleProjectSuccess = useCallback(() => {
     setProjectFormOpen(false);
     invalidateCache('projects');
-    loadData();
-  }, [loadData]);
+    refreshProjects();
+  }, [refreshProjects]);
 
   const handleProductSuccess = useCallback(() => {
     setProductFormOpen(false);
     invalidateCache('products');
-    loadData();
-  }, [loadData]);
+    refreshProducts();
+  }, [refreshProducts]);
 
   const handleDepartmentSuccess = useCallback(() => {
     setDepartmentFormOpen(false);
     setEditingDepartment(null);
     invalidateCache('departments');
-    loadData();
-  }, [loadData]);
+    refreshDepartments();
+  }, [refreshDepartments]);
 
   // Edit handlers
   const handleEditProject = useCallback((project: Project) => {
@@ -89,25 +92,25 @@ export default function Projects() {
     if (confirm('Are you sure you want to delete this project?')) {
       deleteProject(projectId);
       invalidateCache('projects');
-      loadData();
+      refreshProjects();
     }
-  }, [loadData]);
+  }, [refreshProjects]);
 
   const handleDeleteProduct = useCallback((productId: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
       deleteProduct(productId);
       invalidateCache('products');
-      loadData();
+      refreshProducts();
     }
-  }, [loadData]);
+  }, [refreshProducts]);
 
   const handleDeleteDepartment = useCallback((departmentId: string) => {
     if (confirm('Are you sure you want to delete this department?')) {
       deleteDepartment(departmentId);
       invalidateCache('departments');
-      loadData();
+      refreshDepartments();
     }
-  }, [loadData]);
+  }, [refreshDepartments]);
 
   // Close handlers with reset
   const handleCloseProjectForm = useCallback(() => {
@@ -130,15 +133,18 @@ export default function Projects() {
     setProjectFormOpen(false);
     setEditingProject(null);
     invalidateCache('projects');
-    loadData();
-  }, [loadData]);
+    refreshProjects();
+  }, [refreshProjects]);
 
   const handleProductSuccessUpdated = useCallback(() => {
     setProductFormOpen(false);
     setEditingProduct(null);
     invalidateCache('products');
-    loadData();
-  }, [loadData]);
+    refreshProducts();
+  }, [refreshProducts]);
+
+  // Calculate number of tabs for grid-cols
+  const numTabs = 1 + (showProductsTab ? 1 : 0) + (showDepartmentsTab ? 1 : 0);
 
   return (
     <div className="dashboard-layout">
@@ -153,10 +159,10 @@ export default function Projects() {
 
       <div className="dashboard-content">
         <Tabs defaultValue="projects" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={`grid w-full grid-cols-${numTabs}`}>
             <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="departments">Departments</TabsTrigger>
+            {showProductsTab && <TabsTrigger value="products">Products</TabsTrigger>}
+            {showDepartmentsTab && <TabsTrigger value="departments">Departments</TabsTrigger>}
           </TabsList>
 
           {/* Search Bar */}
@@ -173,220 +179,35 @@ export default function Projects() {
           </div>
 
           <TabsContent value="projects" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Projects</h2>
-              <Button onClick={() => setProjectFormOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create New Project
-              </Button>
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FolderOpen className="h-5 w-5" />
-                  <span>All Projects</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Levels</TableHead>
-                      <TableHead>Total Tasks</TableHead>
-                      <TableHead>Created By</TableHead>
-                      <TableHead>Created Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filterBySearch(projects).map((project) => (
-                      <TableRow key={project.id}>
-                        <TableCell className="font-medium">{project.name}</TableCell>
-                        <TableCell>{project.levels?.length || 0}</TableCell>
-                        <TableCell>
-                          {project.levels?.reduce((sum, level) => sum + (level.tasks?.length || 0), 0) || 0}
-                        </TableCell>
-                        <TableCell>{project.createdBy}</TableCell>
-                        <TableCell>{new Date(project.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Badge className="bg-success text-success-foreground">Active</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {permissions.canManageProjects && (
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditProject(project)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteProject(project.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <ProjectsTab
+              filterBySearch={filterBySearch}
+              setProjectFormOpen={setProjectFormOpen}
+              setEditingProject={setEditingProject}
+              handleDeleteProject={handleDeleteProject}
+            />
           </TabsContent>
 
-          <TabsContent value="products" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Products</h2>
-              <Button onClick={() => setProductFormOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create New Product
-              </Button>
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Package className="h-5 w-5" />
-                  <span>All Products</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Stages</TableHead>
-                      <TableHead>Total Tasks</TableHead>
-                      <TableHead>Created By</TableHead>
-                      <TableHead>Created Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filterBySearch(products).map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{product.stages?.length || 0}</TableCell>
-                        <TableCell>
-                          {product.stages?.reduce((sum, stage) => sum + (stage.tasks?.length || 0), 0) || 0}
-                        </TableCell>
-                        <TableCell>{product.createdBy}</TableCell>
-                        <TableCell>{new Date(product.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Badge className="bg-success text-success-foreground">Active</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {permissions.canManageProjects && (
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditProduct(product)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteProduct(product.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {showProductsTab && (
+            <TabsContent value="products" className="space-y-4">
+              <ProductsTab
+                filterBySearch={filterBySearch}
+                setProductFormOpen={setProductFormOpen}
+                setEditingProduct={setEditingProduct}
+                handleDeleteProduct={handleDeleteProduct}
+              />
+            </TabsContent>
+          )}
 
-          <TabsContent value="departments" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Departments</h2>
-              <Button onClick={() => setDepartmentFormOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create New Department
-              </Button>
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Building2 className="h-5 w-5" />
-                  <span>All Departments</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Functions</TableHead>
-                      <TableHead>Total Duties</TableHead>
-                      <TableHead>Created By</TableHead>
-                      <TableHead>Created Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filterBySearch(departments).map((department) => (
-                      <TableRow key={department.id}>
-                        <TableCell className="font-medium">{department.name}</TableCell>
-                        <TableCell>{department.functions?.length || 0}</TableCell>
-                        <TableCell>
-                          {department.functions?.reduce((sum, func) => sum + (func.duties?.length || 0), 0) || 0}
-                        </TableCell>
-                        <TableCell>{department.createdBy}</TableCell>
-                        <TableCell>{new Date(department.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Badge className="bg-success text-success-foreground">Active</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {permissions.canManageProjects && (
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditDepartment(department)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteDepartment(department.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {showDepartmentsTab && (
+            <TabsContent value="departments" className="space-y-4">
+              <DepartmentsTab
+                filterBySearch={filterBySearch}
+                setDepartmentFormOpen={setDepartmentFormOpen}
+                setEditingDepartment={setEditingDepartment}
+                handleDeleteDepartment={handleDeleteDepartment}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 

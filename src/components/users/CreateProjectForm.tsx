@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { saveProject, generateId } from "@/services/storage";
 import { getCurrentUser } from "@/lib/auth";
@@ -20,6 +22,9 @@ interface CreateProjectFormProps {
 
 export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingProject }: CreateProjectFormProps) {
   const [projectName, setProjectName] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [projectType, setProjectType] = useState<"Fixed Cost" | "Time and Material" | "Full Time Employed" | "">("");
   const [projectDescription, setProjectDescription] = useState("");
   const [isBillable, setIsBillable] = useState(false);
   const [levels, setLevels] = useState<ProjectLevel[]>([
@@ -37,6 +42,9 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
   useEffect(() => {
     if (editingProject && isOpen) {
       setProjectName(editingProject.name);
+      setClientName(editingProject.clientName || "");
+      setClientEmail(editingProject.clientEmail || "");
+      setProjectType(editingProject.projectType || "");
       setProjectDescription(editingProject.description);
       setIsBillable(editingProject.isBillable);
       setLevels(editingProject.levels.length > 0 ? editingProject.levels : [{
@@ -47,8 +55,11 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
     } else if (!isOpen) {
       // Reset form when closing
       setProjectName("");
-      setIsBillable(false);
+      setClientName("");
+      setClientEmail("");
+      setProjectType("");
       setProjectDescription("");
+      setIsBillable(false);
       setLevels([{
         id: generateId(),
         name: "",
@@ -157,15 +168,35 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
     ));
   };
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return email === "" || emailRegex.test(email);
+  };
+
   const handleSubmit = () => {
     if (!projectName.trim()) {
       alert("Please enter a project name");
+      return;
+    }
+    if (!clientName.trim()) {
+      alert("Please enter a client name");
+      return;
+    }
+    if (!projectType) {
+      alert("Please select a project type");
+      return;
+    }
+    if (!validateEmail(clientEmail)) {
+      alert("Please enter a valid email address or leave it blank");
       return;
     }
 
     const project: Project = {
       id: isEditing ? editingProject!.id : generateId(),
       name: projectName,
+      clientName,
+      clientEmail,
+      projectType,
       description: projectDescription,
       levels: levels.filter(level => level.name.trim()),
       isBillable,
@@ -180,6 +211,11 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
 
   const handleClose = () => {
     setProjectName("");
+    setClientName("");
+    setClientEmail("");
+    setProjectType("");
+    setProjectDescription("");
+    setIsBillable(false);
     setLevels([{
       id: generateId(),
       name: "",
@@ -190,9 +226,9 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg sm:max-w-xl h-[80vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
-          <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
+          <DialogTitle className="flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${isEditing ? 'bg-orange-100/30' : 'bg-blue-100/30'}`}>
               {isEditing ? (
                 <Edit2 className="h-6 w-6 text-orange-600" />
@@ -205,16 +241,44 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
         </DialogHeader>
 
         <div className="space-y-6 p-6 bg-muted/30 rounded-lg border border-gray-300">
-          {/* Project Name */}
+          {/* Client Details */}
+          <div className="space-y-4">
+            <Label className="text-sm font-medium text-foreground">Client Details</Label>
+            <div className="space-y-2">
+              <Label htmlFor="clientName" className="text-sm font-medium text-foreground">Client Name</Label>
+              <Input
+                id="clientName"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="Enter client name"
+                className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clientEmail" className="text-sm font-medium text-foreground">Client Email</Label>
+              <Input
+                id="clientEmail"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                placeholder="Enter client email (optional)"
+                className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          </div>
+
+          {/* Project Type */}
           <div className="space-y-2">
-            <Label htmlFor="projectName" className="text-sm font-medium text-foreground">Project Name</Label>
-            <Input
-              id="projectName"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Enter a descriptive project name"
-              className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
-            />
+            <Label htmlFor="projectType" className="text-sm font-medium text-foreground">Project Type</Label>
+            <Select value={projectType} onValueChange={setProjectType}>
+              <SelectTrigger id="projectType" className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20">
+                <SelectValue placeholder="Select project type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Fixed Cost">Fixed Cost</SelectItem>
+                <SelectItem value="Time and Material">Time and Material</SelectItem>
+                <SelectItem value="Full Time Employed">Full Time Employed</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Project Description */}
@@ -242,135 +306,114 @@ export default function CreateProjectForm({ isOpen, onClose, onSuccess, editingP
             </Label>
           </div>
 
-          {/* Project Levels */}
+          {/* Levels */}
        {/*   <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-foreground">Project Levels</Label>
-              <Button 
-                type="button" 
-                onClick={addLevel} 
-                size="sm"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Level
-              </Button>
-            </div>
-
+            <Label className="text-sm font-medium text-foreground">Project Levels</Label>
             {levels.map((level, levelIndex) => (
-              <Card key={level.id} className="p-4 bg-card border-gray-300 shadow-sm hover:shadow-md transition-shadow">
-                <div className="space-y-4">
+              <Card key={level.id} className="p-4 bg-card border-gray-300">
+                <CardContent className="space-y-4 p-0">
                   <div className="flex items-center space-x-2">
                     <Input
                       value={level.name}
                       onChange={(e) => updateLevel(level.id, e.target.value)}
-                      placeholder="Level name"
+                      placeholder={`Level ${levelIndex + 1} name`}
                       className="flex-1 bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
                     />
-                    {levels.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeLevel(level.id)}
-                        className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeLevel(level.id)}
+                      disabled={levels.length === 1}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-
                   {/* Tasks */}
-             {/*     <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">Tasks</Label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addTask(level.id)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Task
-                      </Button>
-                    </div>
-
-                    {level.tasks.map((task) => (
-                      <Card key={task.id} className="p-3 ml-4">
-                        <div className="space-y-3">
+           {/*       {level.tasks.map((task, taskIndex) => (
+                    <div key={task.id} className="ml-4 space-y-2 border-l-2 border-gray-200 pl-4">
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          value={task.name}
+                          onChange={(e) => updateTask(level.id, task.id, 'name', e.target.value)}
+                          placeholder={`Task ${taskIndex + 1} name`}
+                          className="flex-1 bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeTask(level.id, task.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Textarea
+                        value={task.description}
+                        onChange={(e) => updateTask(level.id, task.id, 'description', e.target.value)}
+                        placeholder={`Task ${taskIndex + 1} description`}
+                        className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
+                      />
+                      {/* Subtasks */}
+        {/*              {task.subtasks.map((subtask, subtaskIndex) => (
+                        <div key={subtask.id} className="ml-4 space-y-2 border-l-2 border-gray-200 pl-4">
                           <div className="flex items-center space-x-2">
                             <Input
-                              value={task.name}
-                              onChange={(e) => updateTask(level.id, task.id, 'name', e.target.value)}
-                              placeholder="Task name"
-                              className="flex-1"
+                              value={subtask.name}
+                              onChange={(e) => updateSubtask(level.id, task.id, subtask.id, 'name', e.target.value)}
+                              placeholder={`Subtask ${subtaskIndex + 1} name`}
+                              className="flex-1 bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
                             />
                             <Button
-                              type="button"
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => removeTask(level.id, task.id)}
+                              onClick={() => removeSubtask(level.id, task.id, subtask.id)}
+                              className="text-red-600 hover:text-red-800"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                           <Textarea
-                            value={task.description}
-                            onChange={(e) => updateTask(level.id, task.id, 'description', e.target.value)}
-                            placeholder="Task description"
-                            rows={2}
+                            value={subtask.description}
+                            onChange={(e) => updateSubtask(level.id, task.id, subtask.id, 'description', e.target.value)}
+                            placeholder={`Subtask ${subtaskIndex + 1} description`}
+                            className="bg-background border-gray-300 focus:ring-2 focus:ring-primary/20"
                           />
-
-                          {/* Subtasks */}
-                     {/*     <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <Label className="text-xs">Subtasks</Label>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => addSubtask(level.id, task.id)}
-                              >
-                                <Plus className="h-3 w-3 mr-2" />
-                                Add Subtask
-                              </Button>
-                            </div>
-
-                            {task.subtasks.map((subtask) => (
-                              <div key={subtask.id} className="flex items-start space-x-2 ml-4">
-                                <div className="flex-1 space-y-2">
-                                  <Input
-                                    value={subtask.name}
-                                    onChange={(e) => updateSubtask(level.id, task.id, subtask.id, 'name', e.target.value)}
-                                    placeholder="Subtask name"
-                                  />
-                                  <Textarea
-                                    value={subtask.description}
-                                    onChange={(e) => updateSubtask(level.id, task.id, subtask.id, 'description', e.target.value)}
-                                    placeholder="Subtask description"
-                                    rows={1}
-                                  />
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeSubtask(level.id, task.id, subtask.id)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
                         </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addSubtask(level.id, task.id)}
+                        className="mt-2"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Subtask
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addTask(level.id)}
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Task
+                  </Button>
+                </CardContent>
               </Card>
             ))}
-          </div>*/}
-        </div>
+            <Button
+              variant="outline"
+              onClick={addLevel}
+              className="w-full"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Level
+            </Button>
+          </div>
+         */} </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
