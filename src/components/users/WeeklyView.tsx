@@ -214,14 +214,20 @@ export default function WeeklyView({
       <div className="overflow-x-auto bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
         <table className="w-full text-center border-collapse min-w-[500px]">
           <thead>
-            <tr className="bg-gray-50 dark:bg-gray-800">
-              <th className="py-3 px-1 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold w-24">Assigned</th>
-              {weekDays.map(day => {
-                const statusIndicator = getStatusIndicator(day);
+            <tr className="bg-[#006666]">
+              <th className="py-3 px-1 border border-[#004d4d] text-white font-semibold w-24">Assigned</th>
+                             {weekDays.map((day, index) => {
+                 const statusIndicator = getStatusIndicator(day);
+                 const isEvenColumn = index % 2 === 0;
+                 const columnBgColor = 'bg-[#006666]';
+                 const columnBorderColor = 'border-[#004d4d]';
+                 const columnTextColor = 'text-white';
+                 const columnHoverColor = 'hover:bg-[#004d4d]';
+                
                 return (
                   <th 
                     key={day.toString()} 
-                    className={`py-3 px-1 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-16 ${(isDateSelected(day) || isDateInRange(day)) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                    className={`py-3 px-1 border ${columnBorderColor} ${columnTextColor} font-semibold cursor-pointer ${columnHoverColor} transition-colors w-16 ${columnBgColor} ${(isDateSelected(day) || isDateInRange(day)) ? 'ring-2 ring-purple-400 dark:ring-purple-600' : ''}`}
                     onClick={() => onDateSelection(day)}
                   >
                     <div className="flex flex-col items-center space-y-1">
@@ -236,28 +242,28 @@ export default function WeeklyView({
                           </div>
                         )}
                       </div>
-                      <div className="flex justify-around items-center gap-1 text-xs">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="w-6 h-3 flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded cursor-help font-medium text-xs">
-                              B
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Billable Hours</p>
-                          </TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="w-6 h-3 flex items-center justify-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded cursor-help font-medium text-xs">
-                              A
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Actual Hours</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                                             <div className="flex justify-around items-center gap-1 text-xs">
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <div className="w-6 h-3 flex items-center justify-center bg-[#87CEEB] text-[#2F4F4F] rounded cursor-help font-medium text-xs">
+                               B
+                             </div>
+                           </TooltipTrigger>
+                           <TooltipContent>
+                             <p>Billable Hours</p>
+                           </TooltipContent>
+                         </Tooltip>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                                                           <div className="w-6 h-3 flex items-center justify-center bg-[#70dc70] text-[#2d5a2d] rounded cursor-help font-medium text-xs">
+                                A
+                              </div>
+                           </TooltipTrigger>
+                           <TooltipContent>
+                             <p>Actual Hours</p>
+                           </TooltipContent>
+                         </Tooltip>
+                       </div>
                     </div>
                   </th>
                 );
@@ -266,13 +272,13 @@ export default function WeeklyView({
           </thead>
           <tbody>
             {projects.map(project => (
-              <tr key={`project-${project.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+              <tr key={`project-${project.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                <td className="py-2 px-1 border border-[#004d4d] font-medium text-left text-white bg-[#006666]">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs px-1 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">P</span>
+                                                                         <div className="flex items-center space-x-1">
+                          <span className="text-xs px-1 py-0.5 bg-purple-600 text-white rounded">P</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="font-semibold break-words whitespace-normal text-xs" title={project.name}>{project.name}</span>
@@ -296,12 +302,12 @@ export default function WeeklyView({
                         )}
                         {project.associatedProducts && project.associatedProducts.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {project.associatedProducts.slice(0, 1).map((product, index) => (
+                                                        {project.associatedProducts.slice(0, 1).map((product, index) => (
                               <Tooltip key={index}>
                                 <TooltipTrigger asChild>
-                                  <span className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded break-words whitespace-normal" title={product}>
-                                    {product}
-                                  </span>
+                                  <span className="text-xs px-1 py-0.5 bg-purple-600 text-white rounded break-words whitespace-normal" title={product}>
+                                   {product}
+                                 </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   <p>{product}</p>
@@ -311,9 +317,9 @@ export default function WeeklyView({
                             {project.associatedProducts.length > 1 && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
-                                    +{project.associatedProducts.length - 1}
-                                  </span>
+                                  <span className="text-xs px-1 py-0.5 bg-purple-600 text-white rounded">
+                                     +{project.associatedProducts.length - 1}
+                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   <p>{project.associatedProducts.slice(1).join(', ')}</p>
@@ -326,61 +332,65 @@ export default function WeeklyView({
                     </div>
                   </div>
                 </td>
-                {weekDays.map(day => {
+                {weekDays.map((day, index) => {
                   const dayKey = format(day, 'yyyy-MM-dd');
                   const hours = weeklyData[project.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
                   const isFutureDay = day.getTime() > new Date().getTime();
                   const hasExistingEntry = hasEntryForProjectAndDate(project.id, dayKey, 'project');
                   const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                   
-                  const billableDisabled = !project.isBillable || isFutureDay || hasExistingEntry;
-                  const actualDisabled = isFutureDay || hasExistingEntry;
+                                     const billableDisabled = !project.isBillable || isFutureDay || hasExistingEntry;
+                   const actualDisabled = isFutureDay || hasExistingEntry;
+                   
+                   const isEvenColumn = index % 2 === 0;
+                   const columnBorderColor = 'border-[#004d4d]';
+                   const baseBgColor = isEvenColumn ? 'bg-[#87CEEB]' : 'bg-[#70dc70]';
                   
                   return (
-                    <td key={dayKey} className={`py-1 px-1 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                    <td key={dayKey} className={`py-1 px-1 border ${columnBorderColor} ${hasData ? (isEvenColumn ? 'bg-[#87CEEB]/20' : 'bg-[#70dc70]/20') : ''} hover:bg-opacity-30 transition-all duration-200`}>
                       <div className="flex justify-around items-center gap-1">
                         {hasData && (
                           <div className="absolute top-1 right-1">
-                            <span className="text-xs text-blue-600 dark:text-blue-400">✓</span>
+                            <span className={`text-xs ${isEvenColumn ? 'text-[#2F4F4F]' : 'text-[#2d5a2d]'}`}>✓</span>
                           </div>
                         )}
-                        <Input 
-                          type="number" 
-                          step="0.5" 
-                          min="0" 
-                          max="24"
-                          value={hours.billable || ''}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            onUpdateHours(project.id, dayKey, 'billable', value);
-                          }}
-                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={billableDisabled}
-                          placeholder="0"
-                          title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                        />
-                        <Input 
-                          type="number" 
-                          step="0.5" 
-                          min="0" 
-                          max="24"
-                          value={hours.actual || ''}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            onUpdateHours(project.id, dayKey, 'actual', value);
-                          }}
-                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-blue-100 dark:bg-blue-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={actualDisabled}
-                          placeholder="0"
-                          title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                        />
+                                                 <Input 
+                           type="number" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           value={hours.billable || ''}
+                           onChange={(e) => {
+                             const inputValue = e.target.value;
+                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                             onUpdateHours(project.id, dayKey, 'billable', value);
+                           }}
+                           className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-blue-100' : 'bg-blue-50'} text-blue-800 border-blue-300 focus:border-blue-500 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield] hover:bg-blue-200 transition-colors`}
+                           disabled={billableDisabled}
+                           placeholder="0"
+                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
+                         />
+                                                 <Input 
+                           type="number" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           value={hours.actual || ''}
+                           onChange={(e) => {
+                             const inputValue = e.target.value;
+                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                             onUpdateHours(project.id, dayKey, 'actual', value);
+                           }}
+                           className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-green-100' : 'bg-green-50'} text-green-800 border-green-300 focus:border-green-500 focus:ring-green-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield] hover:bg-green-200 transition-colors`}
+                           disabled={actualDisabled}
+                           placeholder="0"
+                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
+                         />
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(project, day)}
-                          className={`h-5 w-5 p-0 ${hours.task.trim() ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          className={`h-5 w-5 p-0 ${hours.task.trim() ? (isEvenColumn ? 'text-[#2F4F4F] bg-[#87CEEB]/20' : 'text-[#2d5a2d] bg-[#70dc70]/20') : 'text-gray-400 dark:text-gray-500'}`}
                           title={hours.task.trim() ? `Edit task for ${project.name}: ${hours.task}` : `Add task for ${project.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
@@ -394,13 +404,13 @@ export default function WeeklyView({
             ))}
 
             {products.map(product => (
-              <tr key={`product-${product.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+              <tr key={`product-${product.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                <td className="py-2 px-1 border border-[#004d4d] font-medium text-left text-white bg-[#006666]">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">Pr</span>
+                                                <div className="flex items-center space-x-1">
+                          <span className="text-xs px-1 py-0.5 bg-purple-600 text-white rounded">Pr</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="font-semibold break-words whitespace-normal text-xs" title={product.name}>{product.name}</span>
@@ -414,7 +424,7 @@ export default function WeeklyView({
                     </div>
                   </div>
                 </td>
-                {weekDays.map(day => {
+                {weekDays.map((day, index) => {
                   const dayKey = format(day, 'yyyy-MM-dd');
                   const hours = productWeeklyData[product.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
                   const isFutureDay = day.getTime() > new Date().getTime();
@@ -424,51 +434,55 @@ export default function WeeklyView({
                   const billableDisabled = !product.isBillable || isFutureDay || hasExistingEntry;
                   const actualDisabled = isFutureDay || hasExistingEntry;
                   
-                  return (
-                    <td key={dayKey} className={`py-1 px-1 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
-                      <div className="flex justify-around items-center gap-1">
-                        {hasData && (
-                          <div className="absolute top-1 right-1">
-                            <span className="text-xs text-green-600 dark:text-green-400">✓</span>
-                          </div>
-                        )}
-                        <Input 
-                          type="number" 
-                          step="0.5" 
-                          min="0" 
-                          max="24"
-                          value={hours.billable || ''}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            onUpdateProductHours(product.id, dayKey, 'billable', value);
-                          }}
-                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={billableDisabled}
-                          placeholder="0"
-                          title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                        />
-                        <Input 
-                          type="number" 
-                          step="0.5" 
-                          min="0" 
-                          max="24"
-                          value={hours.actual || ''}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            onUpdateProductHours(product.id, dayKey, 'actual', value);
-                          }}
-                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-green-100 dark:bg-green-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={actualDisabled}
-                          placeholder="0"
-                          title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                        />
+                  const isEvenColumn = index % 2 === 0;
+                  const columnBorderColor = 'border-[#004d4d]';
+                  const baseBgColor = isEvenColumn ? 'bg-[#87CEEB]' : 'bg-[#70dc70]';
+                  
+                                     return (
+                     <td key={dayKey} className={`py-1 px-1 border ${columnBorderColor} ${hasData ? (isEvenColumn ? 'bg-[#87CEEB]/20' : 'bg-[#70dc70]/20') : ''} hover:bg-opacity-30 transition-all duration-200`}>
+                       <div className="flex justify-around items-center gap-1">
+                         {hasData && (
+                           <div className="absolute top-1 right-1">
+                             <span className={`text-xs ${isEvenColumn ? 'text-[#2F4F4F]' : 'text-[#2d5a2d]'}`}>✓</span>
+                           </div>
+                         )}
+                                                 <Input 
+                           type="number" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           value={hours.billable || ''}
+                           onChange={(e) => {
+                             const inputValue = e.target.value;
+                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                             onUpdateProductHours(product.id, dayKey, 'billable', value);
+                           }}
+                           className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-blue-100' : 'bg-blue-50'} text-blue-800 border-blue-300 focus:border-blue-500 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield] hover:bg-blue-200 transition-colors`}
+                           disabled={billableDisabled}
+                           placeholder="0"
+                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
+                         />
+                                                 <Input 
+                           type="number" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           value={hours.actual || ''}
+                           onChange={(e) => {
+                             const inputValue = e.target.value;
+                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                             onUpdateProductHours(product.id, dayKey, 'actual', value);
+                           }}
+                           className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-green-100' : 'bg-green-50'} text-green-800 border-green-300 focus:border-green-500 focus:ring-green-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield] hover:bg-green-200 transition-colors`}
+                           disabled={actualDisabled}
+                           placeholder="0"
+                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
+                         />
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(product, day)}
-                          className={`h-5 w-5 p-0 ${hours.task.trim() ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          className={`h-5 w-5 p-0 ${hours.task.trim() ? (isEvenColumn ? 'text-[#2F4F4F] bg-[#87CEEB]/20' : 'text-[#2d5a2d] bg-[#70dc70]/20') : 'text-gray-400 dark:text-gray-500'}`}
                           title={hours.task.trim() ? `Edit task for ${product.name}: ${hours.task}` : `Add task for ${product.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
@@ -482,13 +496,13 @@ export default function WeeklyView({
             ))}
 
             {departments.map(department => (
-              <tr key={`department-${department.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">
+              <tr key={`department-${department.id}`} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                <td className="py-2 px-1 border border-[#004d4d] font-medium text-left text-white bg-[#006666]">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                        <div className="flex items-center space-x-1">
-                          <span className="text-xs px-1 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">D</span>
+                                                <div className="flex items-center space-x-1">
+                          <span className="text-xs px-1 py-0.5 bg-purple-600 text-white rounded">D</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="font-semibold break-words whitespace-normal text-xs" title={department.name}>{department.name}</span>
@@ -502,58 +516,62 @@ export default function WeeklyView({
                     </div>
                   </div>
                 </td>
-                {weekDays.map(day => {
+                {weekDays.map((day, index) => {
                   const dayKey = format(day, 'yyyy-MM-dd');
                   const hours = departmentWeeklyData[department.id]?.[dayKey] || { billable: 0, actual: 0, task: '' };
                   const isFutureDay = day.getTime() > new Date().getTime();
                   const hasExistingEntry = hasEntryForProjectAndDate(department.id, dayKey, 'department');
                   const hasData = hours.billable > 0 || hours.actual > 0 || hours.task.trim() !== '';
                   
-                  return (
-                    <td key={dayKey} className={`py-1 px-1 border border-gray-200 dark:border-gray-700 ${hasData ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}>
-                      <div className="flex justify-around items-center gap-1">
-                        {hasData && (
-                          <div className="absolute top-1 right-1">
-                            <span className="text-xs text-purple-600 dark:text-purple-400">✓</span>
-                          </div>
-                        )}
-                        <Input 
-                          type="number" 
-                          step="0.5" 
-                          min="0" 
-                          max="24"
-                          value={hours.billable || ''}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            onUpdateDepartmentHours(department.id, dayKey, 'billable', value);
-                          }}
-                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={!department.isBillable || isFutureDay || hasExistingEntry}
-                          placeholder="0"
-                          title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                        />
-                        <Input 
-                          type="number" 
-                          step="0.5" 
-                          min="0" 
-                          max="24"
-                          value={hours.actual || ''}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
-                            onUpdateDepartmentHours(department.id, dayKey, 'actual', value);
-                          }}
-                          className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-purple-100 dark:bg-purple-800' : 'bg-white dark:bg-gray-800'} text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]`}
-                          disabled={isFutureDay || hasExistingEntry}
-                          placeholder="0"
-                          title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
-                        />
+                                     const isEvenColumn = index % 2 === 0;
+                   const columnBorderColor = 'border-[#004d4d]';
+                   const baseBgColor = isEvenColumn ? 'bg-[#87CEEB]' : 'bg-[#70dc70]';
+                  
+                                     return (
+                     <td key={dayKey} className={`py-1 px-1 border ${columnBorderColor} ${hasData ? (isEvenColumn ? 'bg-[#87CEEB]/20' : 'bg-[#70dc70]/20') : ''} hover:bg-opacity-30 transition-all duration-200`}>
+                       <div className="flex justify-around items-center gap-1">
+                         {hasData && (
+                           <div className="absolute top-1 right-1">
+                             <span className={`text-xs ${isEvenColumn ? 'text-[#2F4F4F]' : 'text-[#2d5a2d]'}`}>✓</span>
+                           </div>
+                         )}
+                                                 <Input 
+                           type="number" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           value={hours.billable || ''}
+                           onChange={(e) => {
+                             const inputValue = e.target.value;
+                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                             onUpdateDepartmentHours(department.id, dayKey, 'billable', value);
+                           }}
+                           className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-blue-100' : 'bg-blue-50'} text-blue-800 border-blue-300 focus:border-blue-500 focus:ring-blue-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield] hover:bg-blue-200 transition-colors`}
+                           disabled={!department.isBillable || isFutureDay || hasExistingEntry}
+                           placeholder="0"
+                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
+                         />
+                                                 <Input 
+                           type="number" 
+                           step="0.5" 
+                           min="0" 
+                           max="24"
+                           value={hours.actual || ''}
+                           onChange={(e) => {
+                             const inputValue = e.target.value;
+                             const value = inputValue === '' ? 0 : Math.max(0, parseFloat(inputValue) || 0);
+                             onUpdateDepartmentHours(department.id, dayKey, 'actual', value);
+                           }}
+                           className={`w-8 text-xs h-6 text-center ${hasData ? 'bg-green-100' : 'bg-green-50'} text-green-800 border-green-300 focus:border-green-500 focus:ring-green-500 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield] hover:bg-green-200 transition-colors`}
+                           disabled={isFutureDay || hasExistingEntry}
+                           placeholder="0"
+                           title={hasData ? `Existing data: ${hours.billable}h billable, ${hours.actual}h actual${hours.task ? `, Task: ${hours.task}` : ''}` : ''}
+                         />
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onQuickTaskClick(department, day)}
-                          className={`h-5 w-5 p-0 ${hours.task.trim() ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20' : 'text-gray-400 dark:text-gray-500'}`}
+                          className={`h-5 w-5 p-0 ${hours.task.trim() ? (isEvenColumn ? 'text-[#2F4F4F] bg-[#87CEEB]/20' : 'text-[#2d5a2d] bg-[#70dc70]/20') : 'text-gray-400 dark:text-gray-500'}`}
                           title={hours.task.trim() ? `Edit task for ${department.name}: ${hours.task}` : `Add task for ${department.name}`}
                           disabled={isFutureDay || hasExistingEntry}
                         >
@@ -566,16 +584,18 @@ export default function WeeklyView({
               </tr>
             ))}
 
-            <tr className="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-700">
-              <td className="py-2 px-1 border border-gray-200 dark:border-gray-700 font-semibold text-blue-800 dark:text-blue-400 text-xs">Avail Hr.</td>
-              {weekDays.map(day => {
+            <tr className="bg-[#006666] border-t-2 border-[#004d4d]">
+              <td className="py-2 px-1 border border-[#004d4d] font-semibold text-white text-xs bg-[#006666]">Avail Hr.</td>
+              {weekDays.map((day, index) => {
                 const dayKey = format(day, 'yyyy-MM-dd');
                 const isFutureDay = day.getTime() > new Date().getTime();
                 const availableHours = dailyAvailableHours[dayKey] || 0;
+                const columnBorderColor = 'border-[#004d4d]';
+                
                 return (
-                  <td key={dayKey} className="py-1 px-1 border border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
+                  <td key={dayKey} className={`py-1 px-1 border ${columnBorderColor} bg-gray-100 hover:bg-gray-200 transition-all duration-200`}>
                     <div className="flex justify-center">
-                      <div className="w-12 text-center text-xs h-6 bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-blue-100 border border-blue-300 dark:border-blue-600 rounded flex items-center justify-center font-medium">
+                      <div className={`w-12 text-center text-xs h-6 bg-purple-100 text-purple-800 border-purple-300 rounded flex items-center justify-center font-medium hover:bg-purple-200 transition-colors cursor-pointer`}>
                         {availableHours.toFixed(1)}
                       </div>
                     </div>
@@ -588,7 +608,7 @@ export default function WeeklyView({
       </div>
 
       <div className="flex justify-end pt-4">
-        <Button onClick={onSaveWeeklyData} className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded shadow-lg transition-colors">
+                 <Button onClick={onSaveWeeklyData} className="bg-[#006666] hover:bg-[#004d4d] text-white py-2 px-4 rounded shadow-lg transition-colors">
           <span>Save Week</span>
         </Button>
       </div>

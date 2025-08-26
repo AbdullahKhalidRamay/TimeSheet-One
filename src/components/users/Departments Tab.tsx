@@ -55,8 +55,7 @@ export default function DepartmentsTab({
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Functions</TableHead>
-                <TableHead>Total Duties</TableHead>
+                <TableHead>Description</TableHead>
                 <TableHead>Created By</TableHead>
                 <TableHead>Created Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -66,19 +65,16 @@ export default function DepartmentsTab({
             <TableBody>
               {departmentsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={6} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : filterBySearch(departments).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">No departments found</TableCell>
+                  <TableCell colSpan={6} className="text-center">No departments found</TableCell>
                 </TableRow>
               ) : filterBySearch(departments).map((department) => (
                 <TableRow key={department.id}>
                   <TableCell className="font-medium">{department.name}</TableCell>
-                  <TableCell>{department.functions?.length || 0}</TableCell>
-                  <TableCell>
-                    {department.functions?.reduce((sum, func) => sum + (func.duties?.length || 0), 0) || 0}
-                  </TableCell>
+                  <TableCell>{department.departmentDescription || "N/A"}</TableCell>
                   <TableCell>{department.createdBy}</TableCell>
                   <TableCell>{new Date(department.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>

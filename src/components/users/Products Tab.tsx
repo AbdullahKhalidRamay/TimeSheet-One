@@ -54,8 +54,7 @@ export default function ProductsTab({
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Stages</TableHead>
-                <TableHead>Total Tasks</TableHead>
+                <TableHead>Description</TableHead>
                 <TableHead>Created By</TableHead>
                 <TableHead>Created Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -65,19 +64,16 @@ export default function ProductsTab({
             <TableBody>
               {productsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={6} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : filterBySearch(products).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">No products found</TableCell>
+                  <TableCell colSpan={6} className="text-center">No products found</TableCell>
                 </TableRow>
               ) : filterBySearch(products).map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.stages?.length || 0}</TableCell>
-                  <TableCell>
-                    {product.stages?.reduce((sum, stage) => sum + (stage.tasks?.length || 0), 0) || 0}
-                  </TableCell>
+                  <TableCell>{product.productDescription || "N/A"}</TableCell>
                   <TableCell>{product.createdBy}</TableCell>
                   <TableCell>{new Date(product.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>

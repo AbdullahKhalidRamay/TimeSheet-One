@@ -58,7 +58,7 @@ export const invalidateCache = (type?: 'timeEntries' | 'projects' | 'products' |
 
 // Global cache invalidation function accessible from anywhere
 if (typeof window !== 'undefined') {
-  (window as any).invalidateCache = invalidateCache;
+  (window as { invalidateCache?: typeof invalidateCache }).invalidateCache = invalidateCache;
 }
 
 // Custom hook for time entries

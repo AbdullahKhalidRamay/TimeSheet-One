@@ -47,7 +47,7 @@ export const authAPI = {
     return response;
   },
 
-  register: async (userData: any) => {
+  register: async (userData: { name: string; email: string; password: string; role: string; jobTitle: string }) => {
     return await apiCall('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
@@ -163,38 +163,7 @@ export const projectsAPI = {
     });
   },
 
-  getLevels: async (projectId: string): Promise<any[]> => {
-    return await apiCall<any[]>(`/projects/${projectId}/levels`);
-  },
 
-  createLevel: async (projectId: string, level: any): Promise<any> => {
-    return await apiCall(`/projects/${projectId}/levels`, {
-      method: 'POST',
-      body: JSON.stringify(level),
-    });
-  },
-
-  getTasks: async (levelId: string): Promise<any[]> => {
-    return await apiCall<any[]>(`/projects/levels/${levelId}/tasks`);
-  },
-
-  createTask: async (levelId: string, task: any): Promise<any> => {
-    return await apiCall(`/projects/levels/${levelId}/tasks`, {
-      method: 'POST',
-      body: JSON.stringify(task),
-    });
-  },
-
-  getSubtasks: async (taskId: string): Promise<any[]> => {
-    return await apiCall<any[]>(`/projects/tasks/${taskId}/subtasks`);
-  },
-
-  createSubtask: async (taskId: string, subtask: any): Promise<any> => {
-    return await apiCall(`/projects/tasks/${taskId}/subtasks`, {
-      method: 'POST',
-      body: JSON.stringify(subtask),
-    });
-  },
 };
 
 // Products API

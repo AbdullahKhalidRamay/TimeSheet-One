@@ -25,73 +25,23 @@ export const initializeSampleData = () => {
     {
       id: projectId1,
       name: 'Mobile App Development',
+      description: 'Development of mobile application for client',
+      projectType: 'Time and Material',
+      clientName: 'Mobile Corp',
+      clientEmail: 'contact@mobilecorp.com',
       isBillable: true,
-      levels: [
-        {
-          id: generateId(),
-          name: 'Frontend Development',
-          tasks: [
-            {
-              id: generateId(),
-              name: 'UI Design Implementation',
-              description: 'Implement the user interface designs',
-              subtasks: [
-                { id: generateId(), name: 'Login Screen', description: 'Create login interface' },
-                { id: generateId(), name: 'Dashboard', description: 'Build main dashboard' }
-              ]
-            },
-            {
-              id: generateId(),
-              name: 'API Integration',
-              description: 'Connect frontend with backend APIs',
-              subtasks: [
-                { id: generateId(), name: 'Authentication API', description: 'Integrate auth endpoints' },
-                { id: generateId(), name: 'Data Sync', description: 'Implement data synchronization' }
-              ]
-            }
-          ]
-        },
-        {
-          id: generateId(),
-          name: 'Backend Development',
-          tasks: [
-            {
-              id: generateId(),
-              name: 'Database Design',
-              description: 'Design and implement database schema',
-              subtasks: [
-                { id: generateId(), name: 'User Tables', description: 'Create user-related tables' },
-                { id: generateId(), name: 'Business Logic', description: 'Implement core business tables' }
-              ]
-            }
-          ]
-        }
-      ],
-      createdBy: 'System',
+      createdBy: currentUser?.id || '1',
       createdAt: new Date().toISOString()
     },
     {
       id: projectId2,
-      name: 'Project AIM-1',
+      name: 'Web Platform',
+      description: 'Web-based platform development',
+      projectType: 'Fixed Cost',
+      clientName: 'Web Solutions',
+      clientEmail: 'info@websolutions.com',
       isBillable: true,
-      levels: [
-        {
-          id: generateId(),
-          name: 'Planning',
-          tasks: [
-            {
-              id: generateId(),
-              name: 'Requirements Analysis',
-              description: 'Analyze project requirements',
-              subtasks: [
-                { id: generateId(), name: 'Stakeholder Interviews', description: 'Conduct stakeholder interviews' },
-                { id: generateId(), name: 'Documentation', description: 'Document requirements' }
-              ]
-            }
-          ]
-        }
-      ],
-      createdBy: 'System',
+      createdBy: currentUser?.id || '1',
       createdAt: new Date().toISOString()
     }
   ];
@@ -103,64 +53,17 @@ export const initializeSampleData = () => {
     {
       id: productId1,
       name: 'Timesheet Software',
+      productDescription: 'Internal timesheet management software',
       isBillable: false,
-      stages: [
-        {
-          id: generateId(),
-          name: 'Development',
-          tasks: [
-            {
-              id: generateId(),
-              name: 'Feature Development',
-              description: 'Build new features',
-              subtasks: [
-                { id: generateId(), name: 'Time Tracking', description: 'Implement time tracking functionality' },
-                { id: generateId(), name: 'Reporting', description: 'Build reporting features' }
-              ]
-            }
-          ]
-        },
-        {
-          id: generateId(),
-          name: 'Testing',
-          tasks: [
-            {
-              id: generateId(),
-              name: 'Quality Assurance',
-              description: 'Test product quality',
-              subtasks: [
-                { id: generateId(), name: 'Unit Testing', description: 'Write and run unit tests' },
-                { id: generateId(), name: 'Integration Testing', description: 'Test system integration' }
-              ]
-            }
-          ]
-        }
-      ],
-      createdBy: 'System',
+      createdBy: currentUser?.id || '1',
       createdAt: new Date().toISOString()
     },
     {
       id: productId2,
       name: 'Product Apple',
+      productDescription: 'Apple product development',
       isBillable: true,
-      stages: [
-        {
-          id: generateId(),
-          name: 'Design',
-          tasks: [
-            {
-              id: generateId(),
-              name: 'Product Design',
-              description: 'Design product features',
-              subtasks: [
-                { id: generateId(), name: 'UI/UX Design', description: 'Create user interface designs' },
-                { id: generateId(), name: 'Prototyping', description: 'Build product prototypes' }
-              ]
-            }
-          ]
-        }
-      ],
-      createdBy: 'System',
+      createdBy: currentUser?.id || '1',
       createdAt: new Date().toISOString()
     }
   ];
@@ -171,34 +74,9 @@ export const initializeSampleData = () => {
     {
       id: departmentId1,
       name: 'Engineering',
-      functions: [
-        {
-          id: generateId(),
-          name: 'Software Development',
-          duties: [
-            {
-              id: generateId(),
-              name: 'Code Review',
-              description: 'Review team code submissions',
-              subduties: [
-                { id: generateId(), name: 'Frontend Review', description: 'Review frontend code changes' },
-                { id: generateId(), name: 'Backend Review', description: 'Review backend code changes' }
-              ]
-            },
-            {
-              id: generateId(),
-              name: 'Documentation',
-              description: 'Maintain technical documentation',
-              subduties: [
-                { id: generateId(), name: 'API Documentation', description: 'Document API endpoints' },
-                { id: generateId(), name: 'User Guide', description: 'Write user documentation' }
-              ]
-            }
-          ]
-        }
-      ],
+      departmentDescription: 'Software engineering and development department',
       isBillable: true,
-      createdBy: 'System',
+      createdBy: currentUser?.id || '1',
       createdAt: new Date().toISOString()
     }
   ];
@@ -214,16 +92,14 @@ export const initializeSampleData = () => {
       clockOut: '17:00',
       breakTime: 60,
       totalHours: 7,
-      billableHours: 6, // Add billable hours
-      actualHours: 7,   // Add actual hours
-      availableHours: 8, // Add available hours
+      billableHours: 6,
+      actualHours: 7,
+      availableHours: 8,
       task: 'Worked on implementing the new dashboard UI components and integrated them with the backend API',
       projectDetails: {
         category: 'project',
         name: 'Mobile App Development',
-        level: 'Frontend Development',
         task: 'UI Design Implementation',
-        subtask: 'Dashboard',
         description: 'Implemented responsive dashboard with real-time data'
       },
       isBillable: true,
@@ -247,9 +123,7 @@ export const initializeSampleData = () => {
       projectDetails: {
         category: 'project',
         name: 'Mobile App Development',
-        level: 'Frontend Development',
         task: 'UI Design Implementation',
-        subtask: 'Dashboard',
         description: 'Implemented responsive dashboard with real-time data'
       },
       isBillable: true,
@@ -273,9 +147,7 @@ export const initializeSampleData = () => {
       projectDetails: {
         category: 'department',
         name: 'Engineering',
-        level: 'Software Development',
         task: 'Documentation',
-        subtask: 'Financial Reports',
         description: 'Quarterly financial review and budget planning'
       },
       isBillable: true,
@@ -325,12 +197,22 @@ export const initializeSampleData = () => {
     }
   ];
 
-  // Save sample data
-  sampleProjects.forEach(saveProject);
-  sampleProducts.forEach(saveProduct);
-  sampleDepartments.forEach(saveDepartment);
-  sampleTimeEntries.forEach(saveTimeEntry);
-  sampleTeams.forEach(saveTeam);
+  // Save all sample data
+  console.log('Saving sample projects...');
+  sampleProjects.forEach(project => saveProject(project));
 
-  console.log('Sample data initialized successfully');
+  console.log('Saving sample products...');
+  sampleProducts.forEach(product => saveProduct(product));
+
+  console.log('Saving sample departments...');
+  sampleDepartments.forEach(department => saveDepartment(department));
+
+  console.log('Saving sample time entries...');
+  sampleTimeEntries.forEach(entry => saveTimeEntry(entry));
+
+  console.log('Saving sample teams...');
+  sampleTeams.forEach(team => saveTeam(team));
+
+  console.log('Sample data initialization completed successfully!');
+  console.log(`Created ${sampleProjects.length} projects, ${sampleProducts.length} products, ${sampleDepartments.length} departments, ${sampleTimeEntries.length} time entries, and ${sampleTeams.length} teams.`);
 };

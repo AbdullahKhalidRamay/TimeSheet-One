@@ -18,6 +18,8 @@ import Teams from "./pages/Teams";
 import Notifications from "./pages/Notifications";
 import ApprovalWorkflow from "./pages/ApprovalWorkflow";
 import Reports from "./pages/Reports";
+import MemberDetail from "./pages/MemberDetail";
+import TeamDetail from "./pages/TeamDetail";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -66,6 +68,8 @@ const App = () => {
                   <Route path="approval" element={<ErrorBoundary><ApprovalWorkflow /></ErrorBoundary>} />
                   <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
                   <Route path="settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
+                  <Route path="members/:memberId" element={<ErrorBoundary><MemberDetail /></ErrorBoundary>} />
+                  <Route path="teams/:teamId" element={<ErrorBoundary><TeamDetail /></ErrorBoundary>} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -15,7 +15,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import CreateTeamForm from "@/components/users/CreateTeamForm";
 import { useUsers, useTeams, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 import { toast } from "@/components/ui/sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
+import EnhancedDetailView from "@/components/ui/EnhancedDetailView";
 
 export default function Teams() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,7 +24,7 @@ export default function Teams() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [isCreateTeamOpen, setCreateTeamOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
-  const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
+  const [viewingTeam, setViewingTeam] = useState<Team | User | null>(null);
   const [isDetailViewOpen, setDetailViewOpen] = useState(false);
   const currentUser = getCurrentUser();
 
@@ -268,25 +269,13 @@ export default function Teams() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {team.memberIds.length > 0 ? (
-                          team.memberIds.map(memberId => {
-                            const member = users.find(u => u.id === memberId);
-                            return member ? (
-                              <div key={member.id} className="flex items-center space-x-2">
-                                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                                  {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                </div>
-                                <span className="text-sm">{member.name}</span>
-                              </div>
-                            ) : null;
-                          })
-                        ) : (
-                          <span className="text-muted-foreground text-sm">No members assigned</span>
-                        )}
-                      </div>
-                    </TableCell>
+                                         <TableCell>
+                       
+                         <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                           {team.memberIds.length}
+                         </div>
+                         
+                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
                         {users.find(u => u.id === team.createdBy)?.name || 'Unknown'}
@@ -383,6 +372,16 @@ export default function Teams() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setViewingTeam(user);
+                            setDetailViewOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {permissions.canManageTeams && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -438,143 +437,18 @@ export default function Teams() {
         editing={editingTeam}
       />
 
-      {/* Team Detail View Dialog */}
-      <Dialog open={isDetailViewOpen} onOpenChange={setDetailViewOpen}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-semibold flex items-center gap-3">
-              <div className="p-2 bg-blue-100/30 rounded-lg">
-                <Users className="h-6 w-6 text-blue-600" />
-              </div>
-              <span>Team Details: {viewingTeam?.name}</span>
-            </DialogTitle>
-          </DialogHeader>
 
-          {viewingTeam && (
-            <div className="space-y-6 py-4">
-              {/* Team Description */}
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Description</h3>
-                <p className="text-muted-foreground">
-                  {viewingTeam.description || "No description provided"}
-                </p>
-              </div>
 
-              {/* Team Leader */}
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Team Leader</h3>
-                {viewingTeam.leaderId ? (
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-700">
-                      {users.find(u => u.id === viewingTeam.leaderId)?.name.split(' ').map(n => n[0]).join('').toUpperCase() || '?'}
-                    </div>
-                    <div>
-                      <p className="font-medium">{users.find(u => u.id === viewingTeam.leaderId)?.name || 'Unknown'}</p>
-                      <p className="text-sm text-muted-foreground">{users.find(u => u.id === viewingTeam.leaderId)?.jobTitle || 'No title'}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No team leader assigned</p>
-                )}
-              </div>
-
-              {/* Team Members */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-medium">Team Members ({viewingTeam.memberIds.length})</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {viewingTeam.memberIds.length > 0 ? (
-                    viewingTeam.memberIds.map(memberId => {
-                      const member = users.find(u => u.id === memberId);
-                      return member ? (
-                        <div key={member.id} className="flex items-center space-x-3 p-3 bg-muted/30 rounded-lg">
-                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                            {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-medium">{member.name}</p>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
-                          </div>
-                        </div>
-                      ) : null;
-                    })
-                  ) : (
-                    <p className="text-muted-foreground col-span-2">No members assigned to this team</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Associated Projects */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-medium">Associated Projects</h3>
-                <div className="flex flex-wrap gap-2">
-                  {viewingTeam.associatedProjects.length > 0 ? (
-                    viewingTeam.associatedProjects.map(projectId => {
-                      const project = projects.find(p => p.id === projectId);
-                      return project ? (
-                        <Badge key={project.id} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
-                          {project.name}
-                        </Badge>
-                      ) : null;
-                    })
-                  ) : (
-                    <p className="text-muted-foreground">No projects associated with this team</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Associated Products */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-medium">Associated Products</h3>
-                <div className="flex flex-wrap gap-2">
-                  {viewingTeam.associatedProducts.length > 0 ? (
-                    viewingTeam.associatedProducts.map(productId => {
-                      const product = products.find(p => p.id === productId);
-                      return product ? (
-                        <Badge key={product.id} variant="outline" className="bg-green-50 text-green-700 border-green-200 px-3 py-1">
-                          {product.name}
-                        </Badge>
-                      ) : null;
-                    })
-                  ) : (
-                    <p className="text-muted-foreground">No products associated with this team</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Associated Departments */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-medium">Associated Departments</h3>
-                <div className="flex flex-wrap gap-2">
-                  {viewingTeam.associatedDepartments.length > 0 ? (
-                    viewingTeam.associatedDepartments.map(departmentId => {
-                      const department = departments.find(d => d.id === departmentId);
-                      return department ? (
-                        <Badge key={department.id} variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 px-3 py-1">
-                          {department.name}
-                        </Badge>
-                      ) : null;
-                    })
-                  ) : (
-                    <p className="text-muted-foreground">No departments associated with this team</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Creation Info */}
-              <div className="space-y-2 pt-4 border-t">
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Created by: {users.find(u => u.id === viewingTeam.createdBy)?.name || 'Unknown'}</span>
-                  <span>Created on: {new Date(viewingTeam.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button onClick={() => setDetailViewOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EnhancedDetailView
+        isOpen={isDetailViewOpen}
+        onClose={() => setDetailViewOpen(false)}
+        data={viewingTeam}
+        type="team"
+        teamMembers={users}
+        projects={projects}
+        products={products}
+        departments={departments}
+      />
     </div>
   );
 }

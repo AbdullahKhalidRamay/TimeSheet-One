@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import EditSingleTimeEntryForm from "@/components/users/EditSingleTimeEntryForm";
 import { useTimeEntries, useUsers, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 import { toast } from "@/components/ui/sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import EnhancedDetailView from "@/components/ui/EnhancedDetailView";
 
 interface GroupedEntry {
   date: string;
@@ -620,17 +620,8 @@ export default function Timesheet() {
                           </span>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {entry.projectDetails.category === 'project' && entry.projectDetails.level && (
-                            <span>Level: {entry.projectDetails.level}</span>
-                          )}
-                          {entry.projectDetails.category === 'product' && entry.projectDetails.stage && (
-                            <span>Stage: {entry.projectDetails.stage}</span>
-                          )}
-                          {entry.projectDetails.category === 'department' && entry.projectDetails.function && (
-                            <span>Function: {entry.projectDetails.function}</span>
-                          )}
                           {entry.projectDetails.task && (
-                            <span className="ml-2">• {entry.projectDetails.task}</span>
+                            <span>• {entry.projectDetails.task}</span>
                           )}
                         </div>
                       </div>
@@ -709,31 +700,12 @@ export default function Timesheet() {
         </div>
       )}
 
-      {viewingEntry && (
-        <Dialog open={isDetailViewOpen} onOpenChange={setDetailViewOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Entry Details</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4">
-              <div>
-                <p><strong>Date:</strong> {new Date(viewingEntry.date).toLocaleDateString()}</p>
-                <p><strong>Employee:</strong> {users.find(u => u.id === viewingEntry.userId)?.name}</p>
-                <p><strong>Project:</strong> {viewingEntry.projectDetails.name}</p>
-                <p><strong>Task:</strong> {viewingEntry.task}</p>
-                <p><strong>Actual Hours:</strong> {(viewingEntry.actualHours || 0).toFixed(1)}h</p>
-                <p><strong>Billable Hours:</strong> {(viewingEntry.billableHours || 0).toFixed(1)}h</p>
-                <p><strong>Available Hours:</strong> {(viewingEntry.availableHours || 0).toFixed(1)}h</p>
-                <p><strong>Status:</strong> {viewingEntry.status.charAt(0).toUpperCase() + viewingEntry.status.slice(1)}</p>
-                <p><strong>Description:</strong> {viewingEntry.description}</p>
-                <p><strong>Created At:</strong> {new Date(viewingEntry.createdAt).toLocaleDateString()}</p>
-                <p><strong>Updated At:</strong> {new Date(viewingEntry.updatedAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-            <Button className="mt-4" onClick={handleCloseDetailView}>Close</Button>
-          </DialogContent>
-        </Dialog>
-      )}
+      <EnhancedDetailView
+        isOpen={isDetailViewOpen}
+        onClose={handleCloseDetailView}
+        data={viewingEntry}
+        type="timesheet"
+      />
     </div>
   );
 }

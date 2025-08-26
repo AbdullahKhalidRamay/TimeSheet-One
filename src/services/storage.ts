@@ -93,9 +93,39 @@ export const getProjects = (): Project[] => {
   const projectsStr = localStorage.getItem(PROJECTS_KEY);
   if (!projectsStr) {
     const defaultProjects: Project[] = [
-      { id: 'P1', name: 'Project Alpha', levels: [], isBillable: true, createdBy: '1', createdAt: new Date().toISOString() },
-      { id: 'P2', name: 'Project Beta', levels: [], isBillable: false, createdBy: '2', createdAt: new Date().toISOString() },
-      { id: 'P3', name: 'Project Gamma', levels: [], isBillable: true, createdBy: '3', createdAt: new Date().toISOString() },
+      { 
+        id: 'P1', 
+        name: 'AIM-1', 
+        description: 'AI Management System',
+        projectType: 'Time and Material',
+        clientName: 'Tech Corp',
+        clientEmail: 'contact@techcorp.com',
+        isBillable: true, 
+        createdBy: '1', 
+        createdAt: new Date().toISOString() 
+      },
+      { 
+        id: 'P2', 
+        name: 'Project Beta', 
+        description: 'Beta Testing Project',
+        projectType: 'Fixed Cost',
+        clientName: 'Beta Inc',
+        clientEmail: 'info@betainc.com',
+        isBillable: false, 
+        createdBy: '2', 
+        createdAt: new Date().toISOString() 
+      },
+      { 
+        id: 'P3', 
+        name: 'Project Gamma', 
+        description: 'Gamma Development',
+        projectType: 'Full Time Employed',
+        clientName: 'Gamma Ltd',
+        clientEmail: 'dev@gamma.com',
+        isBillable: true, 
+        createdBy: '3', 
+        createdAt: new Date().toISOString() 
+      },
     ];
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(defaultProjects));
     return defaultProjects;
@@ -127,9 +157,30 @@ export const getProducts = (): Product[] => {
   const productsStr = localStorage.getItem(PRODUCTS_KEY);
   if (!productsStr) {
     const defaultProducts: Product[] = [
-      { id: 'PR1', name: 'Product Apple', stages: [], isBillable: false, createdBy: '1', createdAt: new Date().toISOString() },
-      { id: 'PR2', name: 'Product Banana', stages: [], isBillable: true, createdBy: '2', createdAt: new Date().toISOString() },
-      { id: 'PR3', name: 'Product Cherry', stages: [], isBillable: false, createdBy: '3', createdAt: new Date().toISOString() },
+      { 
+        id: 'PR1', 
+        name: 'Apple', 
+        productDescription: 'Apple Product Development',
+        isBillable: false, 
+        createdBy: '1', 
+        createdAt: new Date().toISOString() 
+      },
+      { 
+        id: 'PR2', 
+        name: 'Product Banana', 
+        productDescription: 'Banana Product Line',
+        isBillable: true, 
+        createdBy: '2', 
+        createdAt: new Date().toISOString() 
+      },
+      { 
+        id: 'PR3', 
+        name: 'Product Cherry', 
+        productDescription: 'Cherry Product Suite',
+        isBillable: false, 
+        createdBy: '3', 
+        createdAt: new Date().toISOString() 
+      },
     ];
     localStorage.setItem(PRODUCTS_KEY, JSON.stringify(defaultProducts));
     return defaultProducts;
@@ -161,9 +212,30 @@ export const getDepartments = (): Department[] => {
   const departmentsStr = localStorage.getItem(DEPARTMENTS_KEY);
   if (!departmentsStr) {
     const defaultDepartments: Department[] = [
-      { id: 'D1', name: 'Department X', functions: [], isBillable: true, createdBy: '1', createdAt: new Date().toISOString() },
-      { id: 'D2', name: 'Department Y', functions: [], isBillable: false, createdBy: '2', createdAt: new Date().toISOString() },
-      { id: 'D3', name: 'Department Z', functions: [], isBillable: true, createdBy: '3', createdAt: new Date().toISOString() },
+      { 
+        id: 'D1', 
+        name: 'IT Department', 
+        departmentDescription: 'Information Technology Department',
+        isBillable: true, 
+        createdBy: '1', 
+        createdAt: new Date().toISOString() 
+      },
+      { 
+        id: 'D2', 
+        name: 'HR Department', 
+        departmentDescription: 'Human Resources Department',
+        isBillable: false, 
+        createdBy: '2', 
+        createdAt: new Date().toISOString() 
+      },
+      { 
+        id: 'D3', 
+        name: 'Finance Department', 
+        departmentDescription: 'Financial Management Department',
+        isBillable: true, 
+        createdBy: '3', 
+        createdAt: new Date().toISOString() 
+      },
     ];
     localStorage.setItem(DEPARTMENTS_KEY, JSON.stringify(defaultDepartments));
     return defaultDepartments;

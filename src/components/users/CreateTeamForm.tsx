@@ -90,7 +90,7 @@ export default function CreateTeamForm({ isOpen, onClose, onSuccess, editing }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
+      <DialogContent className="max-w-lg sm:max-w-xl h-[80vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
             <div className="p-2 bg-primary/10 rounded-lg">

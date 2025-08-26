@@ -11,7 +11,6 @@ import {
   CheckSquare, 
   Settings,
   LogOut,
-  User,
   BarChart3,
   ChevronLeft,
   ChevronRight
@@ -39,7 +38,7 @@ const navigation = [
     roles: ["employee", "manager", "owner"],
   },
   {
-    name: "Projects & Tasks",
+    name: "Projects ",
     href: "/projects",
     icon: FolderOpen,
     roles: ["manager", "owner"],
@@ -98,9 +97,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }
   };
 
-  const getJobTitleLabel = (jobTitle: string) => {
-    return jobTitle;
-  };
+
 
   return (
     <aside className={cn(
@@ -137,43 +134,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
          </Button>
        </div>
 
-      <Separator />
 
-      {/* User Info */}
-      <div className={collapsed ? "p-2" : "p-4"}>
-        <div className={cn(
-          "rounded-lg p-3 transition-all duration-200",
-          collapsed ? "bg-transparent" : "card-glass hover-scale"
-        )}>
-          <div className="flex items-center space-x-3">
-            <div className={cn(
-              "flex items-center justify-center rounded-full bg-gradient-primary text-primary-foreground",
-              collapsed ? "h-8 w-8" : "h-10 w-10"
-            )}>
-              <User className={collapsed ? "h-4 w-4" : "h-5 w-5"} />
-            </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate text-sidebar-foreground">{currentUser.name}</p>
-                <div className="flex items-center space-x-2">
-                  <span 
-                    className={cn(
-                      "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border",
-                      currentUser.role === 'owner' && 'role-owner',
-                      currentUser.role === 'manager' && 'role-manager', 
-                      currentUser.role === 'employee' && 'role-employee'
-                    )}
-                  >
-                    {getJobTitleLabel(currentUser.jobTitle)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <Separator />
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3">

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import EnhancedDetailView from "@/components/ui/EnhancedDetailView";
 import { CheckSquare, X, Check, Clock, History, MessageSquare, Search, DollarSign, Eye } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
@@ -413,30 +414,12 @@ export default function ApprovalWorkflow() {
         </Tabs>
       </div>
 
-      {viewingEntry && (
-        <Dialog open={isDetailViewOpen} onOpenChange={setDetailViewOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Entry Details</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4">
-              <div>
-                <p><strong>Date:</strong> {new Date(viewingEntry.date).toLocaleDateString()}</p>
-                <p><strong>Employee:</strong> {viewingEntry.userName}</p>
-                <p><strong>Project:</strong> {viewingEntry.projectDetails.name}</p>
-                <p><strong>Task:</strong> {viewingEntry.task}</p>
-                <p><strong>Actual Hours:</strong> {(viewingEntry.actualHours || 0).toFixed(1)}h</p>
-                <p><strong>Billable Hours:</strong> {(viewingEntry.billableHours || 0).toFixed(1)}h</p>
-                <p><strong>Available Hours:</strong> {(viewingEntry.availableHours || 0).toFixed(1)}h</p>
-                <p><strong>Status:</strong> {viewingEntry.status.charAt(0).toUpperCase() + viewingEntry.status.slice(1)}</p>
-                <p><strong>Created At:</strong> {new Date(viewingEntry.createdAt).toLocaleDateString()}</p>
-                <p><strong>Updated At:</strong> {new Date(viewingEntry.updatedAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-            <Button className="mt-4" onClick={handleCloseDetailView}>Close</Button>
-          </DialogContent>
-        </Dialog>
-      )}
+      <EnhancedDetailView
+        isOpen={isDetailViewOpen}
+        onClose={handleCloseDetailView}
+        data={viewingEntry}
+        type="approval"
+      />
     </div>
   );
 }

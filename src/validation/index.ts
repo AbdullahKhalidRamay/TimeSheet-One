@@ -30,7 +30,6 @@ export interface User {
   email: string;
   role: UserRole;
   jobTitle: JobTitle;
-  billableRate?: number;
   availableHours: number;
   totalBillableHours: number;
 }
@@ -58,11 +57,7 @@ export interface TimeEntry {
 export interface ProjectDetail {
   category: 'project' | 'product' | 'department';
   name: string;
-  level?: string;
-  stage?: string;
-  function?: string;
   task: string;
-  subtask?: string;
   description: string;
 }
 
@@ -73,7 +68,6 @@ export interface Project {
   projectType: 'Fixed Cost' | 'Time and Material' | 'Full Time Employed';
   clientName: string;
   clientEmail: string;
-  levels: ProjectLevel[];
   isBillable: boolean;
   department?: string;
   associatedProducts?: string[];
@@ -81,82 +75,22 @@ export interface Project {
   createdAt: string;
 }
 
-export interface ProjectLevel {
-  id: string;
-  name: string;
-  tasks: ProjectTask[];
-}
-
-export interface ProjectTask {
-  id: string;
-  name: string;
-  description: string;
-  subtasks: ProjectSubtask[];
-}
-
-export interface ProjectSubtask {
-  id: string;
-  name: string;
-  description: string;
-}
-
 export interface Product {
   id: string;
   name: string;
   productDescription: string;
-  stages: ProductStage[];
   isBillable: boolean;
   createdBy: string;
   createdAt: string;
-}
-
-export interface ProductStage {
-  id: string;
-  name: string;
-  tasks: ProductTask[];
-}
-
-export interface ProductTask {
-  id: string;
-  name: string;
-  description: string;
-  subtasks: ProductSubtask[];
-}
-
-export interface ProductSubtask {
-  id: string;
-  name: string;
-  description: string;
 }
 
 export interface Department {
   id: string;
   name: string;
   departmentDescription: string;
-  functions: DepartmentFunction[];
   isBillable: boolean;
   createdBy: string;
   createdAt: string;
-}
-
-export interface DepartmentFunction {
-  id: string;
-  name: string;
-  
-  duties: DepartmentDuty[];
-}
-
-export interface DepartmentDuty {
-  id: string;
-  name: string;
-  description: string;
-  subduties: DepartmentSubduty[];
-}
-
-export interface DepartmentSubduty {
-  id: string;
-  name: string;
-  description: string;
 }
 
 export interface Team {

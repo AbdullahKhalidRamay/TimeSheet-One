@@ -8,20 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Clock, DollarSign, Building, Download, Search, Trash2 } from 'lucide-react';
+import { Users, Clock, DollarSign, Building, Download, Search, Trash2, Eye } from 'lucide-react';
 import { User, Team } from '@/validation';
 import Header from '@/components/dashboard/Header';
 import { DateRange } from 'react-day-picker';
 import { useUsers, useTeams, useTimeEntries, useProjects, useProducts, useDepartments, invalidateCache } from '@/hooks/useData';
 import { toast } from '@/components/ui/sonner';
+import { useNavigate } from 'react-router-dom';
 
 const Reports = () => {
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  const navigate = useNavigate();
 
   const { users, refreshUsers } = useUsers();
   const { teams, refreshTeams } = useTeams();
@@ -51,18 +54,12 @@ const Reports = () => {
     });
   }, [users, searchQuery, roleFilter, teamFilter, teams]);
 
-  const handleShowDetails = useCallback((teamId: string) => {
-    setSelectedTeamId((prevId) => (prevId === teamId ? null : teamId));
-  }, []);
+
 
   const handleDeleteTeam = useCallback((teamId: string) => {
     const team = teams.find(t => t.id === teamId);
     if (team) {
       deleteTeam(teamId);
-      // Close details if this team was expanded
-      if (selectedTeamId === teamId) {
-        setSelectedTeamId(null);
-      }
       // Reset team filter if this team was selected
       if (teamFilter === teamId) {
         setTeamFilter('all');
@@ -72,7 +69,7 @@ const Reports = () => {
       refreshTeams();
       toast.success(`Team "${team.name}" deleted successfully`);
     }
-  }, [teams, selectedTeamId, teamFilter, refreshTeams]);
+  }, [teams, teamFilter, refreshTeams]);
 
   const getUserStats = useCallback((userId: string) => {
     let userEntries = timeEntries.filter(entry => entry.userId === userId);
@@ -278,19 +275,16 @@ const Reports = () => {
             <CardContent>
               <div className="overflow-x-auto">
                 <Table className="min-w-[900px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="text-right">Actual Hours</TableHead>
-                      <TableHead className="text-right">Billable Hours</TableHead>
-                      <TableHead className="text-right">Available Hours</TableHead>
-                      <TableHead className="text-center">Entries</TableHead>
-                      <TableHead className="text-center">Approved</TableHead>
-                      <TableHead className="text-center">Pending</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                                     <TableHeader>
+                     <TableRow>
+                       <TableHead>Name</TableHead>
+                       <TableHead>Email</TableHead>
+                       <TableHead className="text-right">Actual Hours</TableHead>
+                       <TableHead className="text-right">Billable Hours</TableHead>
+                       <TableHead className="text-right">Available Hours</TableHead>
+                       <TableHead className="text-center">Actions</TableHead>
+                     </TableRow>
+                   </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => {
                     const stats = getUserStats(user.id);
@@ -304,37 +298,34 @@ const Reports = () => {
                             <span className="font-medium">{user.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <Badge variant={user.role === 'owner' ? 'default' : user.role === 'manager' ? 'secondary' : 'outline'}>
-                            {user.role.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-1">
-                            <Clock className="h-3 w-3 text-orange-600" />
-                            <span className="font-medium">{stats.actualHours}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-1">
-                            <DollarSign className="h-3 w-3 text-green-600" />
-                            <span className="font-medium text-green-600">{stats.billableHours}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-1">
-                            <Clock className="h-3 w-3 text-blue-600" />
-                            <span className="font-medium">{stats.availableHours}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">{stats.totalEntries}</TableCell>
-                        <TableCell className="text-center">
-                          <span className="text-green-600 font-medium">{stats.approvedEntries}</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="text-orange-600 font-medium">{stats.pendingEntries}</span>
-                        </TableCell>
+                                                 <TableCell>{user.email}</TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex items-center justify-end space-x-1">
+                             <Clock className="h-3 w-3 text-orange-600" />
+                             <span className="font-medium">{stats.actualHours}</span>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex items-center justify-end space-x-1">
+                             <DollarSign className="h-3 w-3 text-green-600" />
+                             <span className="font-medium text-green-600">{stats.billableHours}</span>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex items-center justify-end space-x-1">
+                             <Clock className="h-3 w-3 text-blue-600" />
+                             <span className="font-medium">{stats.availableHours}</span>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-center">
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => navigate(`/members/${user.id}`)}
+                           >
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                         </TableCell>
                       </TableRow>
                     );
                   })}
@@ -446,14 +437,14 @@ const Reports = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button
-                              variant={selectedTeamId === team.id ? "secondary" : "outline"}
-                              size="sm"
-                              onClick={() => handleShowDetails(team.id)}
-                            >
-                              {selectedTeamId === team.id ? 'Hide' : 'Details'}
-                            </Button>
+                                                     <div className="flex items-center justify-center space-x-2">
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => navigate(`/teams/${team.id}`)}
+                             >
+                               Details
+                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -469,98 +460,14 @@ const Reports = () => {
                   })}
                 </TableBody>
               </Table>
-              </div>
-              
-              {/* Team Member Details - Show below table when expanded */}
-              {selectedTeamId && (
-                <div className="mt-6 border-t pt-6">
-                  {teams.filter(team => team.id === selectedTeamId).map(team => (
-                    <div key={team.id}>
-                      <h4 className="font-semibold mb-4 flex items-center space-x-2">
-                        <Users className="h-4 w-4" />
-                        <span>Team Members - {team.name}</span>
-                      </h4>
-                      <div className="overflow-x-auto">
-                        <Table className="min-w-[900px]">
-                          <TableHeader>
-                          <TableRow>
-                            <TableHead>Member</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead className="text-right">Actual Hours</TableHead>
-                            <TableHead className="text-right">Billable Hours</TableHead>
-                            <TableHead className="text-right">Available Hours</TableHead>
-                            <TableHead className="text-center">Entries</TableHead>
-                            <TableHead className="text-center">Approved</TableHead>
-                            <TableHead className="text-center">Pending</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {team.memberIds.map((memberId) => {
-                            const member = users.find((user) => user.id === memberId);
-                            if (!member) return null;
-
-                            const stats = getTeamUserStats(member.id, team);
-
-                            return (
-                              <TableRow key={member.id}>
-                                <TableCell>
-                                  <div className="flex items-center space-x-3">
-                                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                                      {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                    </div>
-                                    <span className="font-medium">{member.name}</span>
-                                    {member.id === team.leaderId && (
-                                      <Badge variant="default" className="text-xs ml-2">Leader</Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>{member.email}</TableCell>
-                                <TableCell>
-                                  <Badge variant={member.role === 'owner' ? 'default' : member.role === 'manager' ? 'secondary' : 'outline'}>
-                                    {member.role}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end space-x-1">
-                                    <Clock className="h-3 w-3 text-orange-600" />
-                                    <span className="font-medium">{stats.actualHours}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end space-x-1">
-                                    <DollarSign className="h-3 w-3 text-green-600" />
-                                    <span className="font-medium text-green-600">{stats.billableHours}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end space-x-1">
-                                    <Clock className="h-3 w-3 text-blue-600" />
-                                    <span className="font-medium">{stats.availableHours}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-center">{stats.totalEntries}</TableCell>
-                                <TableCell className="text-center">
-                                  <span className="text-green-600 font-medium">{stats.approvedEntries}</span>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <span className="text-orange-600 font-medium">{stats.pendingEntries}</span>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                             </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
       </div>
+
+
     </div>
   );
 };
