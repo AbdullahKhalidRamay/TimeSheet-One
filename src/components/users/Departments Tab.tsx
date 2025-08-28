@@ -8,6 +8,7 @@ import { Plus, Building2, Edit2, Trash2 } from "lucide-react";
 import { Department } from "@/validation/index";
 import { getCurrentUser } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
+import { checkPermissionWithToast } from "@/utils/permissionUtils";
 import { useDepartments } from "@/hooks/useData";
 
 interface DepartmentsTabProps {
@@ -29,8 +30,10 @@ export default function DepartmentsTab({
   const { departments, loading: departmentsLoading } = useDepartments();
 
   const handleEditDepartment = useCallback((department: Department) => {
-    setEditingDepartment(department);
-    setDepartmentFormOpen(true);
+    if (checkPermissionWithToast('canManageProjects', 'Edit department', 'manager')) {
+      setEditingDepartment(department);
+      setDepartmentFormOpen(true);
+    }
   }, [setEditingDepartment, setDepartmentFormOpen]);
 
   return (

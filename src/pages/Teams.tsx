@@ -15,6 +15,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import CreateTeamForm from "@/components/users/CreateTeamForm";
 import { useUsers, useTeams, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 import { toast } from "@/components/ui/sonner";
+import { checkPermissionWithToast } from "@/utils/permissionUtils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import EnhancedDetailView from "@/components/ui/EnhancedDetailView";
 
@@ -26,6 +37,8 @@ export default function Teams() {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [viewingTeam, setViewingTeam] = useState<Team | User | null>(null);
   const [isDetailViewOpen, setDetailViewOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
   const currentUser = getCurrentUser();
 
   const { users, refreshUsers } = useUsers();
@@ -76,12 +89,22 @@ export default function Teams() {
   }, [refreshTeams]);
 
   const handleDeleteTeam = useCallback((teamId: string) => {
-    if (confirm('Are you sure you want to delete this team?')) {
-      deleteTeam(teamId);
+    if (checkPermissionWithToast('canManageTeams', 'Delete team', 'manager')) {
+      setTeamToDelete(teamId);
+      setShowDeleteDialog(true);
+    }
+  }, []);
+
+  const confirmDeleteTeam = useCallback(() => {
+    if (teamToDelete) {
+      deleteTeam(teamToDelete);
       invalidateCache('teams');
       loadTeams();
+      toast.success('Team deleted successfully');
+      setTeamToDelete(null);
+      setShowDeleteDialog(false);
     }
-  }, [loadTeams]);
+  }, [teamToDelete, loadTeams]);
 
   return (
     <div className="dashboard-layout">
@@ -451,6 +474,29 @@ export default function Teams() {
         products={products}
         departments={departments}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Team</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this team? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setTeamToDelete(null);
+              setShowDeleteDialog(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTeam} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

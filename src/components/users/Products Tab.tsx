@@ -7,6 +7,7 @@ import { Plus, Package, Edit2, Trash2 } from "lucide-react";
 import { Product } from "@/validation/index";
 import { getCurrentUser } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
+import { checkPermissionWithToast } from "@/utils/permissionUtils";
 import { useProducts } from "@/hooks/useData";
 
 interface ProductsTabProps {
@@ -28,8 +29,10 @@ export default function ProductsTab({
   const { products, loading: productsLoading } = useProducts();
 
   const handleEditProduct = useCallback((product: Product) => {
-    setEditingProduct(product);
-    setProductFormOpen(true);
+    if (checkPermissionWithToast('canManageProjects', 'Edit product', 'manager')) {
+      setEditingProduct(product);
+      setProductFormOpen(true);
+    }
   }, [setEditingProduct, setProductFormOpen]);
 
   return (

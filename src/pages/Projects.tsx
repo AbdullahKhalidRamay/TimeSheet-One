@@ -11,6 +11,7 @@ import { rolePermissions } from "@/validation/index";
 import { useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 import { toast } from "@/components/ui/sonner";
 import { useSettings } from '@/contexts/SettingsContext';
+import { checkPermissionWithToast } from "@/utils/permissionUtils";
 import ProjectsTab from '@/components/users/Projects Tab';
 import ProductsTab from '@/components/users/Products Tab';
 import DepartmentsTab from '@/components/users/Departments Tab';
@@ -74,40 +75,52 @@ export default function Projects() {
 
   // Edit handlers
   const handleEditProject = useCallback((project: Project) => {
-    setEditingProject(project);
-    setProjectFormOpen(true);
+    if (checkPermissionWithToast('canManageProjects', 'Edit project', 'manager')) {
+      setEditingProject(project);
+      setProjectFormOpen(true);
+    }
   }, []);
 
   const handleEditProduct = useCallback((product: Product) => {
-    setEditingProduct(product);
-    setProductFormOpen(true);
+    if (checkPermissionWithToast('canManageProjects', 'Edit product', 'manager')) {
+      setEditingProduct(product);
+      setProductFormOpen(true);
+    }
   }, []);
 
   const handleEditDepartment = useCallback((department: Department) => {
-    setEditingDepartment(department);
-    setDepartmentFormOpen(true);
+    if (checkPermissionWithToast('canManageProjects', 'Edit department', 'manager')) {
+      setEditingDepartment(department);
+      setDepartmentFormOpen(true);
+    }
   }, []);
 
   // Delete handlers
   const handleDeleteProject = useCallback((projectId: string) => {
-    deleteProject(projectId);
-    invalidateCache('projects');
-    refreshProjects();
-    toast.success('Project deleted successfully');
+    if (checkPermissionWithToast('canManageProjects', 'Delete project', 'manager')) {
+      deleteProject(projectId);
+      invalidateCache('projects');
+      refreshProjects();
+      toast.success('Project deleted successfully');
+    }
   }, [refreshProjects]);
 
   const handleDeleteProduct = useCallback((productId: string) => {
-    deleteProduct(productId);
-    invalidateCache('products');
-    refreshProducts();
-    toast.success('Product deleted successfully');
-  }, [refreshProjects]);
+    if (checkPermissionWithToast('canManageProjects', 'Delete product', 'manager')) {
+      deleteProduct(productId);
+      invalidateCache('products');
+      refreshProducts();
+      toast.success('Product deleted successfully');
+    }
+  }, [refreshProducts]);
 
   const handleDeleteDepartment = useCallback((departmentId: string) => {
-    deleteDepartment(departmentId);
-    invalidateCache('departments');
-    refreshDepartments();
-    toast.success('Department deleted successfully');
+    if (checkPermissionWithToast('canManageProjects', 'Delete department', 'manager')) {
+      deleteDepartment(departmentId);
+      invalidateCache('departments');
+      refreshDepartments();
+      toast.success('Department deleted successfully');
+    }
   }, [refreshDepartments]);
 
   // Close handlers with reset

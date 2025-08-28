@@ -17,6 +17,17 @@ import EditSingleTimeEntryForm from "@/components/users/EditSingleTimeEntryForm"
 import { useTimeEntries, useUsers, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
 import { toast } from "@/components/ui/sonner";
 import EnhancedDetailView from "@/components/ui/EnhancedDetailView";
+import { checkTimeEntryPermission, checkPermissionWithToast } from "@/utils/permissionUtils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface GroupedEntry {
   date: string;
@@ -47,6 +58,8 @@ export default function Timesheet() {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [viewingEntry, setViewingEntry] = useState<TimeEntry | null>(null);
   const [isDetailViewOpen, setDetailViewOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
   
@@ -80,17 +93,22 @@ export default function Timesheet() {
 
   const handleDeleteEntry = useCallback((entryId: string) => {
     const entry = timeEntries.find(e => e.id === entryId);
-    if (entry && (entry.status === 'pending' || currentUser?.role === 'owner')) {
-      if (confirm('Are you sure you want to delete this time entry?')) {
-        deleteTimeEntry(entryId);
-        invalidateCache('timeEntries');
-        loadTimeEntries();
-        toast.success('Time entry deleted successfully');
-      }
-    } else {
-      toast.error('Cannot delete this entry. Only pending entries can be deleted.');
+    if (entry && checkTimeEntryPermission(entry.userId, entry.status, 'delete')) {
+      setEntryToDelete(entryId);
+      setShowDeleteDialog(true);
     }
-  }, [timeEntries, currentUser?.role, loadTimeEntries]);
+  }, [timeEntries]);
+
+  const confirmDeleteEntry = useCallback(() => {
+    if (entryToDelete) {
+      deleteTimeEntry(entryToDelete);
+      invalidateCache('timeEntries');
+      loadTimeEntries();
+      toast.success('Time entry deleted successfully');
+      setEntryToDelete(null);
+      setShowDeleteDialog(false);
+    }
+  }, [entryToDelete, loadTimeEntries]);
 
 
   const filteredEntries = useMemo(() => {
@@ -280,18 +298,12 @@ export default function Timesheet() {
   }, []);
 
   const canEdit = useCallback((entry: TimeEntry) => {
-    if (currentUser?.role === 'owner') return true;
-    if (currentUser?.role === 'manager') return entry.status === 'pending';
-    if (entry.userId !== currentUser?.id) return false;
-    return entry.status === 'pending';
-  }, [currentUser]);
+    return checkTimeEntryPermission(entry.userId, entry.status, 'edit');
+  }, []);
 
   const canDelete = useCallback((entry: TimeEntry) => {
-    if (currentUser?.role === 'owner') return true;
-    if (currentUser?.role === 'manager') return entry.status === 'pending';
-    if (entry.userId !== currentUser?.id) return false;
-    return entry.status === 'pending';
-  }, [currentUser]);
+    return checkTimeEntryPermission(entry.userId, entry.status, 'delete');
+  }, []);
 
   const handleAddEntry = useCallback(() => {
     navigate('/tracker');
@@ -706,6 +718,29 @@ export default function Timesheet() {
         data={viewingEntry}
         type="timesheet"
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this time entry? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setEntryToDelete(null);
+              setShowDeleteDialog(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEntry} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

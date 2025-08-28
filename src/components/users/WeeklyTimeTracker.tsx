@@ -14,6 +14,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { getTimeEntryStatusForDate, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
 import { Project, Product, Department, TimeEntry, ProjectDetail } from "@/validation/index";
 import { toast } from "@/components/ui/sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface WeeklyHours {
   billable: number;
@@ -109,6 +119,11 @@ export default function WeeklyTimeTracker() {
   const [selectedProducts, setSelectedProducts] = useState<SelectedProducts>({});
   const [selectedDepartments, setSelectedDepartments] = useState<SelectedDepartments>({});
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<{
+    daysToSave: Map<string, Set<string>>;
+    daysWithExistingEntries: string[];
+  } | null>(null);
   // Remove the shared daily descriptions state since we'll use individual task descriptions
   // const [dailyDescriptions, setDailyDescriptions] = useState<DailyDescription>({});
 
@@ -698,139 +713,139 @@ export default function WeeklyTimeTracker() {
       }
     });
     
-    // If there are existing entries, ask for confirmation with more granular options
+    // If there are existing entries, show confirmation dialog
     if (daysWithExistingEntries.length > 0) {
-      const dayList = daysWithExistingEntries.map(day => format(new Date(day), 'MMM dd, yyyy')).join(', ');
-      const confirmMessage = `Entries already exist for the following days: ${dayList}\n\nDo you want to overwrite all entries for these days, or save only the new entries without overwriting existing ones?\n\nClick 'OK' to overwrite all entries, or 'Cancel' to save only new entries.`;
-      
-      const shouldOverwrite = confirm(confirmMessage);
-      
-      if (!shouldOverwrite) {
-        // User chose to save only new entries - remove days with existing entries
-        daysWithExistingEntries.forEach(dayKey => {
-          daysToSave.delete(dayKey);
-        });
+      setPendingSaveData({ daysToSave, daysWithExistingEntries });
+      setShowOverwriteDialog(true);
+      return;
+    }
+    
+          // No existing entries, proceed with saving
+  proceedWithSaving(daysToSave, []);
+};
+
+// Function to proceed with saving after confirmation
+const proceedWithSaving = (daysToSave: Map<string, Set<string>>, daysWithExistingEntries: string[]) => {
+  if (!currentUser) return;
+  
+  // Save project entries
+  Object.entries(weeklyData).forEach(([projectId, projectData]) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    
+    Object.entries(projectData).forEach(([dayKey, hours]) => {
+      if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('project')) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dayKey,
+          actualHours: hours.actual,
+          billableHours: hours.billable,
+          totalHours: hours.actual + hours.billable,
+          availableHours: dailyAvailableHours[dayKey] || 0,
+          task: hours.task || `Weekly entry for ${project.name}`,
+          projectDetails: {
+            category: 'project',
+            name: project.name,
+            level: '',
+            task: hours.task || '',
+            subtask: '',
+            description: hours.task || `Weekly time entry for ${project.name}`
+          } as ProjectDetail,
+          isBillable: hours.billable > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
       }
-    }
-    
-    // Save project entries
-    Object.entries(weeklyData).forEach(([projectId, projectData]) => {
-      const project = projects.find(p => p.id === projectId);
-      if (!project) return;
-      
-      Object.entries(projectData).forEach(([dayKey, hours]) => {
-        if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('project')) {
-          const timeEntry: TimeEntry = {
-            id: generateId(),
-            userId: currentUser.id,
-            userName: currentUser.name,
-            date: dayKey,
-            actualHours: hours.actual,
-            billableHours: hours.billable,
-            totalHours: hours.actual + hours.billable,
-            availableHours: dailyAvailableHours[dayKey] || 0,
-            task: hours.task || `Weekly entry for ${project.name}`,
-            projectDetails: {
-              category: 'project',
-              name: project.name,
-              level: '',
-              task: hours.task || '',
-              subtask: '',
-              description: hours.task || `Weekly time entry for ${project.name}`
-            } as ProjectDetail,
-            isBillable: hours.billable > 0,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          saveTimeEntry(timeEntry);
-        }
-      });
     });
+  });
 
-    // Save product entries
-    Object.entries(productWeeklyData).forEach(([productId, productData]) => {
-      const product = products.find(p => p.id === productId);
-      if (!product) return;
-      
-      Object.entries(productData).forEach(([dayKey, hours]) => {
-        if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('product')) {
-          const timeEntry: TimeEntry = {
-            id: generateId(),
-            userId: currentUser.id,
-            userName: currentUser.name,
-            date: dayKey,
-            actualHours: hours.actual,
-            billableHours: hours.billable,
-            totalHours: hours.actual + hours.billable,
-            availableHours: dailyAvailableHours[dayKey] || 0,
-            task: hours.task || `Weekly entry for ${product.name}`,
-            projectDetails: {
-              category: 'product',
-              name: product.name,
-              stage: '',
-              task: hours.task || '',
-              subtask: '',
-              description: hours.task || `Weekly time entry for ${product.name}`
-            } as ProjectDetail,
-            isBillable: hours.billable > 0,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          saveTimeEntry(timeEntry);
-        }
-      });
+  // Save product entries
+  Object.entries(productWeeklyData).forEach(([productId, productData]) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    Object.entries(productData).forEach(([dayKey, hours]) => {
+      if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('product')) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dayKey,
+          actualHours: hours.actual,
+          billableHours: hours.billable,
+          totalHours: hours.actual + hours.billable,
+          availableHours: dailyAvailableHours[dayKey] || 0,
+          task: hours.task || `Weekly entry for ${product.name}`,
+          projectDetails: {
+            category: 'product',
+            name: product.name,
+            stage: '',
+            task: hours.task || '',
+            subtask: '',
+            description: hours.task || `Weekly time entry for ${product.name}`
+          } as ProjectDetail,
+          isBillable: hours.billable > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+      }
     });
+  });
 
-    // Save department entries
-    Object.entries(departmentWeeklyData).forEach(([departmentId, departmentData]) => {
-      const department = departments.find(d => d.id === departmentId);
-      if (!department) return;
-      
-      Object.entries(departmentData).forEach(([dayKey, hours]) => {
-        if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('department')) {
-          const timeEntry: TimeEntry = {
-            id: generateId(),
-            userId: currentUser.id,
-            userName: currentUser.name,
-            date: dayKey,
-            actualHours: hours.actual,
-            billableHours: hours.billable,
-            totalHours: hours.actual + hours.billable,
-            availableHours: dailyAvailableHours[dayKey] || 0,
-            task: hours.task || `Weekly entry for ${department.name}`,
-            projectDetails: {
-              category: 'department',
-              name: department.name,
-              function: '',
-              task: hours.task || '',
-              subtask: '',
-              description: hours.task || `Weekly time entry for ${department.name}`
-            } as ProjectDetail,
-            isBillable: hours.billable > 0,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          saveTimeEntry(timeEntry);
-        }
-      });
+  // Save department entries
+  Object.entries(departmentWeeklyData).forEach(([departmentId, departmentData]) => {
+    const department = departments.find(d => d.id === departmentId);
+    if (!department) return;
+    
+    Object.entries(departmentData).forEach(([dayKey, hours]) => {
+      if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('department')) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dayKey,
+          actualHours: hours.actual,
+          billableHours: hours.billable,
+          totalHours: hours.actual + hours.billable,
+          availableHours: dailyAvailableHours[dayKey] || 0,
+          task: hours.task || `Weekly entry for ${department.name}`,
+          projectDetails: {
+            category: 'department',
+            name: department.name,
+            function: '',
+            task: hours.task || '',
+            subtask: '',
+            description: hours.task || `Weekly time entry for ${department.name}`
+          } as ProjectDetail,
+          isBillable: hours.billable > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+      }
     });
-    
-    const savedDaysCount = daysToSave.size;
-    const skippedDaysCount = daysWithExistingEntries.length - savedDaysCount;
-    
-    let message = `Weekly time entries saved successfully!`;
-    if (skippedDaysCount > 0) {
-      message += `\n${skippedDaysCount} days were skipped due to existing entries.`;
-    }
-    
-    toast.success(message);
-    setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
-  };
+  });
+  
+  const savedDaysCount = daysToSave.size;
+  const skippedDaysCount = daysWithExistingEntries.length - savedDaysCount;
+  
+  let message = `Weekly time entries saved successfully!`;
+  if (skippedDaysCount > 0) {
+    message += `\n${skippedDaysCount} days were skipped due to existing entries.`;
+  }
+  
+  toast.success(message);
+  setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
+};
 
-  // Helper function to check if entries exist for a specific date
+// Helper function to check if entries exist for a specific date
   const hasEntriesForDate = (date: Date): boolean => {
     if (!currentUser) return false;
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -1504,6 +1519,50 @@ export default function WeeklyTimeTracker() {
           getMonthlyDates={getMonthlyDates}
         />
       )}
+
+      {/* Confirmation Dialog for Overwriting Entries */}
+      <AlertDialog open={showOverwriteDialog} onOpenChange={setShowOverwriteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite Existing Entries?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSaveData && (
+                <>
+                  Entries already exist for the following days: {pendingSaveData.daysWithExistingEntries.map(day => format(new Date(day), 'MMM dd, yyyy')).join(', ')}
+                  <br /><br />
+                  Do you want to overwrite all entries for these days, or save only the new entries without overwriting existing ones?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              if (pendingSaveData) {
+                // User chose to save only new entries - remove days with existing entries
+                const { daysToSave, daysWithExistingEntries } = pendingSaveData;
+                daysWithExistingEntries.forEach(dayKey => {
+                  daysToSave.delete(dayKey);
+                });
+                proceedWithSaving(daysToSave, daysWithExistingEntries);
+              }
+              setShowOverwriteDialog(false);
+              setPendingSaveData(null);
+            }}>
+              Save Only New Entries
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (pendingSaveData) {
+                // User chose to overwrite all entries
+                proceedWithSaving(pendingSaveData.daysToSave, pendingSaveData.daysWithExistingEntries);
+              }
+              setShowOverwriteDialog(false);
+              setPendingSaveData(null);
+            }}>
+              Overwrite All Entries
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { TimeEntry, ApprovalAction } from "@/validation/index";
 import { rolePermissions } from "@/validation/index";
 import { useTimeEntries, useApprovalHistory, invalidateCache } from "@/hooks/useData";
 import { toast } from "@/components/ui/sonner";
+import { checkPermissionWithToast } from "@/utils/permissionUtils";
 
 export default function ApprovalWorkflow() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,9 +40,11 @@ export default function ApprovalWorkflow() {
   }, []);
 
   const handleApproval = useCallback((entry: TimeEntry, action: 'approve' | 'reject') => {
-    setSelectedEntry(entry);
-    setApprovalAction(action);
-    setApprovalMessage("");
+    if (checkPermissionWithToast('canApproveEntries', `${action} time entry`, 'manager')) {
+      setSelectedEntry(entry);
+      setApprovalAction(action);
+      setApprovalMessage("");
+    }
   }, []);
 
   const handleViewEntry = useCallback((entry: TimeEntry) => {

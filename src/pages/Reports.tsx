@@ -15,6 +15,7 @@ import { DateRange } from 'react-day-picker';
 import { useUsers, useTeams, useTimeEntries, useProjects, useProducts, useDepartments, invalidateCache } from '@/hooks/useData';
 import { toast } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
+import { checkPermissionWithToast } from '@/utils/permissionUtils';
 
 const Reports = () => {
 
@@ -57,17 +58,19 @@ const Reports = () => {
 
 
   const handleDeleteTeam = useCallback((teamId: string) => {
-    const team = teams.find(t => t.id === teamId);
-    if (team) {
-      deleteTeam(teamId);
-      // Reset team filter if this team was selected
-      if (teamFilter === teamId) {
-        setTeamFilter('all');
+    if (checkPermissionWithToast('canManageTeams', 'Delete team', 'manager')) {
+      const team = teams.find(t => t.id === teamId);
+      if (team) {
+        deleteTeam(teamId);
+        // Reset team filter if this team was selected
+        if (teamFilter === teamId) {
+          setTeamFilter('all');
+        }
+        // Invalidate cache and refresh data instead of reloading
+        invalidateCache('teams');
+        refreshTeams();
+        toast.success(`Team "${team.name}" deleted successfully`);
       }
-      // Invalidate cache and refresh data instead of reloading
-      invalidateCache('teams');
-      refreshTeams();
-      toast.success(`Team "${team.name}" deleted successfully`);
     }
   }, [teams, teamFilter, refreshTeams]);
 

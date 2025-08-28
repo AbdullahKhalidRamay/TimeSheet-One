@@ -7,6 +7,7 @@ import { Plus, FolderOpen, Edit2, Trash2 } from "lucide-react";
 import { Project } from "@/validation/index";
 import { getCurrentUser } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
+import { checkPermissionWithToast } from "@/utils/permissionUtils";
 import { useProjects } from "@/hooks/useData";
 
 interface ProjectsTabProps {
@@ -28,8 +29,10 @@ export default function ProjectsTab({
   const { projects, loading: projectsLoading } = useProjects();
 
   const handleEditProject = useCallback((project: Project) => {
-    setEditingProject(project);
-    setProjectFormOpen(true);
+    if (checkPermissionWithToast('canManageProjects', 'Edit project', 'manager')) {
+      setEditingProject(project);
+      setProjectFormOpen(true);
+    }
   }, [setEditingProject, setProjectFormOpen]);
 
   return (
