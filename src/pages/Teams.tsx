@@ -88,16 +88,7 @@ export default function Teams() {
       <Header 
         title="Teams"
       >
-        {permissions.canManageTeams && (
-          <Button onClick={() => setCreateTeamOpen(true)}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Create Team
-          </Button>
-        )}
-        <Button variant="outline">
-          <Users className="mr-2 h-4 w-4" />
-          Export
-        </Button>
+       
       </Header>
 
       <div className="dashboard-content">
@@ -171,7 +162,18 @@ export default function Teams() {
               />
             </div>
             <span className="text-sm text-muted-foreground">{filteredUsers.length} members</span>
+             {permissions.canManageTeams && (
+          <Button onClick={() => setCreateTeamOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Create Team
+          </Button>
+        )}
+        <Button variant="outline">
+          <Users className="mr-2 h-4 w-4" />
+          Export
+        </Button>
           </div>
+          
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium">Filter:</span>
