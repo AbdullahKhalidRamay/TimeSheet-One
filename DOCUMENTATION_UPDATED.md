@@ -156,7 +156,6 @@ CREATE TABLE Users (
     Name NVARCHAR(100) NOT NULL,
     Role NVARCHAR(20) NOT NULL,
     JobTitle NVARCHAR(100) NOT NULL,
-    BillableRate DECIMAL(10,2) NULL,
     AvailableHours DECIMAL(5,2) NOT NULL DEFAULT 8.0,
     TotalBillableHours DECIMAL(10,2) NOT NULL DEFAULT 0.0,
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
@@ -174,9 +173,6 @@ CREATE TABLE TimeEntries (
     UserId UNIQUEIDENTIFIER NOT NULL,
     ProjectId UNIQUEIDENTIFIER NOT NULL,
     Date DATE NOT NULL,
-    ClockIn TIME NULL,
-    ClockOut TIME NULL,
-    BreakTime INT NULL,
     ActualHours DECIMAL(5,2) NOT NULL,
     BillableHours DECIMAL(5,2) NOT NULL,
     TotalHours DECIMAL(5,2) NOT NULL,
@@ -214,49 +210,7 @@ CREATE INDEX IX_Projects_Status ON Projects(Status);
 CREATE INDEX IX_Projects_IsBillable ON Projects(IsBillable);
 ```
 
-#### ProjectLevels Table
-```sql
-CREATE TABLE ProjectLevels (
-    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    ProjectId UNIQUEIDENTIFIER NOT NULL,
-    Name NVARCHAR(100) NOT NULL,
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    FOREIGN KEY (ProjectId) REFERENCES Projects(Id) ON DELETE CASCADE
-);
 
-CREATE INDEX IX_ProjectLevels_ProjectId ON ProjectLevels(ProjectId);
-```
-
-#### ProjectTasks Table
-```sql
-CREATE TABLE ProjectTasks (
-    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    LevelId UNIQUEIDENTIFIER NOT NULL,
-    Name NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(MAX),
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    FOREIGN KEY (LevelId) REFERENCES ProjectLevels(Id) ON DELETE CASCADE
-);
-
-CREATE INDEX IX_ProjectTasks_LevelId ON ProjectTasks(LevelId);
-```
-
-#### ProjectSubtasks Table
-```sql
-CREATE TABLE ProjectSubtasks (
-    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    TaskId UNIQUEIDENTIFIER NOT NULL,
-    Name NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(MAX),
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    FOREIGN KEY (TaskId) REFERENCES ProjectTasks(Id) ON DELETE CASCADE
-);
-
-CREATE INDEX IX_ProjectSubtasks_TaskId ON ProjectSubtasks(TaskId);
-```
 
 #### Teams Table
 ```sql
@@ -376,7 +330,6 @@ erDiagram
         string name
         string role
         string jobTitle
-        decimal billableRate
         decimal availableHours
         decimal totalBillableHours
         datetime createdAt
@@ -388,9 +341,6 @@ erDiagram
         uuid userId FK
         uuid projectId FK
         date date
-        time clockIn
-        time clockOut
-        int breakTime
         decimal actualHours
         decimal billableHours
         decimal totalHours
@@ -565,9 +515,6 @@ public class TimeFlowDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<TimeEntry> TimeEntries { get; set; }
     public DbSet<Project> Projects { get; set; }
-    public DbSet<ProjectLevel> ProjectLevels { get; set; }
-    public DbSet<ProjectTask> ProjectTasks { get; set; }
-    public DbSet<ProjectSubtask> ProjectSubtasks { get; set; }
     public DbSet<Department> Departments { get; set; }
     public DbSet<Team> Teams { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
@@ -950,3 +897,90 @@ Future enhancements could include:
 3. Integration with external systems (e.g., payroll, project management tools)
 4. Mobile app support with push notifications
 5. AI-powered insights and recommendations
+
+## Backend Development Requirements
+
+### Technology Stack
+- **Framework**: ASP.NET Core 8.0+
+- **Database**: SQL Server 2019+
+- **ORM**: Entity Framework Core 8.0+
+- **Authentication**: JWT Bearer Tokens
+- **API Style**: RESTful API with JSON responses
+- **Caching**: In-memory and Redis caching
+- **Background Services**: Hosted services for scheduled tasks
+- **API Versioning**: Support for multiple API versions
+- **Rate Limiting**: API rate limiting for security
+- **Logging**: Structured logging with Serilog
+
+### Business Logic Requirements
+
+#### 1. Time Entry Validation
+- Users cannot log more hours than their available hours per day
+- Time entries must have valid project/product/department associations
+- Actual hours and billable hours must be logical (billable hours ≤ actual hours)
+- Total hours must equal actual hours
+
+#### 2. Approval Workflow
+- Time entries start with 'pending' status
+- Managers and owners can approve/reject entries
+- Rejected entries require comments
+- Approved entries update user's total billable hours
+- Notifications sent on status changes
+
+#### 3. Role-Based Access Control
+- **Employee**: Can only view/edit their own time entries
+- **Manager**: Can view/edit team members' entries, approve/reject entries
+- **Owner**: Full system access, can manage all entities
+
+#### 4. Data Consistency
+- Cascade deletes for related entities
+- Referential integrity constraints
+- Soft deletes for critical data (optional)
+
+### API Response Format
+All API responses should follow this standard format:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "Operation completed successfully",
+  "errors": null
+}
+```
+
+### Error Handling
+- HTTP status codes: 200, 201, 400, 401, 403, 404, 500
+- Consistent error message format
+- Detailed validation error responses
+- Logging of all errors with appropriate levels
+
+### Security Requirements
+- JWT token expiration: 24 hours
+- Password hashing using BCrypt
+- API rate limiting: 100 requests per minute per user
+- CORS configuration for frontend domain
+- Input validation and sanitization
+- SQL injection prevention through parameterized queries
+
+### Performance Requirements
+- API response time: < 200ms for simple operations
+- Database query optimization with proper indexing
+- Caching strategy for frequently accessed data
+- Pagination for large data sets
+- Async/await pattern for all I/O operations
+
+### Testing Requirements
+- Unit tests for all business logic
+- Integration tests for API endpoints
+- Database migration tests
+- Performance tests for critical endpoints
+- Security tests for authentication/authorization
+
+### Deployment Requirements
+- Docker containerization
+- Environment-specific configuration files
+- Health check endpoints
+- Monitoring and logging integration
+- Database migration scripts
+- Backup and recovery procedures

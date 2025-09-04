@@ -314,28 +314,27 @@ TimeFlow is a comprehensive time tracking and project management system designed
 ### ⏰ Time Tracking System
 
 #### Time Entry Methods
-1. **Simple Entry Form** (1st Approach)
-   - Single time entry with project/product/department selection
-   - Automatic billable status determination
-   - Task description with available hours tracking
+1. **Weekly Tile Tracker** (Primary Method)
+   - Week-view time entry interface with tile-based input
+   - Direct hour input (actual and billable hours)
+   - Bulk entry capabilities for multiple projects/products/departments
+   - No clock in/out required - simple and efficient
 
-2. **Daily Tracker Form** (Advanced)
-   - Multiple project entries per day
-   - Real-time hour calculations
-   - Hierarchical project structure (Levels → Tasks → Subtasks)
-   - Break time management
-   - Billable/non-billable hour tracking
+2. **Edit Time Entry Form** (Legacy Support)
+   - Direct hour input for individual time entries
+   - Project/product/department selection
+   - Task description and billable status management
 
-3. **Weekly Time Tracker**
-   - Week-view time entry interface
-   - Bulk entry capabilities
-
-4. **Monthly Time Tracker**
+3. **Monthly Time Tracker**
    - Month-view time tracking
    - Monthly summary reports
 
+4. **Daily Time Tracker**
+   - Daily view for detailed time management
+
 #### Time Entry Features
 - **Project categorization**: Projects, Products, Departments
+- **Direct hour input**: Actual hours and billable hours (no clock in/out required)
 - **Hierarchical task structure**:
   - Projects: Levels → Tasks → Subtasks
   - Products: Stages → Tasks → Subtasks  
@@ -343,6 +342,7 @@ TimeFlow is a comprehensive time tracking and project management system designed
 - **Automatic billable calculation** based on project/product/department settings
 - **Edit and delete** pending entries
 - **Time validation** and hour limits
+- **Weekly bulk entry**: Efficient time tracking for entire weeks
 
 ### 📊 Timesheet Management
 - **View all time entries** with filtering and search

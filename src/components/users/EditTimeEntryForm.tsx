@@ -24,9 +24,8 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
     projectName: '',
     task: '',
     description: '',
-    clockIn: '',
-    clockOut: '',
-    breakTime: 30,
+    actualHours: 0,
+    billableHours: 0,
     isBillable: false,
   });
 
@@ -59,9 +58,8 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
         projectName: editingEntry.projectDetails.name,
         task: editingEntry.projectDetails.task || '',
         description: editingEntry.task || '', // Task description goes in description field
-        clockIn: editingEntry.clockIn,
-        clockOut: editingEntry.clockOut,
-        breakTime: editingEntry.breakTime,
+        actualHours: editingEntry.actualHours,
+        billableHours: editingEntry.billableHours,
         isBillable: editingEntry.isBillable,
       });
     } else if (!isOpen) {
@@ -72,9 +70,8 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
         projectName: '',
         task: '',
         description: '',
-        clockIn: '',
-        clockOut: '',
-        breakTime: 30,
+        actualHours: 0,
+        billableHours: 0,
         isBillable: false,
       });
     }
@@ -153,12 +150,9 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
       userId: currentUser.id,
       userName: currentUser.name,
       date: formData.date,
-      clockIn: formData.clockIn,
-      clockOut: formData.clockOut,
-      breakTime: formData.breakTime,
-      actualHours: 0, // Will be calculated
-      billableHours: 0, // Will be calculated
-      totalHours: 0, // Will be calculated
+      actualHours: formData.actualHours,
+      billableHours: formData.billableHours,
+      totalHours: formData.actualHours + formData.billableHours,
       availableHours: currentUser.availableHours,
       task: formData.description,
       projectDetails,
@@ -272,35 +266,27 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
           {/* Time Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="clockIn">Clock In</Label>
+              <Label htmlFor="actualHours">Actual Hours</Label>
               <Input
-                id="clockIn"
-                type="time"
-                value={formData.clockIn}
-                onChange={(e) => setFormData({ ...formData, clockIn: e.target.value })}
+                id="actualHours"
+                type="number"
+                value={formData.actualHours}
+                onChange={(e) => setFormData({ ...formData, actualHours: parseFloat(e.target.value) || 0 })}
+                min="0"
+                step="0.1"
               />
             </div>
             <div>
-              <Label htmlFor="clockOut">Clock Out</Label>
+              <Label htmlFor="billableHours">Billable Hours</Label>
               <Input
-                id="clockOut"
-                type="time"
-                value={formData.clockOut}
-                onChange={(e) => setFormData({ ...formData, clockOut: e.target.value })}
+                id="billableHours"
+                type="number"
+                value={formData.billableHours}
+                onChange={(e) => setFormData({ ...formData, billableHours: parseFloat(e.target.value) || 0 })}
+                min="0"
+                step="0.1"
               />
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="breakTime">Break Time (minutes)</Label>
-            <Input
-              id="breakTime"
-              type="number"
-              value={formData.breakTime}
-              onChange={(e) => setFormData({ ...formData, breakTime: parseInt(e.target.value) || 0 })}
-              min="0"
-              max="480"
-            />
           </div>
 
           {/* Billable Switch */}

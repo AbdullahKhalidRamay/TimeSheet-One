@@ -88,9 +88,6 @@ export const initializeSampleData = () => {
       userId: users[0].id, // CEO/Owner (current user)
       userName: users[0].name,
       date: new Date().toISOString().split('T')[0],
-      clockIn: '09:00',
-      clockOut: '17:00',
-      breakTime: 60,
       totalHours: 7,
       billableHours: 6,
       actualHours: 7,
@@ -112,9 +109,6 @@ export const initializeSampleData = () => {
       userId: users[3].id, // Employee
       userName: users[3].name,
       date: new Date().toISOString().split('T')[0],
-      clockIn: '09:00',
-      clockOut: '17:00',
-      breakTime: 60,
       totalHours: 7,
       billableHours: 6,
       actualHours: 7,
@@ -136,9 +130,6 @@ export const initializeSampleData = () => {
       userId: users[2].id, // Finance Manager
       userName: users[2].name,
       date: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Yesterday
-      clockIn: '08:30',
-      clockOut: '16:30',
-      breakTime: 30,
       totalHours: 7.5,
       billableHours: 7,
       actualHours: 7.5,

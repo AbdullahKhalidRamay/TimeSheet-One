@@ -59,7 +59,7 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<Navigate to="/tracker" replace />} />
+                  <Route index element={<Navigate to="/login" replace />} />
                   <Route path="tracker" element={<ErrorBoundary><TimeTracker /></ErrorBoundary>} />
                    <Route path="timesheet" element={<ErrorBoundary><Timesheet /></ErrorBoundary>} />
                   <Route path="projects" element={<ErrorBoundary><Projects /></ErrorBoundary>} />

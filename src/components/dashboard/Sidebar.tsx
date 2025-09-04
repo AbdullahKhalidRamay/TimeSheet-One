@@ -115,7 +115,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
              <Clock className="h-4 w-4" />
            </div>
            {!collapsed && (
-             <span className="text-subheading font-bold bg-gradient-primary bg-clip-text text-transparent">Timeflow</span>
+             <span className="text-subheading font-bold bg-gradient-primary bg-clip-text text-transparent">TimeTraceOne</span>
            )}
          </div>
                    <Button

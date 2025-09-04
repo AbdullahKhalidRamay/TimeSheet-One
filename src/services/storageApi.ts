@@ -298,27 +298,7 @@ export const generateId = (): string => {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
 };
 
-export const formatTime = (time: string): string => {
-  if (!time) return '--:--';
-  return time;
-};
 
-export const calculateHours = (clockIn: string, clockOut: string, breakTime: number = 0): number => {
-  if (!clockIn || !clockOut) return 0;
-  
-  const start = new Date(`2000-01-01T${clockIn}`);
-  const end = new Date(`2000-01-01T${clockOut}`);
-  
-  if (end < start) {
-    // Handle next day scenario
-    end.setDate(end.getDate() + 1);
-  }
-  
-  const diffMs = end.getTime() - start.getTime();
-  const diffHours = diffMs / (1000 * 60 * 60);
-  
-  return Math.max(0, diffHours - (breakTime / 60));
-};
 
 // Search and filter utilities
 export const searchTimeEntries = async (query: string, userId?: string): Promise<TimeEntry[]> => {

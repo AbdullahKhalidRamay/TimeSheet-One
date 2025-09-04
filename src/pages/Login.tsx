@@ -28,7 +28,7 @@ export default function Login() {
               <Clock className="h-6 w-6" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Timesheet Application</CardTitle>
+          <CardTitle className="text-2xl">TimeTraceOne</CardTitle>
           <CardDescription>
             Select a user role to access the application
           </CardDescription>

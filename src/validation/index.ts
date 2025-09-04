@@ -39,11 +39,8 @@ export interface TimeEntry {
   userId: string;
   userName: string;
   date: string;
-  clockIn?: string; // Made optional for backward compatibility
-  clockOut?: string; // Made optional for backward compatibility
-  breakTime?: number; // Made optional for backward compatibility
-  actualHours: number; // New field for actual hours worked
-  billableHours: number; // New field for billable hours
+  actualHours: number; // Hours worked
+  billableHours: number; // Billable hours
   totalHours?: number; // Sum of actual + billable hours (deprecated)
   availableHours?: number; // User's available hours from profile
   task: string;
