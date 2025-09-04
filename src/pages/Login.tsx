@@ -2,20 +2,35 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllUsers, setCurrentUser } from "../lib/auth";
-import { Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { Clock, Loader2 } from "lucide-react";
 
 export default function Login() {
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [email, setEmail] = useState("admin@timeflow.com");
+  const [password, setPassword] = useState("Admin123!");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
-  const users = getAllUsers();
+  const { login } = useAuth();
 
-  const handleLogin = () => {
-    const user = users.find(u => u.id === selectedUserId);
-    if (user) {
-      setCurrentUser(user);
-      navigate("/tracker");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const success = await login({ email, password });
+      if (success) {
+        navigate("/tracker");
+      } else {
+        setError("Invalid credentials. Please try again.");
+      }
+    } catch (err) {
+      setError("Login failed. Please check your connection and try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -34,43 +49,60 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select User</label>
-            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a user..." />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{user.name}</span>
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <span>{user.jobTitle}</span>
-                        <span>•</span>
-                        <span>({user.role.charAt(0).toUpperCase() + user.role.slice(1)})</span>
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <Button 
-            onClick={handleLogin} 
-            disabled={!selectedUserId}
-            className="w-full"
-          >
-            Login
-          </Button>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                disabled={isLoading}
+              />
+            </div>
+            
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+                {error}
+              </div>
+            )}
+            
+            <Button 
+              type="submit"
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                'Login'
+              )}
+            </Button>
+          </form>
           
           <div className="text-sm text-muted-foreground space-y-1">
-            <p><strong>Demo Users:</strong></p>
-            <p>• Owner (CEO/President/VP) - Full access to all features</p>
-            <p>• Manager (Various departments) - Access to management features</p>
-            <p>• Employee (Various roles) - Basic timesheet access</p>
-            <p className="text-xs mt-2">Total: {users.length} users available</p>
+            <p><strong>Demo Credentials:</strong></p>
+            <p>• Email: admin@timeflow.com</p>
+            <p>• Password: Admin123!</p>
+            <p className="text-xs mt-2">Connect to TimeTraceOne Backend API</p>
           </div>
         </CardContent>
       </Card>

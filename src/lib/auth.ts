@@ -1,6 +1,6 @@
 import { User, UserRole } from '@/validation/index';
 
-const CURRENT_USER_KEY = 'currentUser';
+const CURRENT_USER_KEY = 'user';
 const USERS_KEY = 'users';
 
 // Default users for demo
@@ -95,7 +95,7 @@ const defaultUsers: User[] = [
     email: 'emily.wilson@company.com',
     role: 'employee',
     jobTitle: 'IT Employee',
-    billableRate: 75,
+   
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -105,7 +105,7 @@ const defaultUsers: User[] = [
     email: 'james.garcia@company.com',
     role: 'employee',
     jobTitle: 'Sales Employee',
-    billableRate: 65,
+ 
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -115,7 +115,7 @@ const defaultUsers: User[] = [
     email: 'maria.lopez@company.com',
     role: 'employee',
     jobTitle: 'Marketing Employee',
-    billableRate: 70,
+    
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -125,7 +125,7 @@ const defaultUsers: User[] = [
     email: 'chris.taylor@company.com',
     role: 'employee',
     jobTitle: 'HR Employee',
-    billableRate: 60,
+   
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -135,7 +135,7 @@ const defaultUsers: User[] = [
     email: 'jennifer.martinez@company.com',
     role: 'employee',
     jobTitle: 'Finance Employee',
-    billableRate: 68,
+    
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -145,7 +145,7 @@ const defaultUsers: User[] = [
     email: 'daniel.white@company.com',
     role: 'employee',
     jobTitle: 'Customer Service Employee',
-    billableRate: 50,
+    
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -155,7 +155,7 @@ const defaultUsers: User[] = [
     email: 'ashley.jackson@company.com',
     role: 'employee',
     jobTitle: 'Operations Employee',
-    billableRate: 55,
+   
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -165,7 +165,7 @@ const defaultUsers: User[] = [
     email: 'matthew.harris@company.com',
     role: 'employee',
     jobTitle: 'Data Analyst',
-    billableRate: 80,
+ 
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -175,7 +175,7 @@ const defaultUsers: User[] = [
     email: 'nicole.clark@company.com',
     role: 'employee',
     jobTitle: 'Software Developer',
-    billableRate: 85,
+   
     availableHours: 8,
     totalBillableHours: 0,
   },
@@ -185,7 +185,7 @@ const defaultUsers: User[] = [
     email: 'ryan.lewis@company.com',
     role: 'employee',
     jobTitle: 'Business Analyst',
-    billableRate: 78,
+    
     availableHours: 8,
     totalBillableHours: 0,
   },
