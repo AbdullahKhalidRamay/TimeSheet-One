@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,43 +7,57 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CheckSquare, X, Check, Clock, History, MessageSquare, Search, DollarSign } from "lucide-react";
+import EnhancedDetailView from "@/components/ui/EnhancedDetailView";
+import { CheckSquare, X, Check, Clock, History, MessageSquare, Search, DollarSign, Eye } from "lucide-react";
 import Header from "@/components/dashboard/Header";
 import { getCurrentUser } from "@/lib/auth";
-import { getTimeEntries, updateTimeEntryStatus, getApprovalHistory } from "@/services/storage";
+import { updateTimeEntryStatus } from "@/services/storage";
 import { TimeEntry, ApprovalAction } from "@/validation/index";
 import { rolePermissions } from "@/validation/index";
+import { useTimeEntries, useApprovalHistory, invalidateCache } from "@/hooks/useData";
+import { toast } from "@/components/ui/sonner";
+import { checkPermissionWithToast } from "@/utils/permissionUtils";
 
 export default function ApprovalWorkflow() {
-  const [pendingEntries, setPendingEntries] = useState<TimeEntry[]>([]);
-  const [approvalHistory, setApprovalHistory] = useState<ApprovalAction[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [approvalMessage, setApprovalMessage] = useState("");
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
+  const [viewingEntry, setViewingEntry] = useState<TimeEntry | null>(null);
+  const [isDetailViewOpen, setDetailViewOpen] = useState(false);
   const currentUser = getCurrentUser();
 
-  useEffect(() => {
-    loadData();
+  const { timeEntries, refreshTimeEntries } = useTimeEntries();
+  const { approvalHistory, refreshApprovalHistory } = useApprovalHistory();
+
+  const loadData = useCallback(() => {
+    refreshTimeEntries();
+    refreshApprovalHistory();
+  }, [refreshTimeEntries, refreshApprovalHistory]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
   }, []);
 
-  const loadData = () => {
-    const allEntries = getTimeEntries();
-    setPendingEntries(allEntries.filter(entry => entry.status === 'pending'));
-    setApprovalHistory(getApprovalHistory());
-  };
+  const handleApproval = useCallback((entry: TimeEntry, action: 'approve' | 'reject') => {
+    if (checkPermissionWithToast('canApproveEntries', `${action} time entry`, 'manager')) {
+      setSelectedEntry(entry);
+      setApprovalAction(action);
+      setApprovalMessage("");
+    }
+  }, []);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
+  const handleViewEntry = useCallback((entry: TimeEntry) => {
+    setViewingEntry(entry);
+    setDetailViewOpen(true);
+  }, []);
 
-  const handleApproval = (entry: TimeEntry, action: 'approve' | 'reject') => {
-    setSelectedEntry(entry);
-    setApprovalAction(action);
-    setApprovalMessage("");
-  };
+  const handleCloseDetailView = useCallback(() => {
+    setDetailViewOpen(false);
+    setViewingEntry(null);
+  }, []);
 
-  const submitApproval = () => {
+  const submitApproval = useCallback(() => {
     if (!selectedEntry || !currentUser || !approvalMessage.trim()) return;
 
     const status = approvalAction === 'approve' ? 'approved' : 'rejected';
@@ -51,30 +65,41 @@ export default function ApprovalWorkflow() {
     
     setSelectedEntry(null);
     setApprovalMessage("");
+    invalidateCache('timeEntries');
+    invalidateCache('approvalHistory');
     loadData();
-  };
+    toast.success(`Timesheet entry ${status} successfully!`);
+  }, [selectedEntry, currentUser, approvalMessage, approvalAction, loadData]);
 
-  const filteredPendingEntries = pendingEntries.filter(entry => {
-    if (!searchQuery) return true;
-    return (
-      entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.date.includes(searchQuery)
-    );
-  });
+  const pendingEntries = useMemo(() => {
+    return timeEntries.filter(entry => entry.status === 'pending');
+  }, [timeEntries]);
 
-  const filteredHistory = approvalHistory.filter(action => {
-    if (!searchQuery) return true;
-    const entry = getTimeEntries().find(e => e.id === action.entryId);
-    if (!entry) return false;
-    return (
-      entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      action.message.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  const filteredPendingEntries = useMemo(() => {
+    return pendingEntries.filter(entry => {
+      if (!searchQuery) return true;
+      return (
+        entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.date.includes(searchQuery)
+      );
+    });
+  }, [pendingEntries, searchQuery]);
+
+  const filteredHistory = useMemo(() => {
+    return approvalHistory.filter(action => {
+      if (!searchQuery) return true;
+      const entry = timeEntries.find(e => e.id === action.entryId);
+      if (!entry) return false;
+      return (
+        entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        action.message.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  }, [approvalHistory, searchQuery, timeEntries]);
 
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
@@ -167,13 +192,13 @@ export default function ApprovalWorkflow() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[900px]">
+                    <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Project Details</TableHead>
-                      <TableHead>Task</TableHead>
                       <TableHead>Actual Hours</TableHead>
                       <TableHead>Billable Hours</TableHead>
                       <TableHead>Available Hours</TableHead>
@@ -201,9 +226,6 @@ export default function ApprovalWorkflow() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="max-w-48 truncate">{entry.task}</div>
-                        </TableCell>
                         <TableCell>{(entry.actualHours || 0).toFixed(1)}h</TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-1">
@@ -219,6 +241,14 @@ export default function ApprovalWorkflow() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewEntry(entry)}
+                              className="text-gray-600 hover:text-gray-800"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Dialog>
                               <DialogTrigger asChild>
                                 <Button 
@@ -310,6 +340,7 @@ export default function ApprovalWorkflow() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -324,8 +355,9 @@ export default function ApprovalWorkflow() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[900px]">
+                    <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
@@ -340,7 +372,7 @@ export default function ApprovalWorkflow() {
                   </TableHeader>
                   <TableBody>
                     {filteredHistory.map((action) => {
-                      const entry = getTimeEntries().find(e => e.id === action.entryId);
+                      const entry = timeEntries.find(e => e.id === action.entryId);
                       if (!entry) return null;
                       
                       return (
@@ -378,11 +410,19 @@ export default function ApprovalWorkflow() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      <EnhancedDetailView
+        isOpen={isDetailViewOpen}
+        onClose={handleCloseDetailView}
+        data={viewingEntry}
+        type="approval"
+      />
     </div>
   );
 }

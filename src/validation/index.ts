@@ -30,7 +30,6 @@ export interface User {
   email: string;
   role: UserRole;
   jobTitle: JobTitle;
-  billableRate?: number;
   availableHours: number;
   totalBillableHours: number;
 }
@@ -40,11 +39,8 @@ export interface TimeEntry {
   userId: string;
   userName: string;
   date: string;
-  clockIn?: string; // Made optional for backward compatibility
-  clockOut?: string; // Made optional for backward compatibility
-  breakTime?: number; // Made optional for backward compatibility
-  actualHours: number; // New field for actual hours worked
-  billableHours: number; // New field for billable hours
+  actualHours: number; // Hours worked
+  billableHours: number; // Billable hours
   totalHours?: number; // Sum of actual + billable hours (deprecated)
   availableHours?: number; // User's available hours from profile
   task: string;
@@ -58,96 +54,40 @@ export interface TimeEntry {
 export interface ProjectDetail {
   category: 'project' | 'product' | 'department';
   name: string;
-  level?: string;
-  stage?: string;
-  function?: string;
   task: string;
-  subtask?: string;
   description: string;
 }
 
 export interface Project {
   id: string;
   name: string;
-  levels: ProjectLevel[];
+  description: string;
+  projectType: 'Fixed Cost' | 'Time and Material' | 'Full Time Employed';
+  clientName: string;
+  clientEmail: string;
   isBillable: boolean;
+  department?: string;
+  associatedProducts?: string[];
   createdBy: string;
   createdAt: string;
-}
-
-export interface ProjectLevel {
-  id: string;
-  name: string;
-  tasks: ProjectTask[];
-}
-
-export interface ProjectTask {
-  id: string;
-  name: string;
-  description: string;
-  subtasks: ProjectSubtask[];
-}
-
-export interface ProjectSubtask {
-  id: string;
-  name: string;
-  description: string;
 }
 
 export interface Product {
   id: string;
   name: string;
-  stages: ProductStage[];
+  productDescription: string;
   isBillable: boolean;
   createdBy: string;
   createdAt: string;
-}
-
-export interface ProductStage {
-  id: string;
-  name: string;
-  tasks: ProductTask[];
-}
-
-export interface ProductTask {
-  id: string;
-  name: string;
-  description: string;
-  subtasks: ProductSubtask[];
-}
-
-export interface ProductSubtask {
-  id: string;
-  name: string;
-  description: string;
 }
 
 export interface Department {
   id: string;
   name: string;
-  functions: DepartmentFunction[];
+  departmentDescription: string;
   isBillable: boolean;
   createdBy: string;
   createdAt: string;
-}
-
-export interface DepartmentFunction {
-  id: string;
-  name: string;
-  duties: DepartmentDuty[];
-}
-
-export interface DepartmentDuty {
-  id: string;
-  name: string;
-  description: string;
-  subduties: DepartmentSubduty[];
-}
-
-export interface DepartmentSubduty {
-  id: string;
-  name: string;
-  description: string;
 }
 
 export interface Team {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Bell, Clock, Calendar, BarChart3, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,35 +14,37 @@ import { getCurrentUser } from '@/lib/auth';
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [reminders, setReminders] = useState<Reminder[]>([]);
-  const currentUser = getCurrentUser();
+  const currentUser = useMemo(() => getCurrentUser(), []);
 
-  const loadReminders = () => {
+  const loadReminders = useCallback(() => {
     if (currentUser) {
       const unreadReminders = getUnreadReminders(currentUser.id);
       setReminders(unreadReminders);
     }
-  };
+  }, [currentUser?.id]);
 
   useEffect(() => {
-    loadReminders();
-    // Refresh reminders every 5 minutes
-    const interval = setInterval(loadReminders, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [currentUser]);
+    if (currentUser) {
+      loadReminders();
+    }
+  }, [currentUser?.id, loadReminders]);
 
-  const handleMarkAsRead = (reminderId: string) => {
+  const handleMarkAsRead = useCallback((reminderId: string) => {
     markReminderAsRead(reminderId);
-    loadReminders();
-  };
+    // Update local state directly instead of reloading
+    setReminders(prev => prev.filter(r => r.id !== reminderId));
+  }, []);
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = useCallback(() => {
+    // Mark all current reminders as read
     reminders.forEach(reminder => {
       markReminderAsRead(reminder.id);
     });
-    loadReminders();
-  };
+    // Clear local state
+    setReminders([]);
+  }, [reminders]);
 
-  const getReminderIcon = (type: string) => {
+  const getReminderIcon = useCallback((type: string) => {
     switch (type) {
       case 'daily':
         return <Clock className="h-4 w-4 text-blue-500" />;
@@ -53,9 +55,9 @@ export default function NotificationBell() {
       default:
         return <Bell className="h-4 w-4" />;
     }
-  };
+  }, []);
 
-  const getReminderTypeColor = (type: string) => {
+  const getReminderTypeColor = useCallback((type: string) => {
     switch (type) {
       case 'daily':
         return 'bg-blue-100 border-blue-200';
@@ -66,9 +68,9 @@ export default function NotificationBell() {
       default:
         return 'bg-gray-100 border-gray-200';
     }
-  };
+  }, []);
 
-  const formatRelativeTime = (dateString: string) => {
+  const formatRelativeTime = useCallback((dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
@@ -79,7 +81,7 @@ export default function NotificationBell() {
     if (diffInDays === 1) return 'Yesterday';
     if (diffInDays < 7) return `${diffInDays} days ago`;
     return date.toLocaleDateString();
-  };
+  }, []);
 
   if (!currentUser) return null;
 

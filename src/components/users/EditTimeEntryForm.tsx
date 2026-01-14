@@ -1,16 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { DatePicker } from "@/components/ui/date-picker";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Edit2, Trash2 } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
-import { saveTimeEntry, getProjects, getProducts, getDepartments, determineIsBillable, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments } from "@/services/storage";
-import { TimeEntry, ProjectDetail, Project, Product, Department } from "@/validation/index";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { TimeEntry, Project, Product, Department, ProjectDetail } from '@/validation/index';
+import { getCurrentUser } from '@/lib/auth';
+import { saveTimeEntry, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, getTimeEntries } from '@/services/storage';
 
 interface EditTimeEntryFormProps {
   isOpen: boolean;
@@ -24,22 +22,16 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
     date: new Date().toISOString().split('T')[0],
     category: '',
     projectName: '',
-    level: '',
     task: '',
-    subtask: '',
     description: '',
-    clockIn: '',
-    clockOut: '',
-    breakTime: 30,
+    actualHours: 0,
+    billableHours: 0,
     isBillable: false,
   });
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [availableLevels, setAvailableLevels] = useState<{ name: string; tasks?: unknown[]; duties?: unknown[] }[]>([]);
-  const [availableTasks, setAvailableTasks] = useState<{ name: string; subtasks?: unknown[]; tasks?: unknown[] }[]>([]);
-  const [availableSubtasks, setAvailableSubtasks] = useState<{ name: string }[]>([]);
   const [isBillableDisabled, setIsBillableDisabled] = useState(false);
 
   const currentUser = getCurrentUser();
@@ -64,13 +56,10 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
         date: editingEntry.date,
         category: editingEntry.projectDetails.category,
         projectName: editingEntry.projectDetails.name,
-        level: editingEntry.projectDetails.level,
-        task: editingEntry.projectDetails.task,
-        subtask: editingEntry.projectDetails.subtask,
-        description: editingEntry.task, // Note: task field contains description
-        clockIn: editingEntry.clockIn,
-        clockOut: editingEntry.clockOut,
-        breakTime: editingEntry.breakTime,
+        task: editingEntry.projectDetails.task || '',
+        description: editingEntry.task || '', // Task description goes in description field
+        actualHours: editingEntry.actualHours,
+        billableHours: editingEntry.billableHours,
         isBillable: editingEntry.isBillable,
       });
     } else if (!isOpen) {
@@ -79,380 +68,248 @@ export default function EditTimeEntryForm({ isOpen, onClose, onSuccess, editingE
         date: new Date().toISOString().split('T')[0],
         category: '',
         projectName: '',
-        level: '',
         task: '',
-        subtask: '',
         description: '',
-        clockIn: '',
-        clockOut: '',
-        breakTime: 30,
+        actualHours: 0,
+        billableHours: 0,
         isBillable: false,
       });
     }
   }, [editingEntry, isOpen]);
 
-  const loadLevels = useCallback(() => {
-    let levels: { name: string; tasks?: unknown[]; duties?: unknown[] }[] = [];
+  // Function to get unique tasks from existing time entries for the specific project/product/department
+  const getUniqueTasks = useCallback(() => {
+    const allEntries = getTimeEntries();
+    const tasks = new Set<string>();
     
-    if (formData.category === 'project') {
-      const project = projects.find(p => p.name === formData.projectName);
-      levels = project?.levels || [];
-    } else if (formData.category === 'product') {
-      const product = products.find(p => p.name === formData.projectName);
-      levels = product?.stages || [];
-    } else if (formData.category === 'department') {
-      const department = departments.find(d => d.name === formData.projectName);
-      levels = department?.functions || [];
-    }
-    
-    setAvailableLevels(levels);
-    setAvailableTasks([]);
-    setAvailableSubtasks([]);
-  }, [formData.category, formData.projectName, projects, products, departments]);
-
-  useEffect(() => {
-    if (formData.category && formData.projectName) {
-      loadLevels();
-      const billableStatus = determineIsBillable(formData.category as 'project' | 'product' | 'department', formData.projectName);
-      setFormData(prev => ({ ...prev, isBillable: billableStatus }));
-      setIsBillableDisabled(true);
-    } else {
-      setFormData(prev => ({ ...prev, isBillable: false }));
-      setIsBillableDisabled(false);
-    }
-  }, [formData.category, formData.projectName, loadLevels]);
-
-  const loadTasks = useCallback(() => {
-    let tasks: { name: string; subtasks?: unknown[]; tasks?: unknown[] }[] = [];
-    
-    const level = availableLevels.find(l => l.name === formData.level);
-    if (level) {
-      if (formData.category === 'project') {
-        tasks = (level.tasks as { name: string; subtasks?: unknown[] }[]) || [];
-      } else if (formData.category === 'product') {
-        tasks = (level.tasks as { name: string; subtasks?: unknown[] }[]) || [];
-      } else if (formData.category === 'department') {
-        tasks = (level.duties as { name: string; tasks?: unknown[] }[]) || [];
+    allEntries.forEach(entry => {
+      if (entry.projectDetails?.category === formData.category && 
+          entry.projectDetails?.name === formData.projectName &&
+          entry.projectDetails?.task &&
+          entry.projectDetails.task.trim() !== '') {
+        tasks.add(entry.projectDetails.task);
       }
-    }
+    });
     
-    setAvailableTasks(tasks);
-    setAvailableSubtasks([]);
-  }, [availableLevels, formData.level, formData.category]);
+    return Array.from(tasks).sort();
+  }, [formData.category, formData.projectName]);
 
-  const loadSubtasks = useCallback(() => {
-    let subtasks: { name: string }[] = [];
-    
-    const task = availableTasks.find(t => t.name === formData.task);
-    if (task) {
-      if (formData.category === 'department') {
-        subtasks = (task.tasks as { name: string }[]) || [];
-      } else {
-        subtasks = (task.subtasks as { name: string }[]) || [];
-      }
-    }
-    
-    setAvailableSubtasks(subtasks);
-  }, [availableTasks, formData.task, formData.category]);
-
-  useEffect(() => {
-    if (formData.level) {
-      loadTasks();
-    }
-  }, [formData.level, loadTasks]);
-
-  useEffect(() => {
-    if (formData.task) {
-      loadSubtasks();
-    }
-  }, [formData.task, loadSubtasks]);
-
-  const handleInputChange = (field: string, value: string | number | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Reset dependent fields when parent changes
-    if (field === 'category' || field === 'projectName') {
-      setFormData(prev => ({ ...prev, level: '', task: '', subtask: '' }));
-    } else if (field === 'level') {
-      setFormData(prev => ({ ...prev, task: '', subtask: '' }));
-    } else if (field === 'task') {
-      setFormData(prev => ({ ...prev, subtask: '' }));
+  // Get available project/product/department names based on category
+  const getAvailableNames = () => {
+    switch (formData.category) {
+      case 'project':
+        return projects.map(p => p.name);
+      case 'product':
+        return products.map(p => p.name);
+      case 'department':
+        return departments.map(d => d.name);
+      default:
+        return [];
     }
   };
 
-  const handleSubmit = () => {
-    if (!currentUser || !editingEntry) return;
+  // Get available tasks for the selected project/product/department
+  const getAvailableTasks = () => {
+    return getUniqueTasks();
+  };
 
-    const availableHours = editingEntry.availableHours || currentUser.availableHours;
+  // Determine if billable based on project/product/department
+  const determineIsBillable = (category: string, name: string) => {
+    switch (category) {
+      case 'project': {
+        const project = projects.find(p => p.name === name);
+        return project?.isBillable || false;
+      }
+      case 'product': {
+        const product = products.find(p => p.name === name);
+        return product?.isBillable || false;
+      }
+      case 'department': {
+        const department = departments.find(d => d.name === name);
+        return department?.isBillable || false;
+      }
+      default:
+        return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentUser) return;
 
     const projectDetails: ProjectDetail = {
       category: formData.category as 'project' | 'product' | 'department',
       name: formData.projectName,
-      level: formData.level,
       task: formData.task,
-      subtask: formData.subtask,
       description: formData.description,
     };
 
-    const updatedTimeEntry: TimeEntry = {
-      ...editingEntry,
+    const timeEntry: TimeEntry = {
+      id: editingEntry?.id || Date.now().toString(),
+      userId: currentUser.id,
+      userName: currentUser.name,
       date: formData.date,
-      clockIn: formData.clockIn,
-      clockOut: formData.clockOut,
-      breakTime: formData.breakTime,
-      availableHours,
+      actualHours: formData.actualHours,
+      billableHours: formData.billableHours,
+      totalHours: formData.actualHours + formData.billableHours,
+      availableHours: currentUser.availableHours,
       task: formData.description,
       projectDetails,
       isBillable: formData.isBillable,
+      status: 'pending',
+      createdAt: editingEntry?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    saveTimeEntry(updatedTimeEntry);
+    saveTimeEntry(timeEntry);
     onSuccess();
-    handleClose();
-  };
-
-  const handleClose = () => {
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      category: '',
-      projectName: '',
-      level: '',
-      task: '',
-      subtask: '',
-      description: '',
-      clockIn: '',
-      clockOut: '',
-      breakTime: 30,
-      isBillable: false,
-    });
     onClose();
   };
 
-  const getProjectOptions = () => {
-    switch (formData.category) {
-      case 'project': return projects;
-      case 'product': return products;
-      case 'department': return departments;
-      default: return [];
-    }
-  };
-
-  const getLevelLabel = () => {
-    switch (formData.category) {
-      case 'project': return 'Project Level';
-      case 'product': return 'Product Stage';
-      case 'department': return 'Department Function';
-      default: return 'Level';
-    }
-  };
-
-  const getTaskLabel = () => {
-    switch (formData.category) {
-      case 'department': return 'Duty';
-      default: return 'Task';
-    }
-  };
-
-  const getSubtaskLabel = () => {
-    switch (formData.category) {
-      case 'department': return 'Task';
-      default: return 'Subtask';
-    }
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto bg-card border-border shadow-2xl">
-        <DialogHeader className="space-y-1">
-          <DialogTitle className="text-2xl font-semibold text-card-foreground flex items-center space-x-3">
-            <div className="p-2 bg-orange-100/30 rounded-lg">
-              <Edit2 className="h-6 w-6 text-orange-600" />
-            </div>
-            <span>Edit Time Entry</span>
-          </DialogTitle>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg sm:max-w-xl h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? 'Edit Time Entry' : 'Create Time Entry'}</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-6 p-6">
-          {/* Date and Category */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <DatePicker
-                date={formData.date ? new Date(formData.date) : undefined}
-                onDateChange={(date) => 
-                  handleInputChange('date', date ? date.toISOString().split('T')[0] : '')
-                }
-                placeholder="Select date"
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="project">Project</SelectItem>
-                  <SelectItem value="product">Product</SelectItem>
-                  <SelectItem value="department">Department</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Date */}
+          <div>
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              required
+            />
           </div>
 
-          {/* Project/Product/Department Selection */}
-          {formData.category && (
-            <div className="space-y-2">
-              <Label>{formData.category.charAt(0).toUpperCase() + formData.category.slice(1)} Name</Label>
-              <Select value={formData.projectName} onValueChange={(value) => handleInputChange('projectName', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder={`Select ${formData.category}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {getProjectOptions().map((item) => (
-                    <SelectItem key={item.id} value={item.name}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Level Selection */}
-          {formData.projectName && availableLevels.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="level">{getLevelLabel()}</Label>
-              <Select value={formData.level} onValueChange={(value) => handleInputChange('level', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder={`Select ${getLevelLabel()}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableLevels.map((level) => (
-                    <SelectItem key={level.id} value={level.name}>
-                      {level.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Task and Subtask */}
-          {formData.level && availableTasks.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task">{getTaskLabel()}</Label>
-                <Select value={formData.task} onValueChange={(value) => handleInputChange('task', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={`Select ${getTaskLabel()}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTasks.map((task) => (
-                      <SelectItem key={task.id} value={task.name}>
-                        {task.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.task && availableSubtasks.length > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="subtask">{getSubtaskLabel()}</Label>
-                  <Select value={formData.subtask} onValueChange={(value) => handleInputChange('subtask', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={`Select ${getSubtaskLabel()}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableSubtasks.map((subtask) => (
-                        <SelectItem key={subtask.id} value={subtask.name}>
-                          {subtask.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Time Inputs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="clockIn">Clock In</Label>
-              <Input
-                id="clockIn"
-                type="time"
-                value={formData.clockIn}
-                onChange={(e) => handleInputChange('clockIn', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clockOut">Clock Out</Label>
-              <Input
-                id="clockOut"
-                type="time"
-                value={formData.clockOut}
-                onChange={(e) => handleInputChange('clockOut', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="breakTime">Break (minutes)</Label>
-              <Input
-                id="breakTime"
-                type="number"
-                value={formData.breakTime}
-                onChange={(e) => handleInputChange('breakTime', parseInt(e.target.value) || 0)}
-              />
-            </div>
+          {/* Category */}
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value, projectName: '', task: '' })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="project">Project</SelectItem>
+                <SelectItem value="product">Product</SelectItem>
+                <SelectItem value="department">Department</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Task Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Task Description</Label>
+          {/* Project/Product/Department Name */}
+          <div>
+            <Label htmlFor="projectName">{formData.category ? formData.category.charAt(0).toUpperCase() + formData.category.slice(1) : 'Project/Product/Department'} Name</Label>
+                         <Select value={formData.projectName} onValueChange={(value) => {
+               const isBillable = determineIsBillable(formData.category, value);
+               setFormData({ 
+                 ...formData, 
+                 projectName: value, 
+                 task: '',
+                 isBillable
+               });
+               setIsBillableDisabled(isBillable);
+             }}>
+              <SelectTrigger>
+                <SelectValue placeholder={`Select ${formData.category || 'project/product/department'}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {getAvailableNames().map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Task */}
+          <div>
+            <Label htmlFor="task">Task</Label>
+            <Select value={formData.task} onValueChange={(value) => setFormData({ ...formData, task: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select or enter task" />
+              </SelectTrigger>
+              <SelectContent>
+                {getAvailableTasks().map((task) => (
+                  <SelectItem key={task} value={task}>
+                    {task}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Or enter a new task"
+              value={formData.task}
+              onChange={(e) => setFormData({ ...formData, task: e.target.value })}
+              className="mt-2"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              placeholder="What did you do in this sub-task?"
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              rows={3}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe what you worked on..."
+              required
             />
           </div>
 
-          {/* Billable Time */}
-          <div className="flex items-center space-x-3">
+          {/* Time Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="actualHours">Actual Hours</Label>
+              <Input
+                id="actualHours"
+                type="number"
+                value={formData.actualHours}
+                onChange={(e) => setFormData({ ...formData, actualHours: parseFloat(e.target.value) || 0 })}
+                min="0"
+                step="0.1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="billableHours">Billable Hours</Label>
+              <Input
+                id="billableHours"
+                type="number"
+                value={formData.billableHours}
+                onChange={(e) => setFormData({ ...formData, billableHours: parseFloat(e.target.value) || 0 })}
+                min="0"
+                step="0.1"
+              />
+            </div>
+          </div>
+
+          {/* Billable Switch */}
+          <div className="flex items-center space-x-2">
             <Switch
-              id="billable"
+              id="isBillable"
               checked={formData.isBillable}
+              onCheckedChange={(checked) => setFormData({ ...formData, isBillable: checked })}
               disabled={isBillableDisabled}
-              onCheckedChange={(checked) => !isBillableDisabled && handleInputChange('isBillable', checked)}
             />
-            <Label htmlFor="billable" className={`text-sm font-medium ${isBillableDisabled ? 'text-muted-foreground' : ''}`}>
-              💰 Billable Time {isBillableDisabled && '(Auto-determined)'}
-            </Label>
+            <Label htmlFor="isBillable">Billable</Label>
           </div>
-        </div>
 
-        <DialogFooter className="flex justify-between items-center border-t border-border pt-6">
-          <Button 
-            variant="outline" 
-            onClick={handleClose}
-            className="border-border text-foreground hover:bg-accent"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-all duration-200"
-          >
-            <Edit2 className="h-5 w-5 mr-2" />
-            Update Time Entry
-          </Button>
-        </DialogFooter>
+          {/* Submit Button */}
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              {isEditing ? 'Update' : 'Create'} Time Entry
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

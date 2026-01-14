@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,13 +7,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { DateRange } from "react-day-picker";
 import { Input } from "@/components/ui/input";
-import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon, Search } from "lucide-react";
+import { Calendar, Edit, Trash2, DollarSign, Clock, BarChart3, Timer, Calendar as CalendarIcon, Search, Eye } from "lucide-react";
 import Header from "@/components/dashboard/Header";
-import { getCurrentUser, getAllUsers } from "@/lib/auth";
-import { getTimeEntries, deleteTimeEntry, getProjects } from "@/services/storage";
+import { getCurrentUser } from "@/lib/auth";
+import { deleteTimeEntry } from "@/services/storage";
 import { TimeEntry, rolePermissions } from "@/validation/index";
 import { useNavigate } from "react-router-dom";
 import EditSingleTimeEntryForm from "@/components/users/EditSingleTimeEntryForm";
+import { useTimeEntries, useUsers, useProjects, useProducts, useDepartments, invalidateCache } from "@/hooks/useData";
+import { toast } from "@/components/ui/sonner";
+import EnhancedDetailView from "@/components/ui/EnhancedDetailView";
+import { checkTimeEntryPermission, checkPermissionWithToast } from "@/utils/permissionUtils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface GroupedEntry {
   date: string;
@@ -33,134 +47,197 @@ interface GroupedEntry {
 }
 
 export default function Timesheet() {
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [billableFilter, setBillableFilter] = useState("all");
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [projectFilter, setProjectFilter] = useState("all");
   const [isDailyTrackerOpen, setDailyTrackerOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [viewingEntry, setViewingEntry] = useState<TimeEntry | null>(null);
+  const [isDetailViewOpen, setDetailViewOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
-  const users = getAllUsers();
-  const projects = getProjects();
+  
+  const { timeEntries: allTimeEntries, refreshTimeEntries } = useTimeEntries();
+  const { users } = useUsers();
+  const { projects } = useProjects();
+  const { products } = useProducts();
+  const { departments } = useDepartments();
+
+  const timeEntries = useMemo(() => {
+    if (currentUser?.role === 'owner') {
+      return allTimeEntries;
+    } else if (currentUser?.role === 'manager') {
+      return allTimeEntries;
+    } else {
+      return allTimeEntries.filter(entry => entry.userId === currentUser?.id);
+    }
+  }, [allTimeEntries, currentUser]);
 
   const loadTimeEntries = useCallback(() => {
-    const allEntries = getTimeEntries();
-    
-    if (currentUser?.role === 'owner') {
-      setTimeEntries(allEntries);
-    } else if (currentUser?.role === 'manager') {
-      setTimeEntries(allEntries);
-    } else {
-      setTimeEntries(allEntries.filter(entry => entry.userId === currentUser?.id));
-    }
-  }, [currentUser]);
+    refreshTimeEntries();
+  }, [refreshTimeEntries]);
 
-  useEffect(() => {
-    loadTimeEntries();
-  }, [loadTimeEntries]);
-
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-  };
+  }, []);
 
-  const handleDeleteEntry = (entryId: string) => {
+  const handleUserClick = useCallback((userId: string) => {
+    setSelectedUser(userId === selectedUser ? null : userId);
+  }, [selectedUser]);
+
+  const handleDeleteEntry = useCallback((entryId: string) => {
     const entry = timeEntries.find(e => e.id === entryId);
-    if (entry && (entry.status === 'pending' || currentUser?.role === 'owner')) {
-      deleteTimeEntry(entryId);
+    if (entry && checkTimeEntryPermission(entry.userId, entry.status, 'delete')) {
+      setEntryToDelete(entryId);
+      setShowDeleteDialog(true);
+    }
+  }, [timeEntries]);
+
+  const confirmDeleteEntry = useCallback(() => {
+    if (entryToDelete) {
+      deleteTimeEntry(entryToDelete);
+      invalidateCache('timeEntries');
       loadTimeEntries();
+      toast.success('Time entry deleted successfully');
+      setEntryToDelete(null);
+      setShowDeleteDialog(false);
     }
-  };
+  }, [entryToDelete, loadTimeEntries]);
 
 
-  const filteredEntries = timeEntries.filter(entry => {
-    const matchesSearch = !searchQuery ||
-      entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.date.includes(searchQuery);
+  const filteredEntries = useMemo(() => {
+    return timeEntries.filter(entry => {
+      const matchesSearch = !searchQuery ||
+        entry.task.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.projectDetails.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.date.includes(searchQuery);
 
-    const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
-    
-    const entryDate = new Date(entry.date);
-    
-    // Date filtering logic - only use calendar date range
-    let matchesDateFilter = true;
-    
-    if (dateRange && dateRange.from) {
-      // Use calendar date range if selected
-      const startDate = new Date(dateRange.from);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(dateRange.to || dateRange.from);
-      endDate.setHours(23, 59, 59, 999);
-      matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
-    }
-    // If no date range is selected, show all entries (no date filtering)
+      const matchesStatus = statusFilter === 'all' || entry.status === statusFilter;
+      
+      const entryDate = new Date(entry.date);
+      
+      // Date filtering logic - only use calendar date range
+      let matchesDateFilter = true;
+      
+      if (dateRange && dateRange.from) {
+        // Use calendar date range if selected
+        const startDate = new Date(dateRange.from);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(dateRange.to || dateRange.from);
+        endDate.setHours(23, 59, 59, 999);
+        matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
+      }
+      // If no date range is selected, show all entries (no date filtering)
 
-    const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
-    const matchesBillable = billableFilter === 'all' || 
-      (billableFilter === 'billable' && entry.isBillable) ||
-      (billableFilter === 'non-billable' && !entry.isBillable);
-    const matchesProject = projectFilter === 'all' || entry.projectDetails.name === projects.find(p => p.id === projectFilter)?.name;
+      const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
+      const matchesBillable = billableFilter === 'all' || 
+        (billableFilter === 'billable' && entry.isBillable) ||
+        (billableFilter === 'non-billable' && !entry.isBillable);
+      const matchesProject = projectFilter === 'all' || 
+        (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
 
-    return matchesSearch && matchesStatus && matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
-  });
+      return matchesSearch && matchesStatus && matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
+    });
+  }, [timeEntries, searchQuery, statusFilter, dateRange, roleFilter, billableFilter, projectFilter, projects, products, departments]);
 
   // Get entries for overtime calculation (current month if no date filter)
-  const overtimeEntries = timeEntries.filter(entry => {
-    const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
-    const matchesBillable = billableFilter === 'all' || 
-      (billableFilter === 'billable' && entry.isBillable) ||
-      (billableFilter === 'non-billable' && !entry.isBillable);
-    const matchesProject = projectFilter === 'all' || entry.projectDetails.name === projects.find(p => p.id === projectFilter)?.name;
-    
-    const entryDate = new Date(entry.date);
-    let matchesDateFilter = true;
-    
-    if (dateRange && dateRange.from) {
-      // Use selected date range
-      const startDate = new Date(dateRange.from);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(dateRange.to || dateRange.from);
-      endDate.setHours(23, 59, 59, 999);
-      matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
-    } else {
-      // Default to current month if no date range selected
-      const now = new Date();
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      matchesDateFilter = entryDate >= currentMonthStart && entryDate <= currentMonthEnd;
-    }
+  const overtimeEntries = useMemo(() => {
+    return timeEntries.filter(entry => {
+      const matchesEmployee = roleFilter === 'all' || entry.userId === roleFilter;
+      const matchesBillable = billableFilter === 'all' || 
+        (billableFilter === 'billable' && entry.isBillable) ||
+        (billableFilter === 'non-billable' && !entry.isBillable);
+      const matchesProject = projectFilter === 'all' || 
+        (projectFilter.startsWith('project-') && entry.projectDetails.category === 'project' && projects.find(p => p.id === projectFilter.replace('project-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('product-') && entry.projectDetails.category === 'product' && products.find(p => p.id === projectFilter.replace('product-', ''))?.name === entry.projectDetails.name) ||
+        (projectFilter.startsWith('department-') && entry.projectDetails.category === 'department' && departments.find(d => d.id === projectFilter.replace('department-', ''))?.name === entry.projectDetails.name);
+      
+      const entryDate = new Date(entry.date);
+      let matchesDateFilter = true;
+      
+      if (dateRange && dateRange.from) {
+        // Use selected date range
+        const startDate = new Date(dateRange.from);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(dateRange.to || dateRange.from);
+        endDate.setHours(23, 59, 59, 999);
+        matchesDateFilter = entryDate >= startDate && entryDate <= endDate;
+      } else {
+        // Default to current month if no date range selected
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        matchesDateFilter = entryDate >= currentMonthStart && entryDate <= currentMonthEnd;
+      }
 
-    return matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
-  });
+      return matchesDateFilter && matchesEmployee && matchesBillable && matchesProject;
+    });
+  }, [timeEntries, roleFilter, billableFilter, projectFilter, projects, products, departments, dateRange]);
 
   // Group entries by date and sum hours for the same date
-  const groupedEntries = filteredEntries.reduce((groups, entry) => {
-    const date = entry.date;
-    if (!groups[date]) {
-      groups[date] = {
-        ...entry,
-        totalHours: 0,
-        entries: []
-      };
-    }
-    groups[date].totalHours += entry.totalHours;
-    groups[date].entries.push(entry);
-    return groups;
-  }, {} as Record<string, GroupedEntry>);
+  const groupedEntries = useMemo(() => {
+    return filteredEntries.reduce((groups, entry) => {
+      const date = entry.date;
+      if (!groups[date]) {
+        groups[date] = {
+          ...entry,
+          totalHours: 0,
+          entries: []
+        };
+      }
+      groups[date].totalHours += entry.totalHours;
+      groups[date].entries.push(entry);
+      return groups;
+    }, {} as Record<string, GroupedEntry>);
+  }, [filteredEntries]);
 
-  // Calculate summary statistics based on grouped data
-  const dailySummaries = Object.values(groupedEntries);
-  const totalActualHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.entries.reduce((sumHours: number, entry: TimeEntry) => sumHours + entry.actualHours, 0), 0);
-  const totalBillableHours = dailySummaries.reduce((sum, day: GroupedEntry) => sum + day.entries.reduce((sumHours: number, entry: TimeEntry) => sumHours + (entry.isBillable ? entry.billableHours : 0), 0), 0);
-  const daysWorked = dailySummaries.length;
+  const getStatsForEntries = useCallback((entries: TimeEntry[]) => {
+    const dailyEntries = entries.reduce((acc: { [key: string]: TimeEntry[] }, entry) => {
+      const date = entry.date;
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(entry);
+      return acc;
+    }, {});
+
+    const daysWorked = Object.keys(dailyEntries).length;
+    const totalActualHours = entries.reduce((sum, entry) => sum + entry.actualHours, 0);
+    const totalBillableHours = entries.reduce((sum, entry) => sum + (entry.isBillable ? entry.billableHours : 0), 0);
+    const averageHours = daysWorked ? totalActualHours / daysWorked : 0;
+
+    return {
+      totalActualHours,
+      totalBillableHours,
+      daysWorked,
+      averageHours,
+      entries
+    };
+  }, []);
+
+  // Get entries based on current selection
+  const getFilteredStats = useCallback(() => {
+    let entriesToUse = filteredEntries;
+    if (selectedUser) {
+      entriesToUse = filteredEntries.filter(entry => entry.userId === selectedUser);
+    }
+    return getStatsForEntries(entriesToUse);
+  }, [filteredEntries, selectedUser, getStatsForEntries]);
+
+  const stats = useMemo(() => getFilteredStats(), [getFilteredStats]);
+  const totalActualHours = stats.totalActualHours;
+  const totalBillableHours = stats.totalBillableHours;
+  const daysWorked = stats.daysWorked;
   
   // Calculate overtime based on total expected hours for the period
-  const calculateOvertimeHours = () => {
+  const calculateOvertimeHours = useCallback(() => {
     const standardDailyHours = 8;
     
     // Calculate total actual hours from overtime entries
@@ -203,42 +280,36 @@ export default function Timesheet() {
     // Calculate overtime (total actual - expected, but never negative)
     const overtime = Math.max(0, totalActualHoursForOvertime - expectedHours);
     return overtime;
-  };
+  }, [overtimeEntries, dateRange]);
   
-  const overtimeCalculated = calculateOvertimeHours();
-  const averageHours = totalActualHours / (daysWorked || 1);
+  const overtimeCalculated = useMemo(() => calculateOvertimeHours(), [calculateOvertimeHours]);
+  const averageHours = useMemo(() => totalActualHours / (daysWorked || 1), [totalActualHours, daysWorked]);
   
   // Get current user's available hours
   const availableHours = currentUser?.availableHours || 0;
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'approved': return 'bg-green-600 text-white';
       case 'rejected': return 'bg-red-600 text-white';
       case 'pending': return 'bg-yellow-500 text-black';
       default: return 'bg-gray-200 text-gray-800';
     }
-  };
+  }, []);
 
-  const canEdit = (entry: TimeEntry) => {
-    if (currentUser?.role === 'owner') return true;
-    if (currentUser?.role === 'manager') return entry.status === 'pending';
-    if (entry.userId !== currentUser?.id) return false;
-    return entry.status === 'pending';
-  };
+  const canEdit = useCallback((entry: TimeEntry) => {
+    return checkTimeEntryPermission(entry.userId, entry.status, 'edit');
+  }, []);
 
-  const canDelete = (entry: TimeEntry) => {
-    if (currentUser?.role === 'owner') return true;
-    if (currentUser?.role === 'manager') return entry.status === 'pending';
-    if (entry.userId !== currentUser?.id) return false;
-    return entry.status === 'pending';
-  };
+  const canDelete = useCallback((entry: TimeEntry) => {
+    return checkTimeEntryPermission(entry.userId, entry.status, 'delete');
+  }, []);
 
-  const handleAddEntry = () => {
-    navigate('/time-tracker');
-  };
+  const handleAddEntry = useCallback(() => {
+    navigate('/tracker');
+  }, [navigate]);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     // Export functionality
     const csvContent = "data:text/csv;charset=utf-8," + 
       "Date,Employee,Project,Task,Hours,Status\n" +
@@ -253,38 +324,49 @@ export default function Timesheet() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, [filteredEntries]);
 
-  const handleSubmitTimesheet = () => {
+  const handleSubmitTimesheet = useCallback(() => {
     // Submit timesheet functionality - mark all pending entries as submitted
     const pendingEntries = filteredEntries.filter(entry => 
       entry.status === 'pending' && entry.userId === currentUser?.id
     );
     
     if (pendingEntries.length === 0) {
-      alert('No pending entries to submit');
+      toast.error('No pending entries to submit');
       return;
     }
     
-    alert(`Submitted ${pendingEntries.length} entries for approval`);
-  };
+    toast.success(`Submitted ${pendingEntries.length} entries for approval`);
+  }, [filteredEntries, currentUser?.id]);
 
   // Edit handlers
-  const handleEditEntry = (entry: TimeEntry) => {
+  const handleEditEntry = useCallback((entry: TimeEntry) => {
     setEditingEntry(entry);
     setDailyTrackerOpen(true);
-  };
+  }, []);
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = useCallback(() => {
     setDailyTrackerOpen(false);
     setEditingEntry(null);
+    invalidateCache('timeEntries');
     loadTimeEntries();
-  };
+  }, [loadTimeEntries]);
 
-  const handleCloseDailyTracker = () => {
+  const handleCloseDailyTracker = useCallback(() => {
     setDailyTrackerOpen(false);
     setEditingEntry(null);
-  };
+  }, []);
+
+  const handleViewEntry = useCallback((entry: TimeEntry) => {
+    setViewingEntry(entry);
+    setDetailViewOpen(true);
+  }, []);
+
+  const handleCloseDetailView = useCallback(() => {
+    setDetailViewOpen(false);
+    setViewingEntry(null);
+  }, []);
 
   const permissions = rolePermissions[currentUser?.role || 'employee'];
 
@@ -314,7 +396,9 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">HOURS</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s HOURS" : "TOTAL HOURS"}
+                  </p>
                   <div className="flex items-center space-x-4">
                     <div>
                       <p className="text-2xl font-bold text-green-600">{totalBillableHours.toFixed(1)}</p>
@@ -338,8 +422,10 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Daily Average</p>
-                  <p className="text-3xl font-bold text-green-600">{averageHours.toFixed(1)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s Daily Average" : "Daily Average"}
+                  </p>
+                  <p className="text-3xl font-bold text-green-600">{stats.averageHours.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">Hours per day</p>
                 </div>
                 <div className="h-12 w-12 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
@@ -353,7 +439,9 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">Overtime</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s Overtime" : "Overtime"}
+                  </p>
                   <p className="text-3xl font-bold text-warning">{overtimeCalculated.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">
                     {dateRange && dateRange.from ? 'Above expected hours' : 'Above expected hours (current month)'}
@@ -370,7 +458,9 @@ export default function Timesheet() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Days Worked</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedUser ? users.find(u => u.id === selectedUser)?.name + "'s Days Worked" : "Days Worked"}
+                  </p>
                   <p className="text-3xl font-bold text-primary">{daysWorked}</p>
                   <p className="text-sm text-muted-foreground">This period</p>
                 </div>
@@ -456,15 +546,24 @@ export default function Timesheet() {
               </div>
             )}
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Project:</span>
+              <span className="text-sm font-medium">Project/Product/Department:</span>
               <Select value={projectFilter} onValueChange={setProjectFilter}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="all">All Items</SelectItem>
+                  <SelectItem value="projects" disabled className="font-semibold text-muted-foreground">Projects</SelectItem>
                   {projects.map(project => (
-                    <SelectItem value={project.id} key={project.id}>{project.name}</SelectItem>
+                    <SelectItem value={`project-${project.id}`} key={`project-${project.id}`} className="ml-4">{project.name}</SelectItem>
+                  ))}
+                  <SelectItem value="products" disabled className="font-semibold text-muted-foreground">Products</SelectItem>
+                  {products.map(product => (
+                    <SelectItem value={`product-${product.id}`} key={`product-${product.id}`} className="ml-4">{product.name}</SelectItem>
+                  ))}
+                  <SelectItem value="departments" disabled className="font-semibold text-muted-foreground">Departments</SelectItem>
+                  {departments.map(department => (
+                    <SelectItem value={`department-${department.id}`} key={`department-${department.id}`} className="ml-4">{department.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -479,7 +578,8 @@ export default function Timesheet() {
             <CardTitle>Timesheet Entries</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+                    <div className="overflow-x-auto">
+          <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   {permissions.canViewAllTimesheets && (
@@ -487,7 +587,6 @@ export default function Timesheet() {
                   )}
                   <TableHead>Date</TableHead>
                 <TableHead>Project Details</TableHead>
-                <TableHead>Tasks</TableHead>
                 <TableHead>Actual Hours</TableHead>
                 <TableHead>Billable Hours</TableHead>
                 <TableHead>Available Hours</TableHead>
@@ -502,11 +601,16 @@ export default function Timesheet() {
                   <TableRow key={entry.id}>
                     {permissions.canViewAllTimesheets && (
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                        <div 
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+                          onClick={() => handleUserClick(entry.userId)}
+                        >
+                          <div className={`h-8 w-8 rounded-full ${selectedUser === entry.userId ? 'bg-primary text-white' : 'bg-muted'} flex items-center justify-center text-xs font-medium`}>
                             {entry.userName.split(' ').map(n => n[0]).join('').toUpperCase()}
                           </div>
-                          <span className="font-medium">{entry.userName}</span>
+                          <span className={`font-medium ${selectedUser === entry.userId ? 'text-primary' : ''}`}>
+                            {entry.userName}
+                          </span>
                         </div>
                       </TableCell>
                     )}
@@ -515,14 +619,24 @@ export default function Timesheet() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{entry.projectDetails.name}</div>
+                        <div className="flex items-center space-x-2">
+                          <div className="font-medium">{entry.projectDetails.name}</div>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            entry.projectDetails.category === 'project' 
+                              ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                              : entry.projectDetails.category === 'product'
+                              ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                              : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                          }`}>
+                            {entry.projectDetails.category.charAt(0).toUpperCase() + entry.projectDetails.category.slice(1)}
+                          </span>
+                        </div>
                         <div className="text-sm text-muted-foreground">
-                          {entry.projectDetails.category} - {entry.projectDetails.task}
+                          {entry.projectDetails.task && (
+                            <span>• {entry.projectDetails.task}</span>
+                          )}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-48 truncate">{entry.task}</div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
@@ -559,6 +673,14 @@ export default function Timesheet() {
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewEntry(entry)}
+                          className="text-gray-600 hover:text-gray-800"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {canDelete(entry) && (
                           <Button 
                             variant="ghost" 
@@ -575,6 +697,7 @@ export default function Timesheet() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -588,6 +711,36 @@ export default function Timesheet() {
           />
         </div>
       )}
+
+      <EnhancedDetailView
+        isOpen={isDetailViewOpen}
+        onClose={handleCloseDetailView}
+        data={viewingEntry}
+        type="timesheet"
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Time Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this time entry? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setEntryToDelete(null);
+              setShowDeleteDialog(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEntry} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

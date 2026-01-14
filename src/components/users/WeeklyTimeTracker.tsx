@@ -1,21 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Save, Check, Clock, AlertCircle } from "lucide-react";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, isFuture, isToday } from "date-fns";
-import DailyTrackerForm from "./DailyTrackerForm";
+import { Check, Clock, AlertCircle } from "lucide-react";
+import { format, startOfWeek, endOfWeek, addDays, isFuture, isToday, differenceInDays } from "date-fns";
+import { DateRange } from "react-day-picker";
+import { DateRangePicker } from "@/components/ui/date-picker";
+import QuickTaskForm from "./QuickTaskForm";
+import WeeklyView from "./WeeklyView";
+import MonthlyView from "./MonthlyView";
+import DailyView from "./DailyView";
 import { getCurrentUser } from "@/lib/auth";
-import { getTimeEntryStatusForDate, getUserAssociatedProjects, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
-import { Project, TimeEntry, ProjectDetail } from "@/validation/index";
+import { getTimeEntryStatusForDate, getUserAssociatedProjects, getUserAssociatedProducts, getUserAssociatedDepartments, saveTimeEntry, generateId, getTimeEntries } from "@/services/storage";
+import { Project, Product, Department, TimeEntry, ProjectDetail } from "@/validation/index";
+import { toast } from "@/components/ui/sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface WeeklyHours {
   billable: number;
   actual: number;
+  task?: string;
 }
 
 interface ProjectWeekData {
@@ -24,30 +37,269 @@ interface ProjectWeekData {
   };
 }
 
+interface ProductWeekData {
+  [productId: string]: {
+    [dayKey: string]: WeeklyHours;
+  };
+}
+
+interface DepartmentWeekData {
+  [departmentId: string]: {
+    [dayKey: string]: WeeklyHours;
+  };
+}
+
 interface DailyAvailableHours {
   [dayKey: string]: number;
 }
 
+// Remove the shared daily description interface since we'll use individual task descriptions
+// interface DailyDescription {
+//   [dayKey: string]: string;
+// }
+
+// Monthly view interfaces
+interface DailyProjectData {
+  task: string;
+  availableHours: number;
+  actualHours: number;
+  billableHours: number;
+}
+
+interface DailyProductData {
+  task: string;
+  availableHours: number;
+  actualHours: number;
+  billableHours: number;
+}
+
+interface DailyDepartmentData {
+  task: string;
+  availableHours: number;
+  actualHours: number;
+  billableHours: number;
+}
+
+interface MonthlyData {
+  [dateKey: string]: {
+    [id: string]: DailyProjectData | DailyProductData | DailyDepartmentData;
+  };
+}
+
+interface SelectedProjects {
+  [dateKey: string]: string[]; // array of projectIds
+}
+
+interface SelectedProducts {
+  [dateKey: string]: string[]; // array of productIds
+}
+
+interface SelectedDepartments {
+  [dateKey: string]: string[]; // array of departmentIds
+}
+
 export default function WeeklyTimeTracker() {
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedDateForEntry, setSelectedDateForEntry] = useState<Date | null>(null);
+  const [isQuickTaskDialogOpen, setIsQuickTaskDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | Product | Department | null>(null);
+  const [selectedDateForQuickTask, setSelectedDateForQuickTask] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [weeklyData, setWeeklyData] = useState<ProjectWeekData>({});
+  const [productWeeklyData, setProductWeeklyData] = useState<ProductWeekData>({});
+  const [departmentWeeklyData, setDepartmentWeeklyData] = useState<DepartmentWeekData>({});
   const [dailyAvailableHours, setDailyAvailableHours] = useState<DailyAvailableHours>({});
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
+  const [selectedProjects, setSelectedProjects] = useState<SelectedProjects>({});
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProducts>({});
+  const [selectedDepartments, setSelectedDepartments] = useState<SelectedDepartments>({});
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<{
+    daysToSave: Map<string, Set<string>>;
+    daysWithExistingEntries: string[];
+  } | null>(null);
+  // Remove the shared daily descriptions state since we'll use individual task descriptions
+  // const [dailyDescriptions, setDailyDescriptions] = useState<DailyDescription>({});
 
-  // Load user projects only once
+  // Effect to update selectedWeek when date range changes
+  useEffect(() => {
+    if (dateRange?.from && dateRange?.to) {
+      const dayDifference = differenceInDays(dateRange.to, dateRange.from) + 1;
+      
+      // Accept any 7-day range and update the weekly view accordingly
+      // This allows for ranges like Aug 6-12 instead of only Monday-Sunday ranges
+      if (dayDifference === 7) {
+        // Use the start date of the range as the selectedWeek
+        setSelectedWeek(dateRange.from);
+        // Force weekly view mode for any 7-day range
+        setViewMode('weekly');
+      }
+    }
+  }, [dateRange]);
+
+  // Determine the view mode based on the selected date range
+  const getViewMode = () => {
+    // If no date range is selected, use the default weekly view based on selectedWeek
+    if (!dateRange?.from || !dateRange?.to) {
+      return 'weekly';
+    }
+    
+    // Calculate the difference in days (inclusive)
+    // Add 1 because differenceInDays doesn't count the end date
+    const dayDifference = differenceInDays(dateRange.to, dateRange.from) + 1;
+    
+    // For debugging
+    console.log('Date range:', { 
+      from: dateRange.from.toISOString().split('T')[0], 
+      to: dateRange.to.toISOString().split('T')[0], 
+      days: dayDifference 
+    });
+    
+    // If the range is exactly 7 days - accept any 7-day range regardless of start day
+    if (dayDifference === 7) {
+      return 'weekly';
+    }
+    
+    if (dayDifference === 1) return 'daily';
+    return 'monthly'; // Any other range shows monthly view
+  };
+
+  // Debug: Log when component re-renders
+  useEffect(() => {
+    console.log('WeeklyTimeTracker: Component re-rendered', {
+      currentUser: currentUser?.name,
+      projectsCount: projects.length,
+      productsCount: products.length,
+      departmentsCount: departments.length
+    });
+  });
+
+  // Load user projects, products, and departments only once
   useEffect(() => {
     if (currentUser) {
       const userProjects = getUserAssociatedProjects(currentUser.id);
+      const userProducts = getUserAssociatedProducts(currentUser.id);
+      const userDepartments = getUserAssociatedDepartments(currentUser.id);
+      
+      console.log('WeeklyTimeTracker: Loading user data', {
+        currentUser: currentUser.name,
+        userId: currentUser.id,
+        userProjects: userProjects.length,
+        userProducts: userProducts.length,
+        userDepartments: userDepartments.length,
+        projects: userProjects.map(p => p.name),
+        products: userProducts.map(p => p.name),
+        departments: userDepartments.map(d => d.name)
+      });
+      
       setProjects(userProjects);
+      setProducts(userProducts);
+      setDepartments(userDepartments);
     }
   }, [currentUser]);
 
-  // Initialize weekly data when projects or week changes, but preserve existing data
+  // Load existing time entries when data is available
+  useEffect(() => {
+    if (currentUser && (projects.length > 0 || products.length > 0 || departments.length > 0)) {
+      // Add a small delay to ensure data is fully loaded
+      const timer = setTimeout(() => {
+        loadExistingEntries();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser, projects.length, products.length, departments.length]);
+
+  // Load existing entries for the current week
+  const loadExistingEntries = useCallback(() => {
+    if (!currentUser) return;
+    
+    const allEntries = getTimeEntries();
+    const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
+    
+    const newWeeklyData: ProjectWeekData = {};
+    const newProductWeeklyData: ProductWeekData = {};
+    const newDepartmentWeeklyData: DepartmentWeekData = {};
+    
+    let processedEntries = 0;
+    
+    allEntries.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entryDate >= weekStart && entryDate <= weekEnd && entry.userId === currentUser.id) {
+        processedEntries++;
+        const dayKey = format(entryDate, 'yyyy-MM-dd');
+
+        // Load hours data based on category
+        if (entry.projectDetails?.category === 'project') {
+          // Try to find project by name
+          const project = projects.find(p => p.name === entry.projectDetails.name);
+          if (project) {
+            if (!newWeeklyData[project.id]) {
+              newWeeklyData[project.id] = {};
+            }
+            newWeeklyData[project.id][dayKey] = {
+              billable: entry.billableHours,
+              actual: entry.actualHours,
+              task: entry.projectDetails.task || entry.task || ''
+            };
+          } else {
+            console.log('Project not found:', entry.projectDetails.name);
+          }
+        } else if (entry.projectDetails?.category === 'product') {
+          // Try to find product by name
+          const product = products.find(p => p.name === entry.projectDetails.name);
+          if (product) {
+            if (!newProductWeeklyData[product.id]) {
+              newProductWeeklyData[product.id] = {};
+            }
+            newProductWeeklyData[product.id][dayKey] = {
+              billable: entry.billableHours,
+              actual: entry.actualHours,
+              task: entry.projectDetails.task || entry.task || ''
+            };
+          } else {
+            console.log('Product not found:', entry.projectDetails.name);
+          }
+        } else if (entry.projectDetails?.category === 'department') {
+          // Try to find department by name
+          const department = departments.find(d => d.name === entry.projectDetails.name);
+          if (department) {
+            if (!newDepartmentWeeklyData[department.id]) {
+              newDepartmentWeeklyData[department.id] = {};
+            }
+            newDepartmentWeeklyData[department.id][dayKey] = {
+              billable: entry.billableHours,
+              actual: entry.actualHours,
+              task: entry.projectDetails.task || entry.task || ''
+            };
+          } else {
+            console.log('Department not found:', entry.projectDetails.name);
+          }
+        }
+      }
+    });
+    
+    setWeeklyData(newWeeklyData);
+    setProductWeeklyData(newProductWeeklyData);
+    setDepartmentWeeklyData(newDepartmentWeeklyData);
+  }, [currentUser, selectedWeek, projects, products, departments]);
+
+  // Load existing entries when week changes
+  useEffect(() => {
+    if (currentUser && (projects.length > 0 || products.length > 0 || departments.length > 0)) {
+      loadExistingEntries();
+    }
+  }, [selectedWeek, loadExistingEntries]);
+
+
+
+  // Initialize weekly data when projects/products/departments or week changes, but preserve existing data
   useEffect(() => {
     if (projects.length > 0) {
       setWeeklyData(prevData => {
@@ -58,12 +310,14 @@ export default function WeeklyTimeTracker() {
             newData[project.id] = {};
           }
           
+          // Only initialize days that don't already have data
           for (let i = 0; i < 7; i++) {
             const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
             if (!newData[project.id][dayKey]) {
               newData[project.id][dayKey] = {
                 billable: 0,
-                actual: 0
+                actual: 0,
+                task: ''
               };
             }
           }
@@ -72,95 +326,526 @@ export default function WeeklyTimeTracker() {
         return newData;
       });
     }
-  }, [projects, selectedWeek]);
 
-  const handlePreviousWeek = () => {
-    setSelectedWeek(prev => subWeeks(prev, 1));
-  };
-
-  const handleNextWeek = () => {
-    const nextWeek = addWeeks(selectedWeek, 1);
-    const nextWeekStart = startOfWeek(nextWeek, { weekStartsOn: 1 });
-    
-    // Only allow if the week start is not in the future
-    if (!isFuture(nextWeekStart) || isToday(nextWeekStart)) {
-      setSelectedWeek(nextWeek);
+    if (products.length > 0) {
+      setProductWeeklyData(prevData => {
+        const newData: ProductWeekData = { ...prevData };
+        
+        products.forEach(product => {
+          if (!newData[product.id]) {
+            newData[product.id] = {};
+          }
+          
+          // Only initialize days that don't already have data
+          for (let i = 0; i < 7; i++) {
+            const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
+            if (!newData[product.id][dayKey]) {
+              newData[product.id][dayKey] = {
+                billable: 0,
+                actual: 0,
+                task: ''
+              };
+            }
+          }
+        });
+        
+        return newData;
+      });
     }
-  };
 
-  const canGoToNextWeek = () => {
-    const nextWeek = addWeeks(selectedWeek, 1);
-    const nextWeekStart = startOfWeek(nextWeek, { weekStartsOn: 1 });
-    return !isFuture(nextWeekStart) || isToday(nextWeekStart);
-  };
+    if (departments.length > 0) {
+      setDepartmentWeeklyData(prevData => {
+        const newData: DepartmentWeekData = { ...prevData };
+        
+        departments.forEach(department => {
+          if (!newData[department.id]) {
+            newData[department.id] = {};
+          }
+          
+          // Only initialize days that don't already have data
+          for (let i = 0; i < 7; i++) {
+            const dayKey = format(addDays(startOfWeek(selectedWeek, { weekStartsOn: 1 }), i), 'yyyy-MM-dd');
+            if (!newData[department.id][dayKey]) {
+              newData[department.id][dayKey] = {
+                billable: 0,
+                actual: 0,
+                task: ''
+              };
+            }
+          }
+        });
+        
+        return newData;
+      });
+    }
+  }, [projects, products, departments, selectedWeek]);
 
+
+
+  // Auto-calculate available hours based on actual hours (8 - actual hours, minimum 0)
+  const calculateAvailableHours = useCallback((dayKey: string) => {
+    let totalActualHours = 0;
+    
+    // Sum all actual hours for the day from projects
+    Object.values(weeklyData).forEach(projectData => {
+      if (projectData[dayKey]) {
+        totalActualHours += projectData[dayKey].actual || 0;
+      }
+    });
+    
+    // Sum all actual hours for the day from products
+    Object.values(productWeeklyData).forEach(productData => {
+      if (productData[dayKey]) {
+        totalActualHours += productData[dayKey].actual || 0;
+      }
+    });
+    
+    // Sum all actual hours for the day from departments
+    Object.values(departmentWeeklyData).forEach(departmentData => {
+      if (departmentData[dayKey]) {
+        totalActualHours += departmentData[dayKey].actual || 0;
+      }
+    });
+    
+    // Calculate available hours: 8 - total actual hours, minimum 0
+    const availableHours = Math.max(0, 8 - totalActualHours);
+    
+    return availableHours;
+  }, [weeklyData, productWeeklyData, departmentWeeklyData]);
+
+  // Update available hours when actual hours change
+  const updateAvailableHours = useCallback((dayKey: string, value: number) => {
+    const calculatedAvailableHours = calculateAvailableHours(dayKey);
+    setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+  }, [calculateAvailableHours]);
+
+  // Update hours and recalculate available hours
   const updateHours = (projectId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    console.log('WeeklyTimeTracker: updateHours called', { projectId, dayKey, type, value });
+    
     setWeeklyData(prev => {
+      const newData = { ...prev };
+      
       // Ensure the project exists in the data
-      if (!prev[projectId]) {
-        prev[projectId] = {};
+      if (!newData[projectId]) {
+        newData[projectId] = {};
       }
       
       // Ensure the day exists for this project
-      if (!prev[projectId][dayKey]) {
-        prev[projectId][dayKey] = { billable: 0, actual: 0 };
+      if (!newData[projectId][dayKey]) {
+        newData[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
       }
       
-      return {
-        ...prev,
-        [projectId]: {
-          ...prev[projectId],
-          [dayKey]: {
-            ...prev[projectId][dayKey],
-            [type]: value
-          }
-        }
+      // Update the specific field
+      newData[projectId][dayKey] = {
+        ...newData[projectId][dayKey],
+        [type]: value
       };
+      
+      console.log('Updated weekly data:', newData[projectId][dayKey]);
+      return newData;
     });
+
+    // Auto-calculate available hours when actual hours change
+    if (type === 'actual') {
+      setTimeout(() => {
+        const calculatedAvailableHours = calculateAvailableHours(dayKey);
+        setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+      }, 0);
+    }
+  };
+  
+  const updateProjectData = (dayKey: string, projectId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
+    setWeeklyData(prev => {
+      const newData = { ...prev };
+      
+      // Ensure the project exists in the data
+      if (!newData[projectId]) {
+        newData[projectId] = {};
+      }
+      
+      // Ensure the day exists for this project
+      if (!newData[projectId][dayKey]) {
+        newData[projectId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      // Update the specific field
+      newData[projectId][dayKey] = {
+        ...newData[projectId][dayKey],
+        [field]: value
+      };
+      
+      return newData;
+    });
+  };
+
+  // Update product hours and recalculate available hours
+  const updateProductHours = (productId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    setProductWeeklyData(prev => {
+      const newData = { ...prev };
+      
+      if (!newData[productId]) {
+        newData[productId] = {};
+      }
+      
+      if (!newData[productId][dayKey]) {
+        newData[productId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      newData[productId][dayKey] = {
+        ...newData[productId][dayKey],
+        [type]: value
+      };
+      
+      return newData;
+    });
+
+    // Auto-calculate available hours when actual hours change
+    if (type === 'actual') {
+      setTimeout(() => {
+        const calculatedAvailableHours = calculateAvailableHours(dayKey);
+        setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+      }, 0);
+    }
+  };
+  
+  const updateProductData = (dayKey: string, productId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
+    setProductWeeklyData(prev => {
+      const newData = { ...prev };
+      
+      // Ensure the product exists in the data
+      if (!newData[productId]) {
+        newData[productId] = {};
+      }
+      
+      // Ensure the day exists for this product
+      if (!newData[productId][dayKey]) {
+        newData[productId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      // Update the specific field
+      newData[productId][dayKey] = {
+        ...newData[productId][dayKey],
+        [field]: value
+      };
+      
+      return newData;
+    });
+  };
+
+  // Update department hours and recalculate available hours
+  const updateDepartmentHours = (departmentId: string, dayKey: string, type: 'billable' | 'actual', value: number) => {
+    setDepartmentWeeklyData(prev => {
+      const newData = { ...prev };
+      
+      if (!newData[departmentId]) {
+        newData[departmentId] = {};
+      }
+      
+      if (!newData[departmentId][dayKey]) {
+        newData[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      newData[departmentId][dayKey] = {
+        ...newData[departmentId][dayKey],
+        [type]: value
+      };
+      
+      return newData;
+    });
+
+    // Auto-calculate available hours when actual hours change
+    if (type === 'actual') {
+      setTimeout(() => {
+        const calculatedAvailableHours = calculateAvailableHours(dayKey);
+        setDailyAvailableHours(prev => ({ ...prev, [dayKey]: calculatedAvailableHours }));
+      }, 0);
+    }
+  };
+  
+  const updateDepartmentData = (dayKey: string, departmentId: string, field: 'task' | 'billable' | 'actual', value: string | number) => {
+    setDepartmentWeeklyData(prev => {
+      const newData = { ...prev };
+      
+      // Ensure the department exists in the data
+      if (!newData[departmentId]) {
+        newData[departmentId] = {};
+      }
+      
+      // Ensure the department exists in the data
+      if (!newData[departmentId][dayKey]) {
+        newData[departmentId][dayKey] = { billable: 0, actual: 0, task: '' };
+      }
+      
+      // Update the specific field
+      newData[departmentId][dayKey] = {
+        ...newData[departmentId][dayKey],
+        [field]: value
+      };
+      
+      return newData;
+    });
+  };
+
+  // Function to get existing task description for the selected project and date
+  const getExistingTaskDescription = () => {
+    if (!selectedProject || !selectedDateForQuickTask) return '';
+    
+    const dayKey = format(selectedDateForQuickTask, 'yyyy-MM-dd');
+    
+    // Check for existing description based on project type
+    if ('levels' in selectedProject) { // Project
+      return weeklyData[selectedProject.id]?.[dayKey]?.task || '';
+    } else if ('stages' in selectedProject) { // Product
+      return productWeeklyData[selectedProject.id]?.[dayKey]?.task || '';
+    } else if ('functions' in selectedProject) { // Department
+      return departmentWeeklyData[selectedProject.id]?.[dayKey]?.task || '';
+    }
+    
+    return '';
+  };
+
+
+  
+  // Add function to handle date selection for descriptions
+  const handleDateSelection = (date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    
+    if (selectedDates.length === 0) {
+      // First date selected
+      setSelectedDates([date]);
+    } else if (selectedDates.length === 1) {
+      // Second date selected - set as range
+      const firstDate = selectedDates[0];
+      if (date.getTime() === firstDate.getTime()) {
+        // Same date clicked - deselect
+        setSelectedDates([]);
+      } else {
+        // Different date - set as range
+        setSelectedDates([firstDate, date].sort((a, b) => a.getTime() - b.getTime()));
+      }
+    } else if (selectedDates.length === 2) {
+      // Third date selected - remove the second date and make third date the new first date
+      setSelectedDates([date]);
+    }
+  };
+
+  // Remove the shared description update function since we'll use individual task descriptions
+  // const updateDescription = (dayKey: string, description: string) => {
+  //   setDailyDescriptions(prev => ({
+  //     ...prev,
+  //     [dayKey]: description
+  //   }));
+  // };
+
+  // Check if a date is selected
+  const isDateSelected = (date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return selectedDates.some(d => format(d, 'yyyy-MM-dd') === dateKey);
+  };
+
+  // Check if a date is in the selected range
+  const isDateInRange = (date: Date) => {
+    if (selectedDates.length !== 2) return false;
+    const dateKey = format(date, 'yyyy-MM-dd');
+    const startKey = format(selectedDates[0], 'yyyy-MM-dd');
+    const endKey = format(selectedDates[1], 'yyyy-MM-dd');
+    return dateKey >= startKey && dateKey <= endKey;
   };
 
   const saveWeeklyData = () => {
     if (!currentUser) return;
     
+    // Collect all days that have entries to save, organized by day and entry type
+    const daysToSave = new Map<string, Set<string>>(); // dayKey -> Set of entry types to save
+    
+    // Check project entries
     Object.entries(weeklyData).forEach(([projectId, projectData]) => {
-      const project = projects.find(p => p.id === projectId);
-      if (!project) return;
-      
       Object.entries(projectData).forEach(([dayKey, hours]) => {
         if (hours.actual > 0 || hours.billable > 0) {
-          const timeEntry: TimeEntry = {
-            id: generateId(),
-            userId: currentUser.id,
-            userName: currentUser.name,
-            date: dayKey,
-            actualHours: hours.actual,
-            billableHours: hours.billable,
-            totalHours: hours.actual + hours.billable,
-            availableHours: dailyAvailableHours[dayKey] || 0,
-            task: `Weekly entry for ${project.name}`,
-            projectDetails: {
-              category: 'project',
-              name: project.name,
-              level: '',
-              task: '',
-              subtask: '',
-              description: `Weekly time entry for ${project.name}`
-            } as ProjectDetail,
-            isBillable: hours.billable > 0,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          saveTimeEntry(timeEntry);
+          if (!daysToSave.has(dayKey)) {
+            daysToSave.set(dayKey, new Set());
+          }
+          daysToSave.get(dayKey)!.add('project');
         }
       });
     });
     
-    alert('Weekly time entries saved successfully!');
-    setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
-  };
+    // Check product entries
+    Object.entries(productWeeklyData).forEach(([productId, productData]) => {
+      Object.entries(productData).forEach(([dayKey, hours]) => {
+        if (hours.actual > 0 || hours.billable > 0) {
+          if (!daysToSave.has(dayKey)) {
+            daysToSave.set(dayKey, new Set());
+          }
+          daysToSave.get(dayKey)!.add('product');
+        }
+      });
+    });
+    
+    // Check department entries
+    Object.entries(departmentWeeklyData).forEach(([departmentId, departmentData]) => {
+      Object.entries(departmentData).forEach(([dayKey, hours]) => {
+        if (hours.actual > 0 || hours.billable > 0) {
+          if (!daysToSave.has(dayKey)) {
+            daysToSave.set(dayKey, new Set());
+          }
+          daysToSave.get(dayKey)!.add('department');
+        }
+      });
+    });
+    
+    if (daysToSave.size === 0) {
+      toast.error('No entries to save. Please enter hours for at least one project, product, or department.');
+      return;
+    }
+    
+    // Check for existing entries and collect days that need confirmation
+    const daysWithExistingEntries: string[] = [];
+    const allEntries = getTimeEntries();
+    
+    daysToSave.forEach((entryTypes, dayKey) => {
+      const existingEntries = allEntries.filter(entry => 
+        entry.date === dayKey && entry.userId === currentUser.id
+      );
+      if (existingEntries.length > 0) {
+        daysWithExistingEntries.push(dayKey);
+      }
+    });
+    
+    // If there are existing entries, show confirmation dialog
+    if (daysWithExistingEntries.length > 0) {
+      setPendingSaveData({ daysToSave, daysWithExistingEntries });
+      setShowOverwriteDialog(true);
+      return;
+    }
+    
+          // No existing entries, proceed with saving
+  proceedWithSaving(daysToSave, []);
+};
 
-  // Helper function to check if entries exist for a specific date
+// Function to proceed with saving after confirmation
+const proceedWithSaving = (daysToSave: Map<string, Set<string>>, daysWithExistingEntries: string[]) => {
+  if (!currentUser) return;
+  
+  // Save project entries
+  Object.entries(weeklyData).forEach(([projectId, projectData]) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    
+    Object.entries(projectData).forEach(([dayKey, hours]) => {
+      if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('project')) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dayKey,
+          actualHours: hours.actual,
+          billableHours: hours.billable,
+          totalHours: hours.actual + hours.billable,
+          availableHours: dailyAvailableHours[dayKey] || 0,
+          task: hours.task || `Weekly entry for ${project.name}`,
+          projectDetails: {
+            category: 'project',
+            name: project.name,
+            level: '',
+            task: hours.task || '',
+            subtask: '',
+            description: hours.task || `Weekly time entry for ${project.name}`
+          } as ProjectDetail,
+          isBillable: hours.billable > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+      }
+    });
+  });
+
+  // Save product entries
+  Object.entries(productWeeklyData).forEach(([productId, productData]) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    Object.entries(productData).forEach(([dayKey, hours]) => {
+      if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('product')) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dayKey,
+          actualHours: hours.actual,
+          billableHours: hours.billable,
+          totalHours: hours.actual + hours.billable,
+          availableHours: dailyAvailableHours[dayKey] || 0,
+          task: hours.task || `Weekly entry for ${product.name}`,
+          projectDetails: {
+            category: 'product',
+            name: product.name,
+            stage: '',
+            task: hours.task || '',
+            subtask: '',
+            description: hours.task || `Weekly time entry for ${product.name}`
+          } as ProjectDetail,
+          isBillable: hours.billable > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+      }
+    });
+  });
+
+  // Save department entries
+  Object.entries(departmentWeeklyData).forEach(([departmentId, departmentData]) => {
+    const department = departments.find(d => d.id === departmentId);
+    if (!department) return;
+    
+    Object.entries(departmentData).forEach(([dayKey, hours]) => {
+      if ((hours.actual > 0 || hours.billable > 0) && daysToSave.has(dayKey) && daysToSave.get(dayKey)!.has('department')) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dayKey,
+          actualHours: hours.actual,
+          billableHours: hours.billable,
+          totalHours: hours.actual + hours.billable,
+          availableHours: dailyAvailableHours[dayKey] || 0,
+          task: hours.task || `Weekly entry for ${department.name}`,
+          projectDetails: {
+            category: 'department',
+            name: department.name,
+            function: '',
+            task: hours.task || '',
+            subtask: '',
+            description: hours.task || `Weekly time entry for ${department.name}`
+          } as ProjectDetail,
+          isBillable: hours.billable > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+      }
+    });
+  });
+  
+  const savedDaysCount = daysToSave.size;
+  const skippedDaysCount = daysWithExistingEntries.length - savedDaysCount;
+  
+  let message = `Weekly time entries saved successfully!`;
+  if (skippedDaysCount > 0) {
+    message += `\n${skippedDaysCount} days were skipped due to existing entries.`;
+  }
+  
+  toast.success(message);
+  setRefreshKey(prev => prev + 1); // Force re-render to show updated status indicators
+};
+
+// Helper function to check if entries exist for a specific date
   const hasEntriesForDate = (date: Date): boolean => {
     if (!currentUser) return false;
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -211,47 +896,539 @@ export default function WeeklyTimeTracker() {
     return null;
   };
 
-  const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+
+  // Determine the current view mode
+  const currentViewMode = getViewMode();
+
+  // Get dates for monthly view based on selected date range
+  const getMonthlyDates = useCallback(() => {
+    if (!dateRange?.from || !dateRange?.to) return [];
+    const dates = [];
+    const currentDate = new Date(dateRange.from);
+    const endDate = new Date(dateRange.to);
+    
+    while (currentDate <= endDate) {
+      if (!isFuture(currentDate) || isToday(currentDate)) {
+        dates.push(new Date(currentDate));
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return dates;
+  }, [dateRange]);
+
+  // Initialize monthly data for selected date range
+  useEffect(() => {
+    if (currentViewMode === 'monthly' && (projects.length > 0 || products.length > 0 || departments.length > 0)) {
+      const monthlyDates = getMonthlyDates();
+      setMonthlyData((prevData) => {
+        const updatedData = { ...prevData };
+
+        monthlyDates.forEach((date) => {
+          const dateKey = format(date, 'yyyy-MM-dd');
+          if (!updatedData[dateKey]) {
+            updatedData[dateKey] = {};
+          }
+
+          // Initialize projects
+          projects.forEach((project) => {
+            if (!updatedData[dateKey][project.id]) {
+              updatedData[dateKey][project.id] = {
+                task: '',
+                availableHours: 0,
+                actualHours: 0,
+                billableHours: 0,
+              };
+            }
+          });
+
+          // Initialize products
+          products.forEach((product) => {
+            if (!updatedData[dateKey][product.id]) {
+              updatedData[dateKey][product.id] = {
+                task: '',
+                availableHours: 0,
+                actualHours: 0,
+                billableHours: 0,
+              };
+            }
+          });
+
+          // Initialize departments
+          departments.forEach((department) => {
+            if (!updatedData[dateKey][department.id]) {
+              updatedData[dateKey][department.id] = {
+                task: '',
+                availableHours: 0,
+                actualHours: 0,
+                billableHours: 0,
+              };
+            }
+          });
+        });
+        return updatedData;
+      });
+    }
+  }, [currentViewMode, projects, products, departments, dateRange]);
+
+  // Load existing entries for monthly view
+  useEffect(() => {
+    if (currentViewMode === 'monthly' && currentUser) {
+      const allEntries = getTimeEntries();
+      const monthlyDates = getMonthlyDates();
+      
+      setMonthlyData((prevData) => {
+        const updatedData = { ...prevData };
+        
+        monthlyDates.forEach((date) => {
+          const dateKey = format(date, 'yyyy-MM-dd');
+          const dayEntries = allEntries.filter(entry => 
+            entry.date === dateKey && entry.userId === currentUser.id
+          );
+          
+          dayEntries.forEach(entry => {
+            if (entry.projectDetails?.category === 'project') {
+              const projectId = projects.find(p => p.name === entry.projectDetails.name)?.id;
+              if (projectId && updatedData[dateKey]?.[projectId]) {
+                updatedData[dateKey][projectId] = {
+                  task: entry.projectDetails.task || entry.task || '',
+                  availableHours: entry.availableHours || 0,
+                  actualHours: entry.actualHours || 0,
+                  billableHours: entry.billableHours || 0,
+                };
+              }
+            } else if (entry.projectDetails?.category === 'product') {
+              const productId = products.find(p => p.name === entry.projectDetails.name)?.id;
+              if (productId && updatedData[dateKey]?.[productId]) {
+                updatedData[dateKey][productId] = {
+                  task: entry.projectDetails.task || entry.task || '',
+                  availableHours: entry.availableHours || 0,
+                  actualHours: entry.actualHours || 0,
+                  billableHours: entry.billableHours || 0,
+                };
+              }
+            } else if (entry.projectDetails?.category === 'department') {
+              const departmentId = departments.find(d => d.name === entry.projectDetails.name)?.id;
+              if (departmentId && updatedData[dateKey]?.[departmentId]) {
+                updatedData[dateKey][departmentId] = {
+                  task: entry.projectDetails.task || entry.task || '',
+                  availableHours: entry.availableHours || 0,
+                  actualHours: entry.actualHours || 0,
+                  billableHours: entry.billableHours || 0,
+                };
+              }
+            }
+          });
+        });
+        
+        return updatedData;
+      });
+    }
+  }, [currentViewMode, currentUser, projects, products, departments, dateRange]);
+
+  // Monthly view helper functions
+  const updateMonthlyProjectData = (dateKey: string, projectId: string, field: keyof DailyProjectData, value: string | number) => {
+    setMonthlyData(prevData => ({
+      ...prevData,
+      [dateKey]: {
+        ...prevData[dateKey],
+        [projectId]: {
+          ...prevData[dateKey][projectId],
+          [field]: value,
+          // Auto-calculate billable hours when actual hours or available hours change
+          billableHours: field === 'actualHours' ? 
+            Math.min(Number(value), prevData[dateKey][projectId]?.availableHours || 0) :
+            field === 'availableHours' ?
+            Math.min(prevData[dateKey][projectId]?.actualHours || 0, Number(value)) :
+            prevData[dateKey][projectId]?.billableHours || 0
+        }
+      }
+    }));
+  };
+
+  const updateMonthlyProductData = (dateKey: string, productId: string, field: keyof DailyProductData, value: string | number) => {
+    setMonthlyData(prevData => ({
+      ...prevData,
+      [dateKey]: {
+        ...prevData[dateKey],
+        [productId]: {
+          ...prevData[dateKey][productId],
+          [field]: value,
+          // Auto-calculate billable hours when actual hours or available hours change
+          billableHours: field === 'actualHours' ? 
+            Math.min(Number(value), prevData[dateKey][productId]?.availableHours || 0) :
+            field === 'availableHours' ?
+            Math.min(prevData[dateKey][productId]?.actualHours || 0, Number(value)) :
+            prevData[dateKey][productId]?.billableHours || 0
+        }
+      }
+    }));
+  };
+
+  const updateMonthlyDepartmentData = (dateKey: string, departmentId: string, field: keyof DailyDepartmentData, value: string | number) => {
+    setMonthlyData(prevData => ({
+      ...prevData,
+      [dateKey]: {
+        ...prevData[dateKey],
+        [departmentId]: {
+          ...prevData[dateKey][departmentId],
+          [field]: value,
+          // Auto-calculate billable hours when actual hours or available hours change
+          billableHours: field === 'actualHours' ? 
+            Math.min(Number(value), prevData[dateKey][departmentId]?.availableHours || 0) :
+            field === 'availableHours' ?
+            Math.min(prevData[dateKey][departmentId]?.actualHours || 0, Number(value)) :
+            prevData[dateKey][departmentId]?.billableHours || 0
+        }
+      }
+    }));
+  };
+
+  const addProjectToDate = (dateKey: string, projectId: string) => {
+    setSelectedProjects(prev => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), projectId]
+    }));
+  };
+
+  const removeProjectFromDate = (dateKey: string, projectId: string) => {
+    setSelectedProjects(prev => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).filter(id => id !== projectId)
+    }));
+  };
+
+  const addProductToDate = (dateKey: string, productId: string) => {
+    setSelectedProducts(prev => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), productId]
+    }));
+  };
+
+  const removeProductFromDate = (dateKey: string, productId: string) => {
+    setSelectedProducts(prev => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).filter(id => id !== productId)
+    }));
+  };
+
+  const addDepartmentToDate = (dateKey: string, departmentId: string) => {
+    setSelectedDepartments(prev => ({
+      ...prev,
+      [dateKey]: [...(prev[dateKey] || []), departmentId]
+    }));
+  };
+
+  const removeDepartmentFromDate = (dateKey: string, departmentId: string) => {
+    setSelectedDepartments(prev => ({
+      ...prev,
+      [dateKey]: (prev[dateKey] || []).filter(id => id !== departmentId)
+    }));
+  };
+
+  // Save entry for a specific date in monthly view
+  const saveEntryForDate = (date: Date) => {
+    if (!currentUser) return;
+    
+    const dateKey = format(date, 'yyyy-MM-dd');
+    let savedEntries = 0;
+    
+    // Save project entries that have data
+    projects.forEach(project => {
+      const projectData = monthlyData[dateKey]?.[project.id];
+      if (projectData && (projectData.actualHours > 0 || projectData.billableHours > 0 || projectData.task.trim())) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dateKey,
+          actualHours: projectData.actualHours,
+          billableHours: projectData.billableHours,
+          totalHours: projectData.actualHours + projectData.billableHours,
+          availableHours: projectData.availableHours,
+          task: projectData.task || `Entry for ${project.name}`,
+          projectDetails: {
+            category: 'project',
+            name: project.name,
+            level: '',
+            task: projectData.task || '',
+            subtask: '',
+            description: projectData.task || `Monthly time entry for ${project.name}`
+          } as ProjectDetail,
+          isBillable: project.isBillable && projectData.billableHours > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+        savedEntries++;
+      }
+    });
+
+    // Save product entries that have data
+    products.forEach(product => {
+      const productData = monthlyData[dateKey]?.[product.id];
+      if (productData && (productData.actualHours > 0 || productData.billableHours > 0 || productData.task.trim())) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dateKey,
+          actualHours: productData.actualHours,
+          billableHours: productData.billableHours,
+          totalHours: productData.actualHours + productData.billableHours,
+          availableHours: productData.availableHours,
+          task: productData.task || `Entry for ${product.name}`,
+          projectDetails: {
+            category: 'product',
+            name: product.name,
+            stage: '',
+            task: productData.task || '',
+            subtask: '',
+            description: productData.task || `Monthly time entry for ${product.name}`
+          } as ProjectDetail,
+          isBillable: product.isBillable && productData.billableHours > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+        savedEntries++;
+      }
+    });
+
+    // Save department entries that have data
+    departments.forEach(department => {
+      const departmentData = monthlyData[dateKey]?.[department.id];
+      if (departmentData && (departmentData.actualHours > 0 || departmentData.billableHours > 0 || departmentData.task.trim())) {
+        const timeEntry: TimeEntry = {
+          id: generateId(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          date: dateKey,
+          actualHours: departmentData.actualHours,
+          billableHours: departmentData.billableHours,
+          totalHours: departmentData.actualHours + departmentData.billableHours,
+          availableHours: departmentData.availableHours,
+          task: departmentData.task || `Entry for ${department.name}`,
+          projectDetails: {
+            category: 'department',
+            name: department.name,
+            function: '',
+            task: departmentData.task || '',
+            subtask: '',
+            description: departmentData.task || `Monthly time entry for ${department.name}`
+          } as ProjectDetail,
+          isBillable: department.isBillable && departmentData.billableHours > 0,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        saveTimeEntry(timeEntry);
+        savedEntries++;
+      }
+    });
+    
+    if (savedEntries > 0) {
+      toast.success(`Successfully saved ${savedEntries} time entries for ${format(date, 'MMM dd, yyyy')}!`);
+      setRefreshKey(prev => prev + 1);
+    } else {
+      toast.info('No entries to save. Please enter hours or task description for at least one project, product, or department.');
+    }
+  };
+
+  // Save entries for entire selected range
+  const saveEntireRange = () => {
+    if (!currentUser) return;
+    
+    let totalSavedEntries = 0;
+    const monthlyDates = getMonthlyDates();
+    
+    monthlyDates.forEach(date => {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      const selectedProjectIds = selectedProjects[dateKey] || [];
+      const selectedProductIds = selectedProducts[dateKey] || [];
+      const selectedDepartmentIds = selectedDepartments[dateKey] || [];
+      
+      // Save project entries
+      // Save project entries that have data
+      projects.forEach(project => {
+        const projectData = monthlyData[dateKey]?.[project.id];
+        if (projectData && (projectData.actualHours > 0 || projectData.billableHours > 0 || projectData.task.trim())) {
+          const timeEntry: TimeEntry = {
+            id: generateId(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            date: dateKey,
+            actualHours: projectData.actualHours,
+            billableHours: projectData.billableHours,
+            totalHours: projectData.actualHours + projectData.billableHours,
+            availableHours: projectData.availableHours,
+            task: projectData.task || `Entry for ${project.name}`,
+            projectDetails: {
+              category: 'project',
+              name: project.name,
+              level: '',
+              task: projectData.task || '',
+              subtask: '',
+              description: projectData.task || `Monthly time entry for ${project.name}`
+            } as ProjectDetail,
+            isBillable: project.isBillable && projectData.billableHours > 0,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          saveTimeEntry(timeEntry);
+          totalSavedEntries++;
+        }
+      });
+
+      // Save product entries that have data
+      products.forEach(product => {
+        const productData = monthlyData[dateKey]?.[product.id];
+        if (productData && (productData.actualHours > 0 || productData.billableHours > 0 || productData.task.trim())) {
+          const timeEntry: TimeEntry = {
+            id: generateId(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            date: dateKey,
+            actualHours: productData.actualHours,
+            billableHours: productData.billableHours,
+            totalHours: productData.actualHours + productData.billableHours,
+            availableHours: productData.availableHours,
+            task: productData.task || `Entry for ${product.name}`,
+            projectDetails: {
+              category: 'product',
+              name: product.name,
+              stage: '',
+              task: productData.task || '',
+              subtask: '',
+              description: productData.task || `Monthly time entry for ${product.name}`
+            } as ProjectDetail,
+            isBillable: product.isBillable && productData.billableHours > 0,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          saveTimeEntry(timeEntry);
+          totalSavedEntries++;
+        }
+      });
+
+      // Save department entries that have data
+      departments.forEach(department => {
+        const departmentData = monthlyData[dateKey]?.[department.id];
+        if (departmentData && (departmentData.actualHours > 0 || departmentData.billableHours > 0 || departmentData.task.trim())) {
+          const timeEntry: TimeEntry = {
+            id: generateId(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            date: dateKey,
+            actualHours: departmentData.actualHours,
+            billableHours: departmentData.billableHours,
+            totalHours: departmentData.actualHours + departmentData.billableHours,
+            availableHours: departmentData.availableHours,
+            task: departmentData.task || `Entry for ${department.name}`,
+            projectDetails: {
+              category: 'department',
+              name: department.name,
+              function: '',
+              task: departmentData.task || '',
+              subtask: '',
+              description: departmentData.task || `Monthly time entry for ${department.name}`
+            } as ProjectDetail,
+            isBillable: department.isBillable && departmentData.billableHours > 0,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          saveTimeEntry(timeEntry);
+          totalSavedEntries++;
+        }
+      });
+    });
+    
+    if (totalSavedEntries > 0) {
+      const rangeText = `${format(dateRange?.from || new Date(), 'MMM dd')} - ${format(dateRange?.to || new Date(), 'MMM dd, yyyy')}`;
+      toast.success(`Successfully saved ${totalSavedEntries} time entries for ${rangeText}!`);
+      setRefreshKey(prev => prev + 1);
+    } else {
+      toast.info('No entries to save. Please enter hours for at least one project, product, or department.');
+    }
+  };
+
+  // Debug: Monitor data changes - Commented out to prevent console log loops
+  // useEffect(() => {
+  //   console.log('WeeklyTimeTracker: Data changed', {
+  //     weeklyDataKeys: Object.keys(weeklyData),
+  //     productWeeklyDataKeys: Object.keys(productWeeklyData),
+  //     departmentWeeklyDataKeys: Object.keys(departmentWeeklyData),
+  //     weeklyData,
+  //     productWeeklyData,
+  //     departmentWeeklyData
+  //   });
+  // }, [weeklyData, productWeeklyData, departmentWeeklyData]);
 
   return (
     <div className="space-y-6">
-      {/* Date Filter Controls */}
+      {/* Quick Task Form */}
+      {selectedProject && selectedDateForQuickTask && (
+        <QuickTaskForm 
+          isOpen={isQuickTaskDialogOpen}
+          onClose={() => {
+            setIsQuickTaskDialogOpen(false);
+            setSelectedProject(null);
+            setSelectedDateForQuickTask(null);
+          }}
+          project={selectedProject}
+          selectedDate={selectedDateForQuickTask}
+          initialDescription={getExistingTaskDescription()}
+          onSuccess={(taskDescription: string) => {
+            const dayKey = format(selectedDateForQuickTask, 'yyyy-MM-dd');
+            
+            // Remove the shared daily descriptions update since we'll use individual task descriptions
+            // setDailyDescriptions(prev => ({
+            //   ...prev,
+            //   [dayKey]: taskDescription
+            // }));
+            
+            // Update the task description in the appropriate data structure based on project type
+            if ('levels' in selectedProject) { // Project
+              updateProjectData(dayKey, selectedProject.id, 'task', taskDescription);
+            } else if ('stages' in selectedProject) { // Product
+              updateProductData(dayKey, selectedProject.id, 'task', taskDescription);
+            } else if ('functions' in selectedProject) { // Department
+              updateDepartmentData(dayKey, selectedProject.id, 'task', taskDescription);
+            }
+            
+            setRefreshKey(prev => prev + 1);
+          }}
+        />
+      )}
+
+      {/* Date Range Picker */}
       <Card>
-        <CardHeader className="pb-4">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <CalendarIcon className="h-5 w-5" />
-              <span>Weekly Time Tracker</span>
-            </CardTitle>
             <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousWeek}
-                className="flex items-center space-x-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span>Previous</span>
-              </Button>
-              <Badge variant="secondary" className="px-3 py-1">
-                {format(weekStart, "MMM dd")} - {format(weekEnd, "MMM dd, yyyy")}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextWeek}
-                disabled={!canGoToNextWeek()}
-                className="flex items-center space-x-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <Label className="text-sm font-medium">Date Filter:</Label>
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                placeholder="Select date range or leave empty for current week"
+                className="w-80"
+              />
             </div>
+            <Badge variant="outline" className="px-3 py-1">
+              {currentViewMode === 'daily' && 'Daily View'}
+              {currentViewMode === 'weekly' && 'Weekly View'}
+              {currentViewMode === 'monthly' && 'Monthly View'}
+            </Badge>
           </div>
-        </CardHeader>
+        </CardContent>
       </Card>
+
+
 
       {/* Status Legend */}
       <Card className="bg-gray-50 dark:bg-gray-800">
@@ -279,140 +1456,113 @@ export default function WeeklyTimeTracker() {
         </CardContent>
       </Card>
 
-      {/* Grid for Projects and Days */}
-      <div className="overflow-x-auto bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-        <table className="w-full text-center border-collapse">
-          <thead>
-            <tr className="bg-gray-50 dark:bg-gray-800">
-              <th className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">Projects</th>
-              {weekDays.map(day => {
-                const statusIndicator = getStatusIndicator(day);
-                return (
-                  <th key={day.toString()} className="py-3 px-4 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-semibold">
-                    <div className="flex items-center justify-center space-x-2 mb-2">
-                      <span>{format(day, 'E, MMM d')}</span>
-                      {statusIndicator && (
-                        <div 
-                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full ${statusIndicator.bgColor}`}
-                          title={statusIndicator.tooltip}
-                        >
-                          <statusIndicator.icon className={`w-3 h-3 ${statusIndicator.color}`} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex justify-around text-xs text-gray-600 dark:text-gray-400">
-                      <span>B</span>
-                      <span>A</span>
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {projects.map(project => (
-              <tr key={project.id} className="odd:bg-white dark:odd:bg-gray-900 even:bg-gray-50 dark:even:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-medium text-left text-gray-900 dark:text-gray-100">{project.name}</td>
-                {weekDays.map(day => {
-                  const dayKey = format(day, 'yyyy-MM-dd');
-                  const hours = weeklyData[project.id]?.[dayKey] || { billable: 0, actual: 0 };
-                  const isFutureDay = day.getTime() > new Date().getTime();
-                  return (
-                    <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700">
-                      <div className="flex justify-around items-center gap-1">
-                        <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.billable === 0 ? '' : hours.billable.toString()}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                            updateHours(project.id, dayKey, 'billable', value);
-                          }}
-                          className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                          disabled={!project.isBillable || isFutureDay}
-                          placeholder="0"
-                        />
-                        <Input 
-                          type="number" step="0.5" min="0" max="24"
-                          value={hours.actual === 0 ? '' : hours.actual.toString()}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                            updateHours(project.id, dayKey, 'actual', value);
-                          }}
-                          className="w-16 text-xs h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                          disabled={isFutureDay}
-                          placeholder="0"
-                        />
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-            {/* Available Hours Row */}
-            <tr className="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-700">
-              <td className="py-3 px-4 border border-gray-200 dark:border-gray-700 font-semibold text-blue-800 dark:text-blue-400">Available Hours</td>
-              {weekDays.map(day => {
-                const dayKey = format(day, 'yyyy-MM-dd');
-                const isFutureDay = day.getTime() > new Date().getTime();
-                const availableHours = dailyAvailableHours[dayKey] || 0;
-                return (
-                  <td key={dayKey} className="py-2 px-2 border border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
-                    <div className="flex justify-center">
-                      <Input 
-                        type="number" 
-                        step="0.5" 
-                        min="0" 
-                        max="24"
-                        value={availableHours === 0 ? '' : availableHours.toString()}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          const value = inputValue === '' ? 0 : (isNaN(parseFloat(inputValue)) ? 0 : parseFloat(inputValue));
-                          setDailyAvailableHours(prev => ({
-                            ...prev,
-                            [dayKey]: value
-                          }));
-                        }}
-                        className="w-20 text-center text-sm h-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-blue-300 dark:border-blue-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                        disabled={isFutureDay}
-                        placeholder="0"
-                      />
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
-          </tbody>
-        </table>
-      </div>
 
-      <div className="flex justify-end pt-4">
-        <Button onClick={saveWeeklyData} className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded shadow-lg transition-colors">
-          <Save className="mr-2 h-4 w-4" />
-          Save Week
-        </Button>
-      </div>
 
-      {/* Daily Tracker Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Add Time Entry for {selectedDateForEntry ? format(selectedDateForEntry, "EEEE, MMMM dd, yyyy") : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <DailyTrackerForm 
-              initialDate={selectedDateForEntry ? format(selectedDateForEntry, 'yyyy-MM-dd') : undefined}
-              onClose={() => {
-                setIsDialogOpen(false);
-                setRefreshKey(prev => prev + 1); // Force re-render to show updated status
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Conditional rendering based on view mode */}
+      {currentViewMode === 'weekly' && (
+        <WeeklyView
+          selectedWeek={selectedWeek}
+          onWeekChange={setSelectedWeek}
+          weeklyData={weeklyData}
+          productWeeklyData={productWeeklyData}
+          departmentWeeklyData={departmentWeeklyData}
+          dailyAvailableHours={dailyAvailableHours}
+          projects={projects}
+          products={products}
+          departments={departments}
+          onUpdateHours={updateHours}
+          onUpdateProjectData={updateProjectData}
+          onUpdateProductHours={updateProductHours}
+          onUpdateProductData={updateProductData}
+          onUpdateDepartmentHours={updateDepartmentHours}
+          onUpdateDepartmentData={updateDepartmentData}
+          onUpdateAvailableHours={updateAvailableHours}
+          onQuickTaskClick={(project, date) => {
+            setSelectedProject(project);
+            setSelectedDateForQuickTask(date);
+            setIsQuickTaskDialogOpen(true);
+          }}
+          onSaveWeeklyData={saveWeeklyData}
+          selectedDates={selectedDates}
+          onDateSelection={handleDateSelection}
+        />
+      )}
+
+      {/* Monthly View */}
+      {/* Monthly View */}
+      {currentViewMode === 'monthly' && (
+        <MonthlyView
+          monthlyData={monthlyData}
+          projects={projects}
+          products={products}
+          departments={departments}
+          onUpdateMonthlyProjectData={updateMonthlyProjectData}
+          onUpdateMonthlyProductData={updateMonthlyProductData}
+          onUpdateMonthlyDepartmentData={updateMonthlyDepartmentData}
+          onSaveEntryForDate={saveEntryForDate}
+          onSaveEntireRange={saveEntireRange}
+          getMonthlyDates={getMonthlyDates}
+        />
+      )}
+
+      {/* Daily View */}
+      {currentViewMode === 'daily' && (
+        <DailyView
+          monthlyData={monthlyData}
+          projects={projects}
+          products={products}
+          departments={departments}
+          onUpdateMonthlyProjectData={updateMonthlyProjectData}
+          onUpdateMonthlyProductData={updateMonthlyProductData}
+          onUpdateMonthlyDepartmentData={updateMonthlyDepartmentData}
+          onSaveEntryForDate={saveEntryForDate}
+          getMonthlyDates={getMonthlyDates}
+        />
+      )}
+
+      {/* Confirmation Dialog for Overwriting Entries */}
+      <AlertDialog open={showOverwriteDialog} onOpenChange={setShowOverwriteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite Existing Entries?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSaveData && (
+                <>
+                  Entries already exist for the following days: {pendingSaveData.daysWithExistingEntries.map(day => format(new Date(day), 'MMM dd, yyyy')).join(', ')}
+                  <br /><br />
+                  Do you want to overwrite all entries for these days, or save only the new entries without overwriting existing ones?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              if (pendingSaveData) {
+                // User chose to save only new entries - remove days with existing entries
+                const { daysToSave, daysWithExistingEntries } = pendingSaveData;
+                daysWithExistingEntries.forEach(dayKey => {
+                  daysToSave.delete(dayKey);
+                });
+                proceedWithSaving(daysToSave, daysWithExistingEntries);
+              }
+              setShowOverwriteDialog(false);
+              setPendingSaveData(null);
+            }}>
+              Save Only New Entries
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (pendingSaveData) {
+                // User chose to overwrite all entries
+                proceedWithSaving(pendingSaveData.daysToSave, pendingSaveData.daysWithExistingEntries);
+              }
+              setShowOverwriteDialog(false);
+              setPendingSaveData(null);
+            }}>
+              Overwrite All Entries
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

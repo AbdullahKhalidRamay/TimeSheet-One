@@ -11,14 +11,26 @@ import {
   CheckSquare, 
   Settings,
   LogOut,
-  User,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { rolePermissions } from "@/validation/index";
 
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
+
 const navigation = [
+  {
+    name: "Tracker",
+    href: "/tracker",
+    icon: Timer,
+    roles: ["employee", "manager", "owner"],
+  },
   {
     name: "Timesheet",
     href: "/timesheet",
@@ -26,13 +38,7 @@ const navigation = [
     roles: ["employee", "manager", "owner"],
   },
   {
-    name: "Time Tracker", 
-    href: "/time-tracker",
-    icon: Timer,
-    roles: ["employee", "manager", "owner"],
-  },
-  {
-    name: "Projects & Tasks",
+    name: "Projects ",
     href: "/projects",
     icon: FolderOpen,
     roles: ["manager", "owner"],
@@ -42,12 +48,6 @@ const navigation = [
     href: "/teams",
     icon: Users,
     roles: ["manager", "owner"],
-  },
-  {
-    name: "Notifications",
-    href: "/notifications",
-    icon: Bell,
-    roles: ["employee", "manager", "owner"],
   },
   {
     name: "Approval Workflow",
@@ -61,9 +61,15 @@ const navigation = [
     icon: BarChart3,
     roles: ["manager", "owner"],
   },
+  {
+    name: "Notifications",
+    href: "/notifications",
+    icon: Bell,
+    roles: ["employee", "manager", "owner"],
+  },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
@@ -91,51 +97,44 @@ export default function Sidebar() {
     }
   };
 
-  const getJobTitleLabel = (jobTitle: string) => {
-    return jobTitle;
-  };
+
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 flex flex-col bg-sidebar-background border-r border-sidebar-border animate-fade-in">
-      {/* Header */}
-      <div className="p-6">
-        <div className="flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-primary text-primary-foreground animate-float">
-            <Clock className="h-4 w-4" />
-          </div>
-          <span className="text-subheading font-bold bg-gradient-primary bg-clip-text text-transparent">Timeflow</span>
-        </div>
-      </div>
+    <aside className={cn(
+      "fixed left-0 top-0 z-40 h-screen flex flex-col bg-sidebar-background border-r border-sidebar-border animate-fade-in transition-all duration-300",
+      collapsed ? "w-16" : "w-64"
+    )}>
+      {/* Collapsed overlay for better visual separation */}
+      {collapsed && (
+        <div className="absolute inset-0 bg-gradient-to-b from-sidebar-background via-sidebar-background/95 to-sidebar-background/90 pointer-events-none" />
+      )}
+             {/* Header */}
+       <div className={cn("flex items-center justify-between relative", collapsed ? "p-3" : "p-6")}>
+         <div className="flex items-center space-x-2">
+           <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-primary text-primary-foreground">
+             <Clock className="h-4 w-4" />
+           </div>
+           {!collapsed && (
+             <span className="text-subheading font-bold bg-gradient-primary bg-clip-text text-transparent">TimeTraceOne</span>
+           )}
+         </div>
+                   <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              onToggle?.();
+            }}
+            className={cn(
+              "h-8 w-8 p-0 hover:bg-sidebar-accent/50 z-50 bg-sidebar-background shadow-sm hover:shadow-md transition-all duration-200",
+              collapsed ? "absolute -right-2 top-1/2 transform -translate-y-1/2 border-0" : "absolute right-2 top-1/2 transform -translate-y-1/2 border border-sidebar-border"
+            )}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+         </Button>
+       </div>
 
-      <Separator />
 
-      {/* User Info */}
-      <div className="p-4">
-        <div className="card-glass rounded-lg p-3 hover-scale">
-          <div className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground">
-              <User className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-sidebar-foreground">{currentUser.name}</p>
-              <div className="flex items-center space-x-2">
-                <span 
-                  className={cn(
-                    "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border animate-pulse-glow",
-                    currentUser.role === 'owner' && 'role-owner',
-                    currentUser.role === 'manager' && 'role-manager', 
-                    currentUser.role === 'employee' && 'role-employee'
-                  )}
-                >
-                  {getJobTitleLabel(currentUser.jobTitle)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Separator />
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3">
@@ -147,14 +146,18 @@ export default function Sidebar() {
                 key={item.name}
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start hover-scale hover-glow transition-all duration-200",
+                  "w-full transition-all duration-200",
+                  collapsed ? "justify-center px-2 h-10 w-10 mx-auto rounded-lg" : "justify-start",
                   isActive && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
-                  !isActive && "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  !isActive && "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                  collapsed && isActive && "bg-gradient-primary text-primary-foreground shadow-md",
+                  collapsed && !isActive && "hover:bg-sidebar-accent/30"
                 )}
                 onClick={() => navigate(item.href)}
+                title={collapsed ? item.name : undefined}
               >
-                <item.icon className="mr-3 h-4 w-4" />
-                {item.name}
+                <item.icon className={cn("h-4 w-4", !collapsed && "mr-3")} />
+                {!collapsed && item.name}
               </Button>
             );
           })}
@@ -164,14 +167,18 @@ export default function Sidebar() {
       <Separator />
 
       {/* Footer */}
-      <div className="p-4">
+      <div className={collapsed ? "p-2" : "p-4"}>
         <Button
           variant="ghost"
-          className="w-full justify-start text-sidebar-foreground hover:text-destructive hover-scale hover-glow transition-all duration-200"
+          className={cn(
+            "w-full text-sidebar-foreground hover:text-destructive transition-all duration-200",
+            collapsed ? "justify-center px-2 h-10 w-10 mx-auto rounded-lg hover:bg-destructive/10" : "justify-start hover-scale hover-glow"
+          )}
           onClick={handleLogout}
+          title={collapsed ? "Logout" : undefined}
         >
-          <LogOut className="mr-3 h-4 w-4" />
-          Logout
+          <LogOut className={cn("h-4 w-4", !collapsed && "mr-3")} />
+          {!collapsed && "Logout"}
         </Button>
       </div>
     </aside>

@@ -1,8 +1,13 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 interface SettingsContextType {
   fontSize: number;
   setFontSize: (size: number) => void;
+  showProductsTab: boolean;
+  setShowProductsTab: (show: boolean) => void;
+  showDepartmentsTab: boolean;
+  setShowDepartmentsTab: (show: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -21,6 +26,16 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     const stored = localStorage.getItem("app-font-size");
     const parsedSize = stored ? parseInt(stored, 10) : DEFAULT_FONT_SIZE;
     return Math.min(Math.max(parsedSize, MIN_FONT_SIZE), MAX_FONT_SIZE);
+  });
+
+  const [showProductsTab, setShowProductsTab] = useState<boolean>(() => {
+    const stored = localStorage.getItem("showProductsTab");
+    return stored ? stored === 'true' : true;
+  });
+
+  const [showDepartmentsTab, setShowDepartmentsTab] = useState<boolean>(() => {
+    const stored = localStorage.getItem("showDepartmentsTab");
+    return stored ? stored === 'true' : true;
   });
 
   useEffect(() => {
@@ -77,8 +92,23 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     localStorage.setItem("app-font-size", clampedSize.toString());
   };
 
+  useEffect(() => {
+    localStorage.setItem("showProductsTab", showProductsTab.toString());
+  }, [showProductsTab]);
+
+  useEffect(() => {
+    localStorage.setItem("showDepartmentsTab", showDepartmentsTab.toString());
+  }, [showDepartmentsTab]);
+
   return (
-    <SettingsContext.Provider value={{ fontSize, setFontSize }}>
+    <SettingsContext.Provider value={{ 
+      fontSize, 
+      setFontSize,
+      showProductsTab,
+      setShowProductsTab,
+      showDepartmentsTab,
+      setShowDepartmentsTab 
+    }}>
       {children}
     </SettingsContext.Provider>
   );

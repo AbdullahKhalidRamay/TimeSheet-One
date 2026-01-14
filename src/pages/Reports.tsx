@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { getAllUsers } from '@/lib/auth';
-import { getTeams, getTimeEntries, getProjects, getProducts, getDepartments, deleteTeam } from '@/services/storage';
+import React, { useState, useCallback, useMemo } from 'react';
+import { deleteTeam } from '@/services/storage';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,67 +8,73 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Clock, DollarSign, Building, Download, Search, Trash2 } from 'lucide-react';
+import { Users, Clock, DollarSign, Building, Download, Search, Trash2, Eye } from 'lucide-react';
 import { User, Team } from '@/validation';
 import Header from '@/components/dashboard/Header';
 import { DateRange } from 'react-day-picker';
+import { useUsers, useTeams, useTimeEntries, useProjects, useProducts, useDepartments, invalidateCache } from '@/hooks/useData';
+import { toast } from '@/components/ui/sonner';
+import { useNavigate } from 'react-router-dom';
+import { checkPermissionWithToast } from '@/utils/permissionUtils';
 
 const Reports = () => {
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
-  const users = getAllUsers();
-  const teams = getTeams();
-  const timeEntries = getTimeEntries();
-  const projects = getProjects();
-  const products = getProducts();
-  const departments = getDepartments();
-
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  const handleSearch = (query: string) => {
+  const navigate = useNavigate();
+
+  const { users, refreshUsers } = useUsers();
+  const { teams, refreshTeams } = useTeams();
+  const { timeEntries, refreshTimeEntries } = useTimeEntries();
+  const { projects, refreshProjects } = useProjects();
+  const { products, refreshProducts } = useProducts();
+  const { departments, refreshDepartments } = useDepartments();
+
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-  };
+  }, []);
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
+  const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
     setDateRange(range);
-  };
+  }, []);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = !searchQuery ||
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = !searchQuery ||
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesTeam = teamFilter === 'all' || teams.some(team => team.memberIds.includes(user.id) && team.id === teamFilter);
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+      const matchesTeam = teamFilter === 'all' || teams.some(team => team.memberIds.includes(user.id) && team.id === teamFilter);
 
-    return matchesSearch && matchesRole && matchesTeam;
-  });
+      return matchesSearch && matchesRole && matchesTeam;
+    });
+  }, [users, searchQuery, roleFilter, teamFilter, teams]);
 
-  const handleShowDetails = (teamId: string) => {
-    setSelectedTeamId((prevId) => (prevId === teamId ? null : teamId));
-  };
 
-  const handleDeleteTeam = (teamId: string) => {
-    const team = teams.find(t => t.id === teamId);
-    if (team && confirm(`Are you sure you want to delete the team "${team.name}"? This action cannot be undone.`)) {
-      deleteTeam(teamId);
-      // Close details if this team was expanded
-      if (selectedTeamId === teamId) {
-        setSelectedTeamId(null);
+
+  const handleDeleteTeam = useCallback((teamId: string) => {
+    if (checkPermissionWithToast('canManageTeams', 'Delete team', 'manager')) {
+      const team = teams.find(t => t.id === teamId);
+      if (team) {
+        deleteTeam(teamId);
+        // Reset team filter if this team was selected
+        if (teamFilter === teamId) {
+          setTeamFilter('all');
+        }
+        // Invalidate cache and refresh data instead of reloading
+        invalidateCache('teams');
+        refreshTeams();
+        toast.success(`Team "${team.name}" deleted successfully`);
       }
-      // Reset team filter if this team was selected
-      if (teamFilter === teamId) {
-        setTeamFilter('all');
-      }
-      // Force a re-render by triggering a state update
-      window.location.reload();
     }
-  };
+  }, [teams, teamFilter, refreshTeams]);
 
-  const getUserStats = (userId: string) => {
+  const getUserStats = useCallback((userId: string) => {
     let userEntries = timeEntries.filter(entry => entry.userId === userId);
     
     // Apply date filter if set
@@ -86,7 +91,18 @@ const Reports = () => {
     
     const actualHours = userEntries.reduce((sum, entry) => sum + (entry.actualHours || 0), 0);
     const billableHours = userEntries.reduce((sum, entry) => sum + (entry.isBillable ? (entry.billableHours || 0) : 0), 0);
-    const availableHours = userEntries.length > 0 ? users.find(u => u.id === userId)?.availableHours || 0 : 0;
+    
+    // Calculate available hours from timesheet entries instead of user profile
+    // Only count one record per date for available hours
+    const uniqueDates = new Set();
+    const availableHours = userEntries.reduce((sum, entry) => {
+      if (!uniqueDates.has(entry.date)) {
+        uniqueDates.add(entry.date);
+        return sum + (entry.availableHours || 0);
+      }
+      return sum;
+    }, 0);
+    
     const approvedEntries = userEntries.filter(entry => entry.status === 'approved');
     const pendingEntries = userEntries.filter(entry => entry.status === 'pending');
     
@@ -98,10 +114,10 @@ const Reports = () => {
       pendingEntries: pendingEntries.length,
       totalEntries: userEntries.length
     };
-  };
+  }, [timeEntries, dateRange]);
 
   // Team-specific stats - only hours on team's projects/products/departments
-  const getTeamUserStats = (userId: string, team: Team) => {
+  const getTeamUserStats = useCallback((userId: string, team: Team) => {
     const { teamProjects, teamProducts, teamDepartments } = getTeamProjects(team);
     
     // Get all project/product/department names associated with this team
@@ -142,7 +158,16 @@ const Reports = () => {
     
     const actualHours = userEntries.reduce((sum, entry) => sum + (entry.actualHours || 0), 0);
     const billableHours = userEntries.reduce((sum, entry) => sum + (entry.isBillable ? (entry.billableHours || 0) : 0), 0);
-    const availableHours = userEntries.length > 0 ? users.find(u => u.id === userId)?.availableHours || 0 : 0;
+    // Calculate available hours from timesheet entries instead of user profile
+    // Only count one record per date for available hours
+    const uniqueDates = new Set();
+    const availableHours = userEntries.reduce((sum, entry) => {
+      if (!uniqueDates.has(entry.date)) {
+        uniqueDates.add(entry.date);
+        return sum + (entry.availableHours || 0);
+      }
+      return sum;
+    }, 0);
     const approvedEntries = userEntries.filter(entry => entry.status === 'approved');
     const pendingEntries = userEntries.filter(entry => entry.status === 'pending');
     
@@ -154,25 +179,22 @@ const Reports = () => {
       pendingEntries: pendingEntries.length,
       totalEntries: userEntries.length
     };
-  };
+  }, [timeEntries, dateRange]);
 
-  const getTeamProjects = (team: Team) => {
+  const getTeamProjects = useCallback((team: Team) => {
     const teamProjects = projects.filter(p => team.associatedProjects.includes(p.id));
     const teamProducts = products.filter(p => team.associatedProducts.includes(p.id));
     const teamDepartments = departments.filter(d => team.associatedDepartments.includes(d.id));
     
     return { teamProjects, teamProducts, teamDepartments };
-  };
+  }, [projects, products, departments]);
 
   return (
     <div className="dashboard-layout">
       <Header 
         title="Reports"
       >
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Export
-        </Button>
+       
       </Header>
 
       <div className="dashboard-content">
@@ -251,20 +273,18 @@ const Reports = () => {
               <CardTitle>Members Report</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Actual Hours</TableHead>
-                    <TableHead className="text-right">Billable Hours</TableHead>
-                    <TableHead className="text-right">Available Hours</TableHead>
-                    <TableHead className="text-center">Entries</TableHead>
-                    <TableHead className="text-center">Approved</TableHead>
-                    <TableHead className="text-center">Pending</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[900px]">
+                                     <TableHeader>
+                     <TableRow>
+                       <TableHead>Name</TableHead>
+                       <TableHead>Email</TableHead>
+                       <TableHead className="text-right">Actual Hours</TableHead>
+                       <TableHead className="text-right">Billable Hours</TableHead>
+                       <TableHead className="text-right">Available Hours</TableHead>
+                       <TableHead className="text-center">Actions</TableHead>
+                     </TableRow>
+                   </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => {
                     const stats = getUserStats(user.id);
@@ -278,42 +298,40 @@ const Reports = () => {
                             <span className="font-medium">{user.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <Badge variant={user.role === 'owner' ? 'default' : user.role === 'manager' ? 'secondary' : 'outline'}>
-                            {user.role.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-1">
-                            <Clock className="h-3 w-3 text-orange-600" />
-                            <span className="font-medium">{stats.actualHours}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-1">
-                            <DollarSign className="h-3 w-3 text-green-600" />
-                            <span className="font-medium text-green-600">{stats.billableHours}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-1">
-                            <Clock className="h-3 w-3 text-blue-600" />
-                            <span className="font-medium">{user.availableHours ? user.availableHours.toFixed(1) : '0.0'}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">{stats.totalEntries}</TableCell>
-                        <TableCell className="text-center">
-                          <span className="text-green-600 font-medium">{stats.approvedEntries}</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="text-orange-600 font-medium">{stats.pendingEntries}</span>
-                        </TableCell>
+                                                 <TableCell>{user.email}</TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex items-center justify-end space-x-1">
+                             <Clock className="h-3 w-3 text-orange-600" />
+                             <span className="font-medium">{stats.actualHours}</span>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex items-center justify-end space-x-1">
+                             <DollarSign className="h-3 w-3 text-green-600" />
+                             <span className="font-medium text-green-600">{stats.billableHours}</span>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-right">
+                           <div className="flex items-center justify-end space-x-1">
+                             <Clock className="h-3 w-3 text-blue-600" />
+                             <span className="font-medium">{stats.availableHours}</span>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-center">
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => navigate(`/members/${user.id}`)}
+                           >
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                         </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -324,19 +342,20 @@ const Reports = () => {
               <CardTitle>Teams Report</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Team Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Leader</TableHead>
-                    <TableHead className="text-center">Members</TableHead>
-                    <TableHead>Projects</TableHead>
-                    <TableHead>Products</TableHead>
-                    <TableHead>Departments</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Team Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Leader</TableHead>
+                      <TableHead className="text-center">Members</TableHead>
+                      <TableHead>Projects</TableHead>
+                      <TableHead>Products</TableHead>
+                      <TableHead>Departments</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {teams.map((team) => {
                     const { teamProjects, teamProducts, teamDepartments } = getTeamProjects(team);
@@ -418,14 +437,14 @@ const Reports = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button
-                              variant={selectedTeamId === team.id ? "secondary" : "outline"}
-                              size="sm"
-                              onClick={() => handleShowDetails(team.id)}
-                            >
-                              {selectedTeamId === team.id ? 'Hide' : 'Details'}
-                            </Button>
+                                                     <div className="flex items-center justify-center space-x-2">
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => navigate(`/teams/${team.id}`)}
+                             >
+                               Details
+                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -441,95 +460,14 @@ const Reports = () => {
                   })}
                 </TableBody>
               </Table>
-              
-              {/* Team Member Details - Show below table when expanded */}
-              {selectedTeamId && (
-                <div className="mt-6 border-t pt-6">
-                  {teams.filter(team => team.id === selectedTeamId).map(team => (
-                    <div key={team.id}>
-                      <h4 className="font-semibold mb-4 flex items-center space-x-2">
-                        <Users className="h-4 w-4" />
-                        <span>Team Members - {team.name}</span>
-                      </h4>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Member</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead className="text-right">Actual Hours</TableHead>
-                            <TableHead className="text-right">Billable Hours</TableHead>
-                            <TableHead className="text-right">Available Hours</TableHead>
-                            <TableHead className="text-center">Entries</TableHead>
-                            <TableHead className="text-center">Approved</TableHead>
-                            <TableHead className="text-center">Pending</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {team.memberIds.map((memberId) => {
-                            const member = users.find((user) => user.id === memberId);
-                            if (!member) return null;
-
-                            const stats = getTeamUserStats(member.id, team);
-
-                            return (
-                              <TableRow key={member.id}>
-                                <TableCell>
-                                  <div className="flex items-center space-x-3">
-                                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                                      {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                    </div>
-                                    <span className="font-medium">{member.name}</span>
-                                    {member.id === team.leaderId && (
-                                      <Badge variant="default" className="text-xs ml-2">Leader</Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>{member.email}</TableCell>
-                                <TableCell>
-                                  <Badge variant={member.role === 'owner' ? 'default' : member.role === 'manager' ? 'secondary' : 'outline'}>
-                                    {member.role}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end space-x-1">
-                                    <Clock className="h-3 w-3 text-orange-600" />
-                                    <span className="font-medium">{stats.actualHours}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end space-x-1">
-                                    <DollarSign className="h-3 w-3 text-green-600" />
-                                    <span className="font-medium text-green-600">{stats.billableHours}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex items-center justify-end space-x-1">
-                                    <Clock className="h-3 w-3 text-blue-600" />
-                                    <span className="font-medium">{stats.availableHours}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-center">{stats.totalEntries}</TableCell>
-                                <TableCell className="text-center">
-                                  <span className="text-green-600 font-medium">{stats.approvedEntries}</span>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <span className="text-orange-600 font-medium">{stats.pendingEntries}</span>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ))}
-                </div>
-              )}
+                             </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
       </div>
+
+
     </div>
   );
 };

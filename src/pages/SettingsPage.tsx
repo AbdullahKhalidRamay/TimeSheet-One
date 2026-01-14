@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useSettings, MIN_FONT_SIZE, MAX_FONT_SIZE } from '@/contexts/SettingsContext';
 import { useTheme } from '@/components/ThemeProvider';
@@ -6,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Moon, Sun, Monitor, Palette, Type } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Moon, Sun, Monitor, Palette, Type, LayoutDashboard } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
-  const { fontSize, setFontSize } = useSettings();
+  const { fontSize, setFontSize, showProductsTab, setShowProductsTab, showDepartmentsTab, setShowDepartmentsTab } = useSettings();
   const { theme, setTheme } = useTheme();
 
   const handleFontSizeChange = (value: number[]) => {
@@ -61,7 +63,7 @@ const SettingsPage: React.FC = () => {
                     <Button
                       key={option.value}
                       variant={theme === option.value ? 'default' : 'outline'}
-                      onClick={() => setTheme(option.value as any)}
+                      onClick={() => setTheme(option.value as 'light' | 'dark' | 'system')}
                       className="flex flex-col items-center gap-2 h-auto py-4"
                     >
                       <Icon className="h-5 w-5" />
@@ -122,10 +124,40 @@ const SettingsPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Dashboard Tabs Visibility */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LayoutDashboard className="h-5 w-5" />
+              Dashboard Tabs
+            </CardTitle>
+            <CardDescription>
+              Control which tabs are visible in the Projects page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="show-products-tab" className="text-base font-medium">Show Products Tab</Label>
+              <Switch
+                id="show-products-tab"
+                checked={showProductsTab}
+                onCheckedChange={setShowProductsTab}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="show-departments-tab" className="text-base font-medium">Show Departments Tab</Label>
+              <Switch
+                id="show-departments-tab"
+                checked={showDepartmentsTab}
+                onCheckedChange={setShowDepartmentsTab}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 };
 
 export default SettingsPage;
-

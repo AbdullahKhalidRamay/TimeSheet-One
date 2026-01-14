@@ -4,7 +4,7 @@ import { getTimeEntries } from "@/services/storage";
 
 export default function TimesheetTest() {
   const [status, setStatus] = useState("Loading...");
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{ user: unknown; entriesCount: number; entries: unknown[] } | null>(null);
 
   useEffect(() => {
     try {
